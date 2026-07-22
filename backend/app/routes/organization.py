@@ -148,10 +148,13 @@ def create_invitation(
     if body.is_delegue_egalite and body.delegue_status == DelegueStatus.employe.value:
         raise HTTPException(status_code=400, detail="Le délégué à l'égalité doit être titulaire ou suppléant")
 
-    # Règle : sécurité/santé peut être employé, mais s'il est élu il doit avoir un rôle cohérent
-    if body.is_delegue_egalite and body.is_delegue_securite_sante:
-        # C'est permis : un délégué peut cumuler les deux désignations
-        pass
+    # Règle : employé (non-élu) → obligatoirement délégué sécurité/santé
+    if body.delegue_status == DelegueStatus.employe.value and not body.is_delegue_securite_sante:
+        raise HTTPException(status_code=400, detail="Un salarié non-élu doit être désigné délégué à la sécurité et à la santé")
+
+    # Règle : employé (non-élu) → pas de fonction au bureau
+    if body.delegue_status == DelegueStatus.employe.value and body.delegue_role != DelegueRole.membre.value:
+        raise HTTPException(status_code=400, detail="Un salarié non-élu n'a pas de fonction au bureau")
 
     code = generate_invitation_code()
     while db.query(Invitation).filter(Invitation.code == code).first():

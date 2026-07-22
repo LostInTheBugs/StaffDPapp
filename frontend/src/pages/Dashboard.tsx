@@ -23,7 +23,15 @@ export default function Dashboard() {
   }
 
   function update(field: string, value: string | boolean) {
-    setInviteForm(prev => ({ ...prev, [field]: value }))
+    setInviteForm(prev => {
+      const next = { ...prev, [field]: value }
+      // Si statut = employé → forcer sécurité/santé + fonction = membre
+      if (field === 'delegue_status' && value === 'employe') {
+        next.is_delegue_securite_sante = true
+        next.delegue_role = 'membre'
+      }
+      return next
+    })
   }
 
   async function generateInvite(e: React.FormEvent) {
@@ -104,9 +112,10 @@ export default function Dashboard() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Fonction *</label>
+                  <label>Fonction {inviteForm.delegue_status === 'employe' && '(non applicable)'}</label>
                   <select value={inviteForm.delegue_role} onChange={e => update('delegue_role', e.target.value)}
-                    style={{ width:'100%', padding:'11px 14px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)', fontSize:'1rem' }}>
+                    disabled={inviteForm.delegue_status === 'employe'}
+                    style={{ width:'100%', padding:'11px 14px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)', fontSize:'1rem', opacity: inviteForm.delegue_status === 'employe' ? 0.5 : 1 }}>
                     {api.DELEGUE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
@@ -114,12 +123,14 @@ export default function Dashboard() {
 
               <div style={{ background:'var(--gray-50)', borderRadius:'var(--radius)', padding:'14px 16px', marginBottom:16 }}>
                 <p style={{ fontWeight:700, fontSize:'.88rem', marginBottom:10 }}>Désignations (Art. L.414-2/3)</p>
-                <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, cursor:'pointer' }}>
-                  <input type="checkbox" checked={inviteForm.is_delegue_securite_sante} onChange={e => update('is_delegue_securite_sante', e.target.checked)} />
-                  🛡️ Délégué à la sécurité et à la santé <small style={{ color:'var(--gray-600)' }}>(peut être non-élu)</small>
+                <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, cursor: inviteForm.delegue_status === 'employe' ? 'default' : 'pointer' }}>
+                  <input type="checkbox" checked={inviteForm.is_delegue_securite_sante} onChange={e => update('is_delegue_securite_sante', e.target.checked)}
+                    disabled={inviteForm.delegue_status === 'employe'} />
+                  🛡️ Délégué à la sécurité et à la santé <small style={{ color:'var(--gray-600)' }}>(obligatoire si non-élu)</small>
                 </label>
-                <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
-                  <input type="checkbox" checked={inviteForm.is_delegue_egalite} onChange={e => update('is_delegue_egalite', e.target.checked)} />
+                <label style={{ display:'flex', alignItems:'center', gap:8, cursor: inviteForm.delegue_status === 'employe' ? 'default' : 'pointer' }}>
+                  <input type="checkbox" checked={inviteForm.is_delegue_egalite} onChange={e => update('is_delegue_egalite', e.target.checked)}
+                    disabled={inviteForm.delegue_status === 'employe'} />
                   ⚖️ Délégué à l'égalité <small style={{ color:'var(--gray-600)' }}>(doit être titulaire ou suppléant)</small>
                 </label>
               </div>
