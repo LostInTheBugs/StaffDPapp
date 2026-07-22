@@ -103,7 +103,8 @@ export default function Meetings() {
             <form onSubmit={createMeeting} style={{ marginTop: 20, borderTop:'1px solid var(--gray-300)', paddingTop: 20 }}>
               <div className="form-group"><label>Titre *</label><input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required autoFocus /></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
-                <div className="form-group"><label>Date *</label><input type="datetime-local" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} required /></div>
+                <div className="form-group"><label>Date *</label><input type="datetime-local" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} required
+                  min={form.direction_invited ? new Date(Date.now() + 7*86400000).toISOString().slice(0,16) : undefined} /></div>
                 <div className="form-group"><label>Lieu</label><input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} /></div>
               </div>
 
