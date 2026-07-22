@@ -29,7 +29,6 @@ def _make_slug(name: str) -> str:
     return s.strip("-") or "org"
 
 
-# Helper to serialize invitation
 def _invitation_to_response(inv: Invitation) -> dict:
     return {
         "code": inv.code,
@@ -37,6 +36,8 @@ def _invitation_to_response(inv: Invitation) -> dict:
         "first_name": inv.first_name,
         "last_name": inv.last_name,
         "delegue_role": inv.delegue_role.value if inv.delegue_role else "titulaire",
+        "is_delegue_securite_sante": inv.is_delegue_securite_sante,
+        "is_delegue_egalite": inv.is_delegue_egalite,
         "organization_name": inv.organization.name if inv.organization else None,
     }
 
@@ -115,6 +116,8 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
         delegue_role=invitation.delegue_role,
         role=UserRole.member,
         organization_id=invitation.organization_id,
+        is_delegue_securite_sante=invitation.is_delegue_securite_sante,
+        is_delegue_egalite=invitation.is_delegue_egalite,
     )
     db.add(user)
 
@@ -140,12 +143,18 @@ def create_invitation(
             detail="Seul un administrateur peut créer des invitations",
         )
 
-    # Validate delegue_role
     valid_roles = [r.value for r in DelegueRole]
     if body.delegue_role not in valid_roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Rôle invalide. Valeurs possibles : {', '.join(valid_roles)}",
+        )
+
+    # Cohérence : égalité doit être un membre de la délégation
+    if body.is_delegue_egalite and body.delegue_role == DelegueRole.employe.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le délégué à l'égalité doit être un membre élu de la délégation (titulaire ou suppléant)",
         )
 
     code = generate_invitation_code()
@@ -158,6 +167,8 @@ def create_invitation(
         first_name=body.first_name,
         last_name=body.last_name,
         delegue_role=DelegueRole(body.delegue_role),
+        is_delegue_securite_sante=body.is_delegue_securite_sante,
+        is_delegue_egalite=body.is_delegue_egalite,
         created_by_id=current_user.id,
         organization_id=current_user.organization_id,
     )

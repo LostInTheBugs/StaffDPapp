@@ -15,6 +15,11 @@ class Invitation(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.titulaire, nullable=False)
+
+    # Désignations spéciales
+    is_delegue_securite_sante = Column(Boolean, default=False)
+    is_delegue_egalite = Column(Boolean, default=False)
+
     is_used = Column(Boolean, default=False)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)

@@ -13,6 +13,8 @@ interface UserResponse {
   full_name: string
   delegue_role: string
   role: string
+  is_delegue_securite_sante: boolean
+  is_delegue_egalite: boolean
 }
 
 interface OrganizationResponse {
@@ -36,6 +38,8 @@ interface InvitationResponse {
   first_name: string
   last_name: string
   delegue_role: string
+  is_delegue_securite_sante: boolean
+  is_delegue_egalite: boolean
   organization_name: string | null
 }
 
@@ -107,6 +111,8 @@ export function createInvitation(data: {
   first_name: string
   last_name: string
   delegue_role: string
+  is_delegue_securite_sante?: boolean
+  is_delegue_egalite?: boolean
 }): Promise<InvitationResponse> {
   return request<InvitationResponse>('/invitations', {
     method: 'POST',

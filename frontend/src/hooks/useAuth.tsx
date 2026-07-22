@@ -10,6 +10,8 @@ interface User {
   full_name: string
   delegue_role: string
   role: string
+  is_delegue_securite_sante: boolean
+  is_delegue_egalite: boolean
 }
 
 interface Organization {

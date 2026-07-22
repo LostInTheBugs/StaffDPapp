@@ -1,8 +1,6 @@
 from pydantic import BaseModel, EmailStr
 
 
-# ── Request schemas ──────────────────────────────────────────────
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -30,7 +28,9 @@ class CreateInvitationRequest(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str
-    delegue_role: str  # titulaire, suppleant, president, etc.
+    delegue_role: str
+    is_delegue_securite_sante: bool = False
+    is_delegue_egalite: bool = False
 
 
 # ── Response schemas ──────────────────────────────────────────────
@@ -48,6 +48,8 @@ class UserResponse(BaseModel):
     full_name: str
     delegue_role: str
     role: str
+    is_delegue_securite_sante: bool = False
+    is_delegue_egalite: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -75,6 +77,8 @@ class InvitationResponse(BaseModel):
     first_name: str
     last_name: str
     delegue_role: str
+    is_delegue_securite_sante: bool = False
+    is_delegue_egalite: bool = False
     organization_name: str | None = None
 
     model_config = {"from_attributes": True}

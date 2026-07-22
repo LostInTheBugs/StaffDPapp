@@ -9,15 +9,15 @@ export default function Dashboard() {
     first_name: '',
     last_name: '',
     delegue_role: 'titulaire',
+    is_delegue_securite_sante: false,
+    is_delegue_egalite: false,
   })
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [invitations, setInvitations] = useState<api.InvitationResponse[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!user) {
-      fetchDashboard()
-    }
+    if (!user) fetchDashboard()
     loadInvitations()
   }, [])
 
@@ -25,12 +25,10 @@ export default function Dashboard() {
     try {
       const list = await api.listInvitations()
       setInvitations(list)
-    } catch {
-      // might not be admin
-    }
+    } catch { /* not admin */ }
   }
 
-  function updateInvite(field: string, value: string) {
+  function updateInvite(field: string, value: string | boolean) {
     setInviteForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -41,13 +39,36 @@ export default function Dashboard() {
       const inv = await api.createInvitation(inviteForm)
       setInviteCode(inv.code)
       setInvitations(prev => [inv, ...prev])
-      setInviteForm({ email: '', first_name: '', last_name: '', delegue_role: 'titulaire' })
+      setInviteForm({
+        email: '', first_name: '', last_name: '',
+        delegue_role: 'titulaire',
+        is_delegue_securite_sante: false,
+        is_delegue_egalite: false,
+      })
     } catch (err: any) {
       setError(err.message)
     }
   }
 
-  const getRoleLabel = (role: string) => api.DELEGUE_ROLES.find(r => r.value === role)?.label || role
+  const getRoleLabel = (role: string) =>
+    api.DELEGUE_ROLES.find(r => r.value === role)?.label || role
+
+  const specialBadges = (inv: { is_delegue_securite_sante?: boolean; is_delegue_egalite?: boolean }) => (
+    <>
+      {inv.is_delegue_securite_sante && (
+        <span style={{
+          background: '#ebf8ff', color: '#2b6cb0', padding: '1px 6px',
+          borderRadius: 4, fontSize: '.7rem', fontWeight: 700, marginLeft: 4,
+        }}>🛡️ Séc/Santé</span>
+      )}
+      {inv.is_delegue_egalite && (
+        <span style={{
+          background: '#faf5ff', color: '#6b46c1', padding: '1px 6px',
+          borderRadius: 4, fontSize: '.7rem', fontWeight: 700, marginLeft: 4,
+        }}>⚖️ Égalité</span>
+      )}
+    </>
+  )
 
   if (!user || !organization) {
     return <div className="dashboard"><div className="spinner" /></div>
@@ -69,13 +90,17 @@ export default function Dashboard() {
           <p style={{ color: 'var(--gray-600)' }}>{user.email}</p>
           <p style={{ color: 'var(--gray-600)' }}>
             Rôle : <strong>{isAdmin ? 'Administrateur' : getRoleLabel(user.delegue_role)}</strong>
+            {user.is_delegue_securite_sante && ' + 🛡️ Délégué Sécurité/Santé'}
+            {user.is_delegue_egalite && ' + ⚖️ Délégué Égalité'}
           </p>
         </div>
 
         <div className="card mb-24">
           <h2>📊 Informations délégation</h2>
           <p><strong>{organization.name}</strong></p>
-          {organization.company_name && <p style={{ color: 'var(--gray-600)' }}>Entreprise : {organization.company_name}</p>}
+          {organization.company_name && (
+            <p style={{ color: 'var(--gray-600)' }}>Entreprise : {organization.company_name}</p>
+          )}
           <p style={{ color: 'var(--gray-600)' }}>
             Effectif : <strong>{organization.employee_count}</strong> salariés
           </p>
@@ -125,6 +150,34 @@ export default function Dashboard() {
                   ))}
                 </select>
               </div>
+
+              <div style={{
+                background: 'var(--gray-50)', borderRadius: 'var(--radius)',
+                padding: '14px 16px', marginBottom: 16,
+              }}>
+                <p style={{ fontWeight: 700, fontSize: '.88rem', marginBottom: 10 }}>
+                  Désignations spéciales (Art. L.414-2/3)
+                </p>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
+                  <input type="checkbox"
+                    checked={inviteForm.is_delegue_securite_sante}
+                    onChange={e => updateInvite('is_delegue_securite_sante', e.target.checked)} />
+                  <span>🛡️ Délégué à la sécurité et à la santé</span>
+                  <span style={{ fontSize: '.75rem', color: 'var(--gray-600)' }}>
+                    (peut être un salarié non-élu)
+                  </span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox"
+                    checked={inviteForm.is_delegue_egalite}
+                    onChange={e => updateInvite('is_delegue_egalite', e.target.checked)} />
+                  <span>⚖️ Délégué à l'égalité</span>
+                  <span style={{ fontSize: '.75rem', color: 'var(--gray-600)' }}>
+                    (doit être membre élu : titulaire ou suppléant)
+                  </span>
+                </label>
+              </div>
+
               <button type="submit" className="btn btn-secondary mb-16">
                 + Générer un code d'invitation
               </button>
@@ -132,7 +185,7 @@ export default function Dashboard() {
 
             {inviteCode && (
               <div className="success-msg mb-16">
-                Code pour {inviteForm.first_name || 'le membre'} — à communiquer :
+                Code — à communiquer au membre :
                 <div className="invite-code mt-16">{inviteCode}</div>
               </div>
             )}
@@ -155,7 +208,10 @@ export default function Dashboard() {
                         <td style={{ padding: '6px 8px', fontFamily: 'monospace' }}>{inv.code}</td>
                         <td style={{ padding: '6px 8px' }}>{inv.first_name} {inv.last_name}</td>
                         <td style={{ padding: '6px 8px' }}>{inv.email}</td>
-                        <td style={{ padding: '6px 8px' }}>{getRoleLabel(inv.delegue_role)}</td>
+                        <td style={{ padding: '6px 8px' }}>
+                          {getRoleLabel(inv.delegue_role)}
+                          {specialBadges(inv)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

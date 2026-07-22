@@ -18,6 +18,7 @@ class DelegueRole(str, enum.Enum):
     vice_president = "vice_president"
     secretaire = "secretaire"
     tresorier = "tresorier"
+    employe = "employe"  # salarié non-élu (ex: délégué sécurité/santé hors délégation)
 
 
 class User(Base):
@@ -31,6 +32,11 @@ class User(Base):
     delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.titulaire, nullable=False)
     role = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     is_active = Column(Boolean, default=True)
+
+    # Désignations spéciales (Art. L.414-2 et L.414-3)
+    is_delegue_securite_sante = Column(Boolean, default=False)
+    is_delegue_egalite = Column(Boolean, default=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
