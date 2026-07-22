@@ -62,8 +62,14 @@ export default function CreateOrganization() {
             <div className="form-group"><label>Nom officiel de l'entreprise</label><input value={form.company_name} onChange={e => update('company_name', e.target.value)} /></div>
             <div className="form-group">
               <label>Effectif *</label>
-              <input type="number" min={15} value={form.employee_count} onChange={e => update('employee_count', parseInt(e.target.value) || 0)} required />
-              <small style={{ color: 'var(--gray-600)' }}>→ {nbTitulaires} titulaire{nbTitulaires > 1 ? 's' : ''} + {nbTitulaires} suppléant{nbTitulaires > 1 ? 's' : ''}</small>
+              <select value={form.employee_count} onChange={e => update('employee_count', parseInt(e.target.value))} required
+                style={{ width:'100%', padding:'11px 14px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)', fontSize:'1rem' }}>
+                {api.EMPLOYEE_RANGES.map(r => (
+                  <option key={r.min} value={r.min}>{r.min}–{r.max} salariés → {r.titulaires} titulaire{r.titulaires > 1 ? 's' : ''}</option>
+                ))}
+                <option value={5600}>+ de 5500 salariés</option>
+              </select>
+              <small style={{ color: 'var(--gray-600)' }}>→ {nbTitulaires} titulaire{nbTitulaires > 1 ? 's' : ''} + {nbTitulaires} suppléant{nbTitulaires > 1 ? 's' : ''} (Art. L.412-1)</small>
             </div>
           </fieldset>
           <fieldset style={{ border: '1px solid var(--gray-300)', borderRadius: 'var(--radius)', padding: '20px 16px', marginBottom: 24 }}>
