@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: ./backend
+    container_name: sd-backend
+    restart: unless-stopped
+    environment:
+      - SD_DATABASE_URL=sqlite:///./data/staff_delegation.db
+      - SD_SECRET_KEY=${SD_SECRET_KEY:-change-me-in-production}
+    volumes:
+      - sd-data:/app/data
+    networks:
+      - sd-net
+    # Traefik labels — à adapter selon ton infra
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sd-api.rule=Host(`sd-api.cloudfr.net`)"
+      - "traefik.http.services.sd-api.loadbalancer.server.port=8000"
+
+  frontend:
+    build: ./frontend
+    container_name: sd-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - sd-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sd-web.rule=Host(`staff-delegation.cloudfr.net`)"
+      - "traefik.http.services.sd-web.loadbalancer.server.port=80"
+
+volumes:
+  sd-data:
+
+networks:
+  sd-net:
+    external: true
