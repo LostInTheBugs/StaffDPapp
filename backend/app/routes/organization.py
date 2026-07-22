@@ -231,3 +231,16 @@ def list_invitations(
         .all()
     )
     return [InvitationResponse(**_invitation_to_response(inv)) for inv in invitations]
+
+
+@router.get("/organization/members", response_model=list[UserResponse])
+def list_members(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    members = (
+        db.query(User)
+        .filter(User.organization_id == current_user.organization_id, User.is_active == True)
+        .all()
+    )
+    return [UserResponse.model_validate(m) for m in members]

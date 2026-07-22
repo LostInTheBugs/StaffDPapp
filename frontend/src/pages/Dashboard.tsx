@@ -58,6 +58,12 @@ export default function Dashboard() {
   return (
     <>
       <header className="header"><h1>🏢 {organization.name}</h1><button onClick={logout}>Déconnexion</button></header>
+      <div style={{ background:'#fff', borderBottom:'1px solid var(--gray-300)', padding:'10px 24px', display:'flex', gap:16, flexWrap:'wrap' }}>
+        <Link to="/dashboard" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>📋 Dashboard</Link>
+        <Link to="/organigramme" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>👥 Organigramme</Link>
+        <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>🏢 Entreprise</Link>
+        <Link to="/settings" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>⚙️ Paramètres</Link>
+      </div>
       <div className="dashboard">
         <div className="card mb-24">
           <h2>👤 Mon profil</h2>
@@ -90,10 +96,7 @@ export default function Dashboard() {
           <p style={{ color: 'var(--gray-600)' }}>
             Délégués : <strong>{organization.required_titulaires} titulaires</strong> + {organization.required_titulaires} suppléants
           </p>
-          <p style={{ color: 'var(--gray-600)', fontSize: '.8rem', marginBottom: 12 }}>Art. L.412-1 — Luxembourg 🇱🇺</p>
-          <Link to="/organization" className="btn btn-secondary" style={{ display:'inline-block', width:'auto', padding:'8px 16px', fontSize:'.9rem' }}>
-            ✏️ Modifier
-          </Link>
+          <p style={{ color: 'var(--gray-600)', fontSize: '.8rem' }}>Art. L.412-1 — Luxembourg 🇱🇺</p>
         </div>
 
         {isAdmin && (

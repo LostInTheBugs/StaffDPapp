@@ -5,6 +5,8 @@ import JoinOrganization from './pages/JoinOrganization'
 import CreateOrganization from './pages/CreateOrganization'
 import Dashboard from './pages/Dashboard'
 import EditOrganization from './pages/EditOrganization'
+import AccountSettings from './pages/AccountSettings'
+import Organigramme from './pages/Organigramme'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -14,22 +16,10 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/join" element={<JoinOrganization />} />
       <Route path="/create" element={<CreateOrganization />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/organization"
-        element={
-          <ProtectedRoute>
-            <EditOrganization />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/organization" element={<ProtectedRoute><EditOrganization /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+      <Route path="/organigramme" element={<ProtectedRoute><Organigramme /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

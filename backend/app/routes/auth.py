@@ -138,3 +138,47 @@ def mfa_disable(
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)):
     return UserResponse.model_validate(user)
+
+
+# ── PASSWORD CHANGE ────────────────────────────────────────────────
+
+@router.put("/password")
+def change_password(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    old_password = body.get("old_password")
+    new_password = body.get("new_password")
+    if not old_password or not new_password:
+        raise HTTPException(status_code=400, detail="Ancien et nouveau mot de passe requis")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 6 caractères")
+    if not verify_password(old_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Ancien mot de passe incorrect")
+    current_user.password_hash = hash_password(new_password)
+    db.commit()
+    return {"status": "ok"}
+
+
+# ── PROFILE UPDATE ─────────────────────────────────────────────────
+
+@router.put("/profile", response_model=UserResponse)
+def update_profile(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if "first_name" in body:
+        current_user.first_name = body["first_name"]
+    if "last_name" in body:
+        current_user.last_name = body["last_name"]
+    if "email" in body:
+        # Check uniqueness
+        existing = db.query(User).filter(User.email == body["email"], User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Cet email est déjà utilisé")
+        current_user.email = body["email"]
+    db.commit()
+    db.refresh(current_user)
+    return UserResponse.model_validate(current_user)
