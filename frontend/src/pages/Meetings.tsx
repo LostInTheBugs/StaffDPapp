@@ -9,10 +9,10 @@ interface Meeting {
   invitees: { id: number; user_id: number; user_name: string | null; status: string }[]
 }
 
-interface Member { id: number; full_name: string }
+interface Member { id: number; full_name: string; delegue_status: string }
 
 export default function Meetings() {
-  const { token } = useAuth()
+  const { token, organization } = useAuth()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -46,7 +46,13 @@ export default function Meetings() {
   }
 
   async function createMeeting(e: FormEvent) {
-    e.preventDefault(); setErr(null); setLoading(true)
+    e.preventDefault(); setErr(null)
+    const minInvites = organization?.required_titulaires || 0
+    if (inviteeIds.length < minInvites) {
+      setErr(`Minimum ${minInvites} invité(s) requis (nombre de titulaires). Les suppléants peuvent remplacer les titulaires absents.`)
+      return
+    }
+    setLoading(true)
     try {
       const res = await fetch('/api/meetings', {
         method: 'POST', headers: { ...h, 'Content-Type': 'application/json' },
@@ -94,7 +100,14 @@ export default function Meetings() {
         <div className="card mb-24">
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <h2>📅 Réunions</h2>
-            <button onClick={() => setShowForm(!showForm)} className="btn btn-primary" style={{ width:'auto', padding:'8px 16px' }}>
+            <button onClick={() => {
+              const opening = !showForm
+              setShowForm(opening)
+              if (opening && members.length > 0) {
+                const titulaires = members.filter(m => m.delegue_status === 'titulaire')
+                setInviteeIds(titulaires.map(m => parseInt(m.id.toString())))
+              }
+            }} className="btn btn-primary" style={{ width:'auto', padding:'8px 16px' }}>
               {showForm ? 'Annuler' : '+ Nouvelle réunion'}
             </button>
           </div>
