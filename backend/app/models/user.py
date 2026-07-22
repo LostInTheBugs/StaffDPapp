@@ -11,17 +11,31 @@ class UserRole(str, enum.Enum):
     member = "member"
 
 
+class DelegueRole(str, enum.Enum):
+    titulaire = "titulaire"
+    suppleant = "suppleant"
+    president = "president"
+    vice_president = "vice_president"
+    secretaire = "secretaire"
+    tresorier = "tresorier"
+
+
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    full_name = Column(String(200), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.titulaire, nullable=False)
     role = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # FK to organization
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     organization = relationship("Organization", back_populates="members")
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"

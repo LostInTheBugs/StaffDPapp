@@ -11,20 +11,26 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
-    full_name: str
+    first_name: str
+    last_name: str
     invitation_code: str
 
 
 class CreateOrganizationRequest(BaseModel):
-    organization_name: str          # nom affiché
-    company_name: str | None = None # nom officiel entreprise
+    organization_name: str
+    company_name: str | None = None
+    employee_count: int
     admin_email: EmailStr
     admin_password: str
-    admin_full_name: str
+    admin_first_name: str
+    admin_last_name: str
 
 
 class CreateInvitationRequest(BaseModel):
-    pass  # pas de champs nécessaires, le code est généré
+    email: EmailStr
+    first_name: str
+    last_name: str
+    delegue_role: str  # titulaire, suppleant, president, etc.
 
 
 # ── Response schemas ──────────────────────────────────────────────
@@ -37,7 +43,10 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     email: str
+    first_name: str
+    last_name: str
     full_name: str
+    delegue_role: str
     role: str
 
     model_config = {"from_attributes": True}
@@ -49,6 +58,8 @@ class OrganizationResponse(BaseModel):
     slug: str
     company_name: str | None
     country: str
+    employee_count: int
+    required_titulaires: int
 
     model_config = {"from_attributes": True}
 
@@ -60,6 +71,10 @@ class DashboardResponse(BaseModel):
 
 class InvitationResponse(BaseModel):
     code: str
-    organization_name: str
+    email: str
+    first_name: str
+    last_name: str
+    delegue_role: str
+    organization_name: str | None = None
 
     model_config = {"from_attributes": True}

@@ -5,7 +5,10 @@ import * as api from '../api/client'
 interface User {
   id: number
   email: string
+  first_name: string
+  last_name: string
   full_name: string
+  delegue_role: string
   role: string
 }
 
@@ -15,6 +18,8 @@ interface Organization {
   slug: string
   company_name: string | null
   country: string
+  employee_count: number
+  required_titulaires: number
 }
 
 interface AuthState {

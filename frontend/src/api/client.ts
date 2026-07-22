@@ -8,25 +8,38 @@ interface TokenResponse {
 interface UserResponse {
   id: number
   email: string
+  first_name: string
+  last_name: string
   full_name: string
+  delegue_role: string
   role: string
+}
+
+interface OrganizationResponse {
+  id: number
+  name: string
+  slug: string
+  company_name: string | null
+  country: string
+  employee_count: number
+  required_titulaires: number
 }
 
 interface DashboardResponse {
   user: UserResponse
-  organization: {
-    id: number
-    name: string
-    slug: string
-    company_name: string | null
-    country: string
-  }
+  organization: OrganizationResponse
 }
 
 interface InvitationResponse {
   code: string
-  organization_name: string
+  email: string
+  first_name: string
+  last_name: string
+  delegue_role: string
+  organization_name: string | null
 }
+
+export type { InvitationResponse }
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token')
@@ -56,7 +69,8 @@ export function login(email: string, password: string): Promise<TokenResponse> {
 export function joinOrganization(data: {
   email: string
   password: string
-  full_name: string
+  first_name: string
+  last_name: string
   invitation_code: string
 }): Promise<TokenResponse> {
   return request<TokenResponse>('/join', {
@@ -68,9 +82,11 @@ export function joinOrganization(data: {
 export function createOrganization(data: {
   organization_name: string
   company_name?: string
+  employee_count: number
   admin_email: string
   admin_password: string
-  admin_full_name: string
+  admin_first_name: string
+  admin_last_name: string
 }): Promise<TokenResponse> {
   return request<TokenResponse>('/organizations', {
     method: 'POST',
@@ -86,13 +102,55 @@ export function getDashboard(): Promise<DashboardResponse> {
   return request<DashboardResponse>('/dashboard')
 }
 
-export function createInvitation(): Promise<InvitationResponse> {
+export function createInvitation(data: {
+  email: string
+  first_name: string
+  last_name: string
+  delegue_role: string
+}): Promise<InvitationResponse> {
   return request<InvitationResponse>('/invitations', {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify(data),
   })
 }
 
 export function listInvitations(): Promise<InvitationResponse[]> {
   return request<InvitationResponse[]>('/invitations')
 }
+
+export const DELEGUE_ROLES = [
+  { value: 'titulaire', label: 'Titulaire' },
+  { value: 'suppleant', label: 'Suppléant(e)' },
+  { value: 'president', label: 'Président(e)' },
+  { value: 'vice_president', label: 'Vice-président(e)' },
+  { value: 'secretaire', label: 'Secrétaire' },
+  { value: 'tresorier', label: 'Trésorier(ère)' },
+] as const
+
+export const EMPLOYEE_RANGES = [
+  { min: 15, max: 25, titulaires: 1 },
+  { min: 26, max: 50, titulaires: 2 },
+  { min: 51, max: 75, titulaires: 3 },
+  { min: 76, max: 100, titulaires: 4 },
+  { min: 101, max: 200, titulaires: 5 },
+  { min: 201, max: 300, titulaires: 6 },
+  { min: 301, max: 400, titulaires: 7 },
+  { min: 401, max: 500, titulaires: 8 },
+  { min: 501, max: 600, titulaires: 9 },
+  { min: 601, max: 700, titulaires: 10 },
+  { min: 701, max: 800, titulaires: 11 },
+  { min: 801, max: 900, titulaires: 12 },
+  { min: 901, max: 1000, titulaires: 13 },
+  { min: 1001, max: 1100, titulaires: 14 },
+  { min: 1101, max: 1500, titulaires: 15 },
+  { min: 1501, max: 1900, titulaires: 16 },
+  { min: 1901, max: 2300, titulaires: 17 },
+  { min: 2301, max: 2700, titulaires: 18 },
+  { min: 2701, max: 3100, titulaires: 19 },
+  { min: 3101, max: 3500, titulaires: 20 },
+  { min: 3501, max: 3900, titulaires: 21 },
+  { min: 3901, max: 4300, titulaires: 22 },
+  { min: 4301, max: 4700, titulaires: 23 },
+  { min: 4701, max: 5100, titulaires: 24 },
+  { min: 5101, max: 5500, titulaires: 25 },
+] as const
