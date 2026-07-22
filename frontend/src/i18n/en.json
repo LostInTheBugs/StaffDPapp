@@ -1,8 +1,8 @@
 {
   "app.title": "Staff Delegation",
-  "nav.dashboard": "📋 Dashboard",
-  "nav.organigramme": "👥 Organization Chart",
-  "nav.meetings": "📅 Meetings",
+  "nav.dashboard": "📋 My Dashboard",
+  "nav.organigramme": "👥 My Org Chart",
+  "nav.meetings": "📅 My Meetings",
   "nav.organization": "🏢 My Organization",
   "nav.profile": "👤 My Profile",
   "nav.logout": "Logout",

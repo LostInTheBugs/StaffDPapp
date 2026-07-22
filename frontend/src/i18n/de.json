@@ -1,8 +1,8 @@
 {
   "app.title": "Personalvertretung",
-  "nav.dashboard": "📋 Dashboard",
-  "nav.organigramme": "👥 Organigramm",
-  "nav.meetings": "📅 Sitzungen",
+  "nav.dashboard": "📋 Mein Dashboard",
+  "nav.organigramme": "👥 Mein Organigramm",
+  "nav.meetings": "📅 Meine Sitzungen",
   "nav.organization": "🏢 Meine Organisation",
   "nav.profile": "👤 Mein Profil",
   "nav.logout": "Abmelden",

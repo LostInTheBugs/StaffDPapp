@@ -1,8 +1,8 @@
 {
   "app.title": "Staff Delegation",
-  "nav.dashboard": "📋 Painel",
-  "nav.organigramme": "👥 Organograma",
-  "nav.meetings": "📅 Reuniões",
+  "nav.dashboard": "📋 Meu Painel",
+  "nav.organigramme": "👥 Meu Organograma",
+  "nav.meetings": "📅 Minhas Reuniões",
   "nav.organization": "🏢 Minha Organização",
   "nav.profile": "👤 Meu Perfil",
   "nav.logout": "Sair",
