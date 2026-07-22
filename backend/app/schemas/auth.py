@@ -40,6 +40,8 @@ class CreateOrganizationRequest(BaseModel):
     admin_password: str
     admin_first_name: str
     admin_last_name: str
+    admin_delegue_status: str = "titulaire"
+    admin_delegue_role: str = "president"
     captcha_id: str | None = None
     captcha_answer: str | None = None
 

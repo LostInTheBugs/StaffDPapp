@@ -8,6 +8,7 @@ export default function CreateOrganization() {
   const [form, setForm] = useState({
     organization_name: '', company_name: '', employee_count: 25,
     admin_first_name: '', admin_last_name: '', admin_email: '', admin_password: '',
+    admin_delegue_status: 'titulaire', admin_delegue_role: 'president',
   })
   const [captchaId, setCaptchaId] = useState('')
   const [captchaAnswer, setCaptchaAnswer] = useState('')
@@ -38,6 +39,7 @@ export default function CreateOrganization() {
       const tokenResp = await api.createOrganization({
         ...form, company_name: form.company_name || undefined,
         captcha_id: captchaId, captcha_answer: captchaAnswer,
+        admin_delegue_status: form.admin_delegue_status, admin_delegue_role: form.admin_delegue_role,
       })
       localStorage.setItem('token', tokenResp.access_token)
       const dash = await api.getDashboard()
@@ -80,6 +82,22 @@ export default function CreateOrganization() {
             </div>
             <div className="form-group"><label>Email *</label><input type="email" value={form.admin_email} onChange={e => update('admin_email', e.target.value)} required /></div>
             <div className="form-group"><label>Mot de passe (min. 8) *</label><input type="password" value={form.admin_password} onChange={e => update('admin_password', e.target.value)} required minLength={8} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+              <div className="form-group">
+                <label>Statut *</label>
+                <select value={form.admin_delegue_status} onChange={e => update('admin_delegue_status', e.target.value)}
+                  style={{ width:'100%', padding:'11px 14px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)', fontSize:'1rem' }}>
+                  {api.DELEGUE_STATUS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Fonction *</label>
+                <select value={form.admin_delegue_role} onChange={e => update('admin_delegue_role', e.target.value)}
+                  style={{ width:'100%', padding:'11px 14px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)', fontSize:'1rem' }}>
+                  {api.DELEGUE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </div>
+            </div>
           </fieldset>
 
           <CaptchaWidget onCaptcha={(id, ans) => { setCaptchaId(id); setCaptchaAnswer(ans) }} />

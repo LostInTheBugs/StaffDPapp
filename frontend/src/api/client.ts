@@ -79,6 +79,7 @@ export function joinOrganization(data: {
 export function createOrganization(data: {
   organization_name: string; company_name?: string; employee_count: number
   admin_email: string; admin_password: string; admin_first_name: string; admin_last_name: string
+  admin_delegue_status?: string; admin_delegue_role?: string
   captcha_id?: string; captcha_answer?: string
 }): Promise<TokenResponse> {
   return request('/organizations', { method: 'POST', body: JSON.stringify(data) })

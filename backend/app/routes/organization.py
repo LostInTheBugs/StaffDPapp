@@ -75,8 +75,8 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
         password_hash=hash_password(body.admin_password),
         first_name=body.admin_first_name,
         last_name=body.admin_last_name,
-        delegue_status=DelegueStatus.titulaire,
-        delegue_role=DelegueRole.president,
+        delegue_status=DelegueStatus(body.admin_delegue_status),
+        delegue_role=DelegueRole(body.admin_delegue_role),
         role=UserRole.admin,
         organization_id=org.id,
     )
