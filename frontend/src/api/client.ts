@@ -6,6 +6,7 @@ interface UserResponse {
   first_name: string
   last_name: string
   full_name: string
+  avatar_url: string | null
   delegue_status: string
   delegue_role: string
   role: string
@@ -21,6 +22,7 @@ interface OrganizationResponse {
   company_name: string | null
   country: string
   employee_count: number
+  mandate_end_date: string | null
   required_titulaires: number
 }
 
@@ -106,7 +108,7 @@ export function listInvitations(): Promise<InvitationResponse[]> {
 }
 
 export function updateOrganization(data: {
-  name?: string; company_name?: string; employee_count?: number
+  name?: string; company_name?: string; employee_count?: number; mandate_end_date?: string
 }): Promise<OrganizationResponse> {
   return request('/organization', { method: 'PUT', body: JSON.stringify(data) })
 }

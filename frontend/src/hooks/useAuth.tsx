@@ -4,6 +4,7 @@ import * as api from '../api/client'
 
 interface User {
   id: number; email: string; first_name: string; last_name: string; full_name: string
+  avatar_url: string | null
   delegue_status: string; delegue_role: string; role: string
   totp_enabled: boolean
   is_delegue_securite_sante: boolean; is_delegue_egalite: boolean
@@ -11,7 +12,7 @@ interface User {
 
 interface Organization {
   id: number; name: string; slug: string; company_name: string | null
-  country: string; employee_count: number; required_titulaires: number
+  country: string; employee_count: number; mandate_end_date: string | null; required_titulaires: number
 }
 
 interface AuthState { user: User | null; organization: Organization | null; token: string | null }

@@ -15,7 +15,7 @@ export default function NavBar() {
       } catch { /* */ }
     }
     if (token) fetchPending()
-    const interval = setInterval(fetchPending, 30000) // refresh every 30s
+    const interval = setInterval(fetchPending, 30000)
     return () => clearInterval(interval)
   }, [token])
 
@@ -41,8 +41,8 @@ export default function NavBar() {
             </span>
           )}
         </Link>
-        <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>🏢 Entreprise</Link>
-        <Link to="/settings" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>⚙️ Paramètres</Link>
+        <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>🏢 Mon organisation</Link>
+        <Link to="/settings" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>👤 Mon profil</Link>
       </nav>
     </>
   )

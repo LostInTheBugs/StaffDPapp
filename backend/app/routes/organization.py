@@ -204,6 +204,9 @@ def update_organization(
         if body.employee_count < 15:
             raise HTTPException(status_code=400, detail="L'effectif minimum est de 15 salariés")
         org.employee_count = body.employee_count
+    if body.mandate_end_date is not None:
+        from datetime import datetime
+        org.mandate_end_date = datetime.fromisoformat(body.mandate_end_date.replace("Z", "+00:00"))
 
     db.commit()
     db.refresh(org)

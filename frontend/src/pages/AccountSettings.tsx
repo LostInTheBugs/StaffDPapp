@@ -9,6 +9,7 @@ export default function AccountSettings() {
   const [firstName, setFirstName] = useState(user?.first_name || '')
   const [lastName, setLastName] = useState(user?.last_name || '')
   const [email, setEmail] = useState(user?.email || '')
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '')
 
   const [oldPass, setOldPass] = useState('')
   const [newPass, setNewPass] = useState('')
@@ -22,7 +23,7 @@ export default function AccountSettings() {
   async function updateProfile(e: FormEvent) {
     e.preventDefault(); setErr(null); setMsg(null); setLoading(true)
     try {
-      const res = await fetch('/api/auth/profile', { method: 'PUT', headers, body: JSON.stringify({ first_name: firstName, last_name: lastName, email }) })
+      const res = await fetch('/api/auth/profile', { method: 'PUT', headers, body: JSON.stringify({ first_name: firstName, last_name: lastName, email, avatar_url: avatarUrl || null }) })
       if (!res.ok) throw new Error((await res.json()).detail)
       const updated = await res.json()
       if (organization) setAuth(token!, updated, organization)
@@ -51,8 +52,22 @@ export default function AccountSettings() {
         {err && <div className="error-msg">{err}</div>}
 
         <div className="card mb-24">
-          <h2>👤 Profil</h2>
+          <h2>👤 Mon profil</h2>
           <form onSubmit={updateProfile}>
+            <div style={{ textAlign:'center', marginBottom:16 }}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" style={{ width:80, height:80, borderRadius:'50%', objectFit:'cover', border:'3px solid var(--blue)' }} />
+              ) : (
+                <div style={{ width:80, height:80, borderRadius:'50%', background:'var(--gray-100)', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:'2rem', border:'3px solid var(--gray-300)' }}>
+                  {firstName.charAt(0).toUpperCase() || '?'}
+                </div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>URL de la photo</label>
+              <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." />
+              <small style={{ color:'var(--gray-600)' }}>Collez l'URL d'une image (ex: Gravatar, imgur...)</small>
+            </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
               <div className="form-group"><label>Prénom</label><input value={firstName} onChange={e => setFirstName(e.target.value)} required /></div>
               <div className="form-group"><label>Nom</label><input value={lastName} onChange={e => setLastName(e.target.value)} required /></div>

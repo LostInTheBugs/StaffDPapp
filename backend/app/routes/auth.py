@@ -174,11 +174,12 @@ def update_profile(
     if "last_name" in body:
         current_user.last_name = body["last_name"]
     if "email" in body:
-        # Check uniqueness
         existing = db.query(User).filter(User.email == body["email"], User.id != current_user.id).first()
         if existing:
             raise HTTPException(status_code=409, detail="Cet email est déjà utilisé")
         current_user.email = body["email"]
+    if "avatar_url" in body:
+        current_user.avatar_url = body["avatar_url"]
     db.commit()
     db.refresh(current_user)
     return UserResponse.model_validate(current_user)

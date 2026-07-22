@@ -14,6 +14,7 @@ class Organization(Base):
     company_name = Column(String(300), nullable=True)
     country = Column(String(2), default="LU")
     employee_count = Column(Integer, nullable=False, default=15)
+    mandate_end_date = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     members = relationship("User", back_populates="organization", cascade="all, delete-orphan")

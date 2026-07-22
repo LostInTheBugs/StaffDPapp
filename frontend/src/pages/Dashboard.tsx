@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import * as api from '../api/client'
-import MfaSection from '../components/MfaSection'
 import NavBar from '../components/NavBar'
 
 export default function Dashboard() {
@@ -69,17 +68,6 @@ export default function Dashboard() {
             {user.is_delegue_securite_sante && ' + 🛡️ Sécurité/Santé'}
             {user.is_delegue_egalite && ' + ⚖️ Égalité'}
           </p>
-        </div>
-
-        <div className="card mb-24">
-          <h2>🔐 Sécurité du compte</h2>
-          <p style={{ color: 'var(--gray-600)', marginBottom: 12 }}>
-            Authentification à deux facteurs (MFA/TOTP) :{' '}
-            <strong style={{ color: user.totp_enabled ? '#276749' : 'var(--red)' }}>
-              {user.totp_enabled ? '✅ Activée' : '❌ Désactivée'}
-            </strong>
-          </p>
-          <MfaSection />
         </div>
 
         <div className="card mb-24">

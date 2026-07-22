@@ -43,6 +43,9 @@ class User(Base):
     totp_secret = Column(String(64), nullable=True)
     totp_enabled = Column(Boolean, default=False)
 
+    # Photo de profil
+    avatar_url = Column(String(500), nullable=True)
+
     # Désignations spéciales (Art. L.414-2 et L.414-3)
     is_delegue_securite_sante = Column(Boolean, default=False)
     is_delegue_egalite = Column(Boolean, default=False)

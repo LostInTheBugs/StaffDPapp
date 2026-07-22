@@ -80,6 +80,7 @@ class UpdateOrganizationRequest(BaseModel):
     name: str | None = None
     company_name: str | None = None
     employee_count: int | None = None
+    mandate_end_date: str | None = None
 
 
 # ── Response schemas ──────────────────────────────────────────────
@@ -97,6 +98,7 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
     full_name: str
+    avatar_url: str | None = None
     delegue_status: str
     delegue_role: str
     role: str
@@ -114,6 +116,7 @@ class OrganizationResponse(BaseModel):
     company_name: str | None
     country: str
     employee_count: int
+    mandate_end_date: str | None = None
     required_titulaires: int
 
     model_config = {"from_attributes": True}
