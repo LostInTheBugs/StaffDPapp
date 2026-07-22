@@ -1,6 +1,8 @@
 # StaffDPapp — Staff Delegation Application
 
-Outil de gestion pour les **délégations du personnel** au Luxembourg, conforme au Code du travail (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
+> ⚠️ **Application expérimentale** — Ce logiciel est fourni à titre de démonstration uniquement. Il ne constitue pas un conseil juridique et n'est pas garanti conforme à la législation luxembourgeoise en vigueur. Toute utilisation se fait aux risques et périls de l'utilisateur. Consultez un professionnel qualifié ou la [Chambre des Salariés (CSL)](https://www.csl.lu) pour toute question relative au droit du travail.
+
+Outil de gestion pour les **délégations du personnel** au Luxembourg, inspiré du Code du travail (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
 ## Fonctionnalités
 
