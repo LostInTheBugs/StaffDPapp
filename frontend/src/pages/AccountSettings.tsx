@@ -1,18 +1,15 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import NavBar from '../components/NavBar'
 import MfaSection from '../components/MfaSection'
 
 export default function AccountSettings() {
   const { user, setAuth, organization, token } = useAuth()
-  const navigate = useNavigate()
 
-  // Profile
   const [firstName, setFirstName] = useState(user?.first_name || '')
   const [lastName, setLastName] = useState(user?.last_name || '')
   const [email, setEmail] = useState(user?.email || '')
 
-  // Password
   const [oldPass, setOldPass] = useState('')
   const [newPass, setNewPass] = useState('')
 
@@ -48,7 +45,7 @@ export default function AccountSettings() {
 
   return (
     <>
-      <header className="header"><h1>⚙️ Paramètres du compte</h1><button onClick={() => navigate('/dashboard')}>← Dashboard</button></header>
+      <NavBar />
       <div className="dashboard">
         {msg && <div className="success-msg">{msg}</div>}
         {err && <div className="error-msg">{err}</div>}
@@ -75,7 +72,7 @@ export default function AccountSettings() {
         </div>
 
         <div className="card mb-24">
-          <h2>🔐 MFA / Authentification à deux facteurs</h2>
+          <h2>🔐 MFA</h2>
           <p style={{ color: 'var(--gray-600)', marginBottom: 12 }}>
             Statut : <strong style={{ color: user.totp_enabled ? '#276749' : 'var(--red)' }}>
               {user.totp_enabled ? '✅ Activé' : '❌ Désactivé'}
@@ -83,8 +80,6 @@ export default function AccountSettings() {
           </p>
           <MfaSection />
         </div>
-
-        <p className="text-center"><Link to="/dashboard" className="link">← Retour au dashboard</Link></p>
       </div>
     </>
   )

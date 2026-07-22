@@ -1,11 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import NavBar from '../components/NavBar'
 import * as api from '../api/client'
 
 export default function EditOrganization() {
   const { organization, setAuth, token } = useAuth()
-  const navigate = useNavigate()
 
   const [form, setForm] = useState({
     name: organization?.name || '',
@@ -52,10 +51,7 @@ export default function EditOrganization() {
 
   return (
     <>
-      <header className="header">
-        <h1>🏢 {organization.name}</h1>
-        <button onClick={() => navigate('/dashboard')}>← Dashboard</button>
-      </header>
+      <NavBar />
       <div className="dashboard">
         <div className="card mb-24">
           <h2>🏢 Mon entreprise</h2>
@@ -75,7 +71,6 @@ export default function EditOrganization() {
             </button>
           </form>
         </div>
-        <p className="text-center"><Link to="/dashboard" className="link">← Retour au dashboard</Link></p>
       </div>
     </>
   )

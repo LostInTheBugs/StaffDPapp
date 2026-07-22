@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import NavBar from '../components/NavBar'
 import * as api from '../api/client'
 
 interface Member {
@@ -12,7 +12,6 @@ interface Member {
 
 export default function Organigramme() {
   const { user, organization, token } = useAuth()
-  const navigate = useNavigate()
   const [members, setMembers] = useState<Member[]>([])
   const [showInvite, setShowInvite] = useState(false)
   const [inviteForm, setInviteForm] = useState({ delegue_status: 'titulaire', delegue_role: 'membre', email: '', first_name: '', last_name: '', is_delegue_securite_sante: false, is_delegue_egalite: false })
@@ -71,12 +70,11 @@ export default function Organigramme() {
 
   return (
     <>
-      <header className="header"><h1>🏢 {organization.name} — Organigramme</h1><button onClick={() => navigate('/dashboard')}>← Dashboard</button></header>
+      <NavBar />
       <div className="dashboard">
         <div className="card mb-24">
           <h2>👥 Membres de la délégation</h2>
 
-          {/* President / Vice-president / Secretaire */}
           <h3 style={{ fontSize: '.9rem', color: 'var(--blue)', marginBottom: 8 }}>Bureau</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             <div style={{ textAlign: 'center' }}>
@@ -93,7 +91,6 @@ export default function Organigramme() {
             </div>
           </div>
 
-          {/* Titulaires */}
           <h3 style={{ fontSize: '.9rem', color: 'var(--blue)', marginBottom: 8 }}>Titulaires ({n})</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             {Array.from({ length: n }, (_, i) => {
@@ -103,7 +100,6 @@ export default function Organigramme() {
             })}
           </div>
 
-          {/* Suppleants */}
           <h3 style={{ fontSize: '.9rem', color: 'var(--blue)', marginBottom: 8 }}>Suppléants ({n})</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             {Array.from({ length: n }, (_, i) => {
@@ -113,7 +109,6 @@ export default function Organigramme() {
             })}
           </div>
 
-          {/* Designations speciales */}
           <h3 style={{ fontSize: '.9rem', color: 'var(--blue)', marginBottom: 8 }}>Désignations spéciales</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             <div style={{ textAlign: 'center' }}>
@@ -151,8 +146,6 @@ export default function Organigramme() {
             )}
           </div>
         )}
-
-        <p className="text-center"><Link to="/dashboard" className="link">← Retour au dashboard</Link></p>
       </div>
     </>
   )
