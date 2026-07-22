@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import * as api from '../api/client'
 import MfaSection from '../components/MfaSection'
@@ -89,7 +90,10 @@ export default function Dashboard() {
           <p style={{ color: 'var(--gray-600)' }}>
             Délégués : <strong>{organization.required_titulaires} titulaires</strong> + {organization.required_titulaires} suppléants
           </p>
-          <p style={{ color: 'var(--gray-600)', fontSize: '.8rem' }}>Art. L.412-1 — Luxembourg 🇱🇺</p>
+          <p style={{ color: 'var(--gray-600)', fontSize: '.8rem', marginBottom: 12 }}>Art. L.412-1 — Luxembourg 🇱🇺</p>
+          <Link to="/organization" className="btn btn-secondary" style={{ display:'inline-block', width:'auto', padding:'8px 16px', fontSize:'.9rem' }}>
+            ✏️ Modifier
+          </Link>
         </div>
 
         {isAdmin && (

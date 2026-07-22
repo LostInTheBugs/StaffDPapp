@@ -105,6 +105,12 @@ export function listInvitations(): Promise<InvitationResponse[]> {
   return request('/invitations')
 }
 
+export function updateOrganization(data: {
+  name?: string; company_name?: string; employee_count?: number
+}): Promise<OrganizationResponse> {
+  return request('/organization', { method: 'PUT', body: JSON.stringify(data) })
+}
+
 export const DELEGUE_STATUS = [
   { value: 'titulaire', label: 'Titulaire' },
   { value: 'suppleant', label: 'Suppléant(e)' },

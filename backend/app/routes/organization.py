@@ -13,6 +13,7 @@ from app.schemas.auth import (
     RegisterRequest,
     CreateOrganizationRequest,
     CreateInvitationRequest,
+    UpdateOrganizationRequest,
     TokenResponse,
     DashboardResponse,
     InvitationResponse,
@@ -177,6 +178,36 @@ def create_invitation(
     db.refresh(invitation)
 
     return InvitationResponse(**_invitation_to_response(invitation))
+
+
+@router.put("/organization", response_model=OrganizationResponse)
+def update_organization(
+    body: UpdateOrganizationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+
+    org = current_user.organization
+    if body.name is not None:
+        org.name = body.name
+        org.slug = _make_slug(body.name)
+        counter = 1
+        base = org.slug
+        while db.query(Organization).filter(Organization.slug == org.slug, Organization.id != org.id).first():
+            org.slug = f"{base}-{counter}"
+            counter += 1
+    if body.company_name is not None:
+        org.company_name = body.company_name
+    if body.employee_count is not None:
+        if body.employee_count < 15:
+            raise HTTPException(status_code=400, detail="L'effectif minimum est de 15 salariés")
+        org.employee_count = body.employee_count
+
+    db.commit()
+    db.refresh(org)
+    return OrganizationResponse.model_validate(org)
 
 
 @router.get("/dashboard", response_model=DashboardResponse)

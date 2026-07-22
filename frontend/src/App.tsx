@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import JoinOrganization from './pages/JoinOrganization'
 import CreateOrganization from './pages/CreateOrganization'
 import Dashboard from './pages/Dashboard'
+import EditOrganization from './pages/EditOrganization'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -18,6 +19,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organization"
+        element={
+          <ProtectedRoute>
+            <EditOrganization />
           </ProtectedRoute>
         }
       />

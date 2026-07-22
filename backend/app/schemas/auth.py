@@ -74,6 +74,14 @@ class CreateInvitationRequest(BaseModel):
     is_delegue_egalite: bool = False
 
 
+# ── Organization update ────────────────────────────────────────────
+
+class UpdateOrganizationRequest(BaseModel):
+    name: str | None = None
+    company_name: str | None = None
+    employee_count: int | None = None
+
+
 # ── Response schemas ──────────────────────────────────────────────
 
 class TokenResponse(BaseModel):
