@@ -32,8 +32,7 @@ Outil de gestion pour les **délégations du personnel** au Luxembourg, inspiré
 
 Tous MDP : `demo123456`
 
-- 🧪 **Test** : http://192.168.10.191:3002
-- 🌐 **Production** : https://staffdpapp.cloudfr.net
+- 🎮 **Demo** : https://staffdpapp.cloudfr.net
 
 ## Déploiement
 
