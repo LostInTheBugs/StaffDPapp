@@ -8,6 +8,7 @@ import EditOrganization from './pages/EditOrganization'
 import AccountSettings from './pages/AccountSettings'
 import Organigramme from './pages/Organigramme'
 import Meetings from './pages/Meetings'
+import TimeTracking from './pages/TimeTracking'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
       <Route path="/settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
       <Route path="/organigramme" element={<ProtectedRoute><Organigramme /></ProtectedRoute>} />
       <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+      <Route path="/hours" element={<ProtectedRoute><TimeTracking /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

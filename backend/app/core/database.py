@@ -36,4 +36,5 @@ def init_db():
     from app.models.organization import Organization  # noqa
     from app.models.invitation import Invitation  # noqa
     from app.models.meeting import Meeting, MeetingPoint, MeetingInvitee  # noqa
+    from app.models.time_entry import TimeEntry  # noqa
     Base.metadata.create_all(bind=engine)

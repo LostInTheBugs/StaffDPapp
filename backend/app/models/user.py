@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -48,6 +48,9 @@ class User(Base):
 
     # Langue préférée
     language = Column(String(5), default="fr")  # fr, en, de, pt
+
+    # Crédit d'heures mensuel (pour le suivi des heures de mandat)
+    monthly_credit_hours = Column(Float, default=20.0)
 
     # Désignations spéciales (Art. L.414-2 et L.414-3)
     is_delegue_securite_sante = Column(Boolean, default=False)
