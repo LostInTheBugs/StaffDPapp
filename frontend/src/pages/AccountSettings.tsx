@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useT, LANGS, type Lang } from '../i18n/I18nContext'
 import NavBar from '../components/NavBar'
 import MfaSection from '../components/MfaSection'
 
 export default function AccountSettings() {
+  const { t, lang, setLang } = useT()
   const { user, setAuth, organization, token } = useAuth()
 
   const [firstName, setFirstName] = useState(user?.first_name || '')
@@ -64,9 +66,16 @@ export default function AccountSettings() {
               )}
             </div>
             <div className="form-group">
-              <label>URL de la photo</label>
+              <label>{t('profile.avatar_url')}</label>
               <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." />
-              <small style={{ color:'var(--gray-600)' }}>Collez l'URL d'une image (ex: Gravatar, imgur...)</small>
+              <small style={{ color:'var(--gray-600)' }}>{t('profile.avatar_hint')}</small>
+            </div>
+            <div className="form-group">
+              <label>🌐 Langue</label>
+              <select value={lang} onChange={e => setLang(e.target.value as Lang)}
+                style={{ width:'100%', padding:'11px 14px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)', fontSize:'1rem' }}>
+                {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+              </select>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
               <div className="form-group"><label>Prénom</label><input value={firstName} onChange={e => setFirstName(e.target.value)} required /></div>

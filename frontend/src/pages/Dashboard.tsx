@@ -61,18 +61,6 @@ export default function Dashboard() {
       <NavBar />
       <div className="dashboard">
         <div className="card mb-24">
-          <h2>{t('dashboard.profile')}</h2>
-          <p><strong>{user.full_name}</strong></p>
-          <p style={{ color: 'var(--gray-600)' }}>{user.email}</p>
-          <p style={{ color: 'var(--gray-600)' }}>
-            {t('dashboard.invite_status')} : <strong>{statusLabel(user.delegue_status)}</strong>
-            {' — '}{t('dashboard.invite_role')} : <strong>{roleLabel(user.delegue_role)}</strong>
-            {user.is_delegue_securite_sante && ' + 🛡️ Sécurité/Santé'}
-            {user.is_delegue_egalite && ' + ⚖️ Égalité'}
-          </p>
-        </div>
-
-        <div className="card mb-24">
           <h2>{t('dashboard.org')}</h2>
           <p><strong>{organization.name}</strong></p>
           {organization.company_name && <p style={{ color: 'var(--gray-600)' }}>{organization.company_name}</p>}

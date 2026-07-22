@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { useT, LANGS, type Lang } from '../i18n/I18nContext'
+import { useT } from '../i18n/I18nContext'
 
 export default function NavBar() {
   const { logout, token } = useAuth()
-  const { t, lang, setLang } = useT()
+  const { t } = useT()
   const [pending, setPending] = useState(0)
 
   useEffect(() => {
@@ -25,13 +25,7 @@ export default function NavBar() {
     <>
       <header className="header">
         <h1>🏢 {t('app.title')}</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <select value={lang} onChange={e => setLang(e.target.value as Lang)}
-            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,.3)', background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: '.8rem', cursor: 'pointer' }}>
-            {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-          </select>
-          <button onClick={logout}>{t('nav.logout')}</button>
-        </div>
+        <button onClick={logout}>{t('nav.logout')}</button>
       </header>
       <nav style={{ background:'#fff', borderBottom:'1px solid var(--gray-300)', padding:'10px 24px', display:'flex', gap:20, flexWrap:'wrap', alignItems:'center' }}>
         <Link to="/dashboard" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.dashboard')}</Link>
