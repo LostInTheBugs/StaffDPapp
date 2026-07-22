@@ -1,0 +1,212 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue: #1a3a5c;
+  --blue-light: #2d6cb4;
+  --gold: #c9a84c;
+  --gold-light: #f0e6c8;
+  --gray-50: #f8f9fa;
+  --gray-100: #f0f1f3;
+  --gray-300: #cbd5e0;
+  --gray-600: #4a5568;
+  --gray-800: #2d3748;
+  --red: #c53030;
+  --radius: 10px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-800);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+.card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  padding: 36px 32px;
+}
+
+h1 {
+  font-size: 1.6rem;
+  color: var(--blue);
+  margin-bottom: 8px;
+}
+
+h2 {
+  font-size: 1.25rem;
+  color: var(--blue);
+  margin-bottom: 20px;
+}
+
+.subtitle {
+  color: var(--gray-600);
+  font-size: 0.95rem;
+  margin-bottom: 28px;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: background .2s, transform .1s;
+}
+
+.btn:active { transform: scale(.98); }
+
+.btn-primary {
+  background: var(--blue);
+  color: #fff;
+}
+.btn-primary:hover { background: #152e4a; }
+
+.btn-secondary {
+  background: #fff;
+  color: var(--blue);
+  border: 2px solid var(--blue);
+}
+.btn-secondary:hover { background: var(--gray-100); }
+
+.btn-gold {
+  background: var(--gold);
+  color: #fff;
+}
+.btn-gold:hover { background: #b8943f; }
+
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  font-size: .88rem;
+  margin-bottom: 4px;
+  color: var(--gray-800);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--gray-300);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  transition: border-color .2s;
+}
+.form-group input:focus {
+  outline: none;
+  border-color: var(--blue-light);
+  box-shadow: 0 0 0 3px rgba(45,108,180,.12);
+}
+
+.error-msg {
+  background: #fff5f5;
+  color: var(--red);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: .9rem;
+  border: 1px solid #fed7d7;
+}
+
+.success-msg {
+  background: #f0fff4;
+  color: #276749;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: .9rem;
+  border: 1px solid #c6f6d5;
+}
+
+.link {
+  color: var(--blue-light);
+  text-decoration: none;
+  font-weight: 500;
+}
+.link:hover { text-decoration: underline; }
+
+.text-center { text-align: center; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+
+.spinner {
+  width: 20px; height: 20px;
+  border: 2.5px solid var(--gray-300);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--blue);
+  color: #fff;
+}
+.header h1 { font-size: 1.1rem; color: #fff; margin: 0; }
+.header button {
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .85rem;
+}
+.header button:hover { background: rgba(255,255,255,.25); }
+
+.dashboard {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+.invite-code {
+  font-family: 'Courier New', monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  background: var(--gold-light);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  text-align: center;
+  color: var(--blue);
+}
+
+.logo-area {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.logo-icon {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
