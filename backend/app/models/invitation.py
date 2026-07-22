@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
-from app.models.user import DelegueRole
+from app.models.user import DelegueStatus, DelegueRole
 
 
 class Invitation(Base):
@@ -14,7 +14,9 @@ class Invitation(Base):
     email = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.titulaire, nullable=False)
+
+    delegue_status = Column(SAEnum(DelegueStatus), default=DelegueStatus.titulaire, nullable=False)
+    delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.membre, nullable=False)
 
     # Désignations spéciales
     is_delegue_securite_sante = Column(Boolean, default=False)

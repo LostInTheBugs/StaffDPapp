@@ -11,14 +11,17 @@ class UserRole(str, enum.Enum):
     member = "member"
 
 
-class DelegueRole(str, enum.Enum):
+class DelegueStatus(str, enum.Enum):
     titulaire = "titulaire"
     suppleant = "suppleant"
+    employe = "employe"  # salarié non-élu (ex: délégué sécurité/santé hors délégation)
+
+
+class DelegueRole(str, enum.Enum):
     president = "president"
     vice_president = "vice_president"
     secretaire = "secretaire"
-    tresorier = "tresorier"
-    employe = "employe"  # salarié non-élu (ex: délégué sécurité/santé hors délégation)
+    membre = "membre"  # pas de fonction spécifique au bureau
 
 
 class User(Base):
@@ -29,7 +32,12 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.titulaire, nullable=False)
+
+    # Statut : titulaire, suppléant ou employé (non-élu)
+    delegue_status = Column(SAEnum(DelegueStatus), default=DelegueStatus.titulaire, nullable=False)
+    # Fonction au bureau : président, vice-président, secrétaire, membre
+    delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.membre, nullable=False)
+
     role = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     is_active = Column(Boolean, default=True)
 

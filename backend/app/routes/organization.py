@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.security import hash_password, create_access_token, generate_invitation_code
-from app.models import User, UserRole, Organization, Invitation, DelegueRole
+from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
 from app.schemas.auth import (
     RegisterRequest,
     CreateOrganizationRequest,
@@ -35,7 +35,8 @@ def _invitation_to_response(inv: Invitation) -> dict:
         "email": inv.email,
         "first_name": inv.first_name,
         "last_name": inv.last_name,
-        "delegue_role": inv.delegue_role.value if inv.delegue_role else "titulaire",
+        "delegue_status": inv.delegue_status.value if inv.delegue_status else "titulaire",
+        "delegue_role": inv.delegue_role.value if inv.delegue_role else "membre",
         "is_delegue_securite_sante": inv.is_delegue_securite_sante,
         "is_delegue_egalite": inv.is_delegue_egalite,
         "organization_name": inv.organization.name if inv.organization else None,
@@ -45,15 +46,9 @@ def _invitation_to_response(inv: Invitation) -> dict:
 @router.post("/organizations", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def create_organization(body: CreateOrganizationRequest, db: Session = Depends(get_db)):
     if body.employee_count < 15:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="L'effectif minimum est de 15 salariés pour constituer une délégation",
-        )
+        raise HTTPException(status_code=400, detail="L'effectif minimum est de 15 salariés")
     if db.query(User).filter(User.email == body.admin_email).first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Un compte avec cet email existe déjà",
-        )
+        raise HTTPException(status_code=409, detail="Cet email existe déjà")
 
     base_slug = _make_slug(body.organization_name)
     slug = base_slug
@@ -63,11 +58,8 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
         counter += 1
 
     org = Organization(
-        name=body.organization_name,
-        slug=slug,
-        company_name=body.company_name,
-        employee_count=body.employee_count,
-        country="LU",
+        name=body.organization_name, slug=slug,
+        company_name=body.company_name, employee_count=body.employee_count, country="LU",
     )
     db.add(org)
     db.flush()
@@ -77,6 +69,7 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
         password_hash=hash_password(body.admin_password),
         first_name=body.admin_first_name,
         last_name=body.admin_last_name,
+        delegue_status=DelegueStatus.titulaire,
         delegue_role=DelegueRole.president,
         role=UserRole.admin,
         organization_id=org.id,
@@ -97,22 +90,16 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
         .first()
     )
     if not invitation:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Code d'invitation invalide ou déjà utilisé",
-        )
-
+        raise HTTPException(status_code=400, detail="Code d'invitation invalide ou déjà utilisé")
     if db.query(User).filter(User.email == body.email).first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Un compte avec cet email existe déjà",
-        )
+        raise HTTPException(status_code=409, detail="Cet email existe déjà")
 
     user = User(
         email=body.email,
         password_hash=hash_password(body.password),
         first_name=body.first_name,
         last_name=body.last_name,
+        delegue_status=invitation.delegue_status,
         delegue_role=invitation.delegue_role,
         role=UserRole.member,
         organization_id=invitation.organization_id,
@@ -120,10 +107,8 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
         is_delegue_egalite=invitation.is_delegue_egalite,
     )
     db.add(user)
-
     invitation.is_used = True
     invitation.used_at = datetime.now(timezone.utc)
-
     db.commit()
     db.refresh(user)
 
@@ -138,24 +123,24 @@ def create_invitation(
     db: Session = Depends(get_db),
 ):
     if current_user.role != UserRole.admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Seul un administrateur peut créer des invitations",
-        )
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+
+    valid_statuses = [s.value for s in DelegueStatus]
+    if body.delegue_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Statut invalide : {', '.join(valid_statuses)}")
 
     valid_roles = [r.value for r in DelegueRole]
     if body.delegue_role not in valid_roles:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Rôle invalide. Valeurs possibles : {', '.join(valid_roles)}",
-        )
+        raise HTTPException(status_code=400, detail=f"Rôle invalide : {', '.join(valid_roles)}")
 
-    # Cohérence : égalité doit être un membre de la délégation
-    if body.is_delegue_egalite and body.delegue_role == DelegueRole.employe.value:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le délégué à l'égalité doit être un membre élu de la délégation (titulaire ou suppléant)",
-        )
+    # Règle : égalité → doit être un élu (titulaire ou suppléant)
+    if body.is_delegue_egalite and body.delegue_status == DelegueStatus.employe.value:
+        raise HTTPException(status_code=400, detail="Le délégué à l'égalité doit être titulaire ou suppléant")
+
+    # Règle : sécurité/santé peut être employé, mais s'il est élu il doit avoir un rôle cohérent
+    if body.is_delegue_egalite and body.is_delegue_securite_sante:
+        # C'est permis : un délégué peut cumuler les deux désignations
+        pass
 
     code = generate_invitation_code()
     while db.query(Invitation).filter(Invitation.code == code).first():
@@ -166,6 +151,7 @@ def create_invitation(
         email=body.email,
         first_name=body.first_name,
         last_name=body.last_name,
+        delegue_status=DelegueStatus(body.delegue_status),
         delegue_role=DelegueRole(body.delegue_role),
         is_delegue_securite_sante=body.is_delegue_securite_sante,
         is_delegue_egalite=body.is_delegue_egalite,
@@ -193,14 +179,10 @@ def list_invitations(
     db: Session = Depends(get_db),
 ):
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
-
+        raise HTTPException(status_code=403)
     invitations = (
         db.query(Invitation)
-        .filter(
-            Invitation.organization_id == current_user.organization_id,
-            Invitation.is_used == False,
-        )
+        .filter(Invitation.organization_id == current_user.organization_id, Invitation.is_used == False)
         .all()
     )
     return [InvitationResponse(**_invitation_to_response(inv)) for inv in invitations]

@@ -1,16 +1,12 @@
 const API_BASE = '/api'
 
-interface TokenResponse {
-  access_token: string
-  token_type: string
-}
-
 interface UserResponse {
   id: number
   email: string
   first_name: string
   last_name: string
   full_name: string
+  delegue_status: string
   delegue_role: string
   role: string
   is_delegue_securite_sante: boolean
@@ -37,6 +33,7 @@ interface InvitationResponse {
   email: string
   first_name: string
   last_name: string
+  delegue_status: string
   delegue_role: string
   is_delegue_securite_sante: boolean
   is_delegue_egalite: boolean
@@ -45,16 +42,18 @@ interface InvitationResponse {
 
 export type { InvitationResponse }
 
+interface TokenResponse {
+  access_token: string
+  token_type: string
+}
+
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
+  if (token) headers['Authorization'] = `Bearer ${token}`
   const res = await fetch(`${API_BASE}${url}`, { ...options, headers })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
@@ -64,73 +63,49 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 }
 
 export function login(email: string, password: string): Promise<TokenResponse> {
-  return request<TokenResponse>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
+  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
 }
 
 export function joinOrganization(data: {
-  email: string
-  password: string
-  first_name: string
-  last_name: string
-  invitation_code: string
+  email: string; password: string; first_name: string; last_name: string; invitation_code: string
 }): Promise<TokenResponse> {
-  return request<TokenResponse>('/join', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+  return request('/join', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export function createOrganization(data: {
-  organization_name: string
-  company_name?: string
-  employee_count: number
-  admin_email: string
-  admin_password: string
-  admin_first_name: string
-  admin_last_name: string
+  organization_name: string; company_name?: string; employee_count: number
+  admin_email: string; admin_password: string; admin_first_name: string; admin_last_name: string
 }): Promise<TokenResponse> {
-  return request<TokenResponse>('/organizations', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-}
-
-export function getMe(): Promise<UserResponse> {
-  return request<UserResponse>('/auth/me')
+  return request('/organizations', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export function getDashboard(): Promise<DashboardResponse> {
-  return request<DashboardResponse>('/dashboard')
+  return request('/dashboard')
 }
 
 export function createInvitation(data: {
-  email: string
-  first_name: string
-  last_name: string
-  delegue_role: string
-  is_delegue_securite_sante?: boolean
-  is_delegue_egalite?: boolean
+  email: string; first_name: string; last_name: string
+  delegue_status: string; delegue_role: string
+  is_delegue_securite_sante?: boolean; is_delegue_egalite?: boolean
 }): Promise<InvitationResponse> {
-  return request<InvitationResponse>('/invitations', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+  return request('/invitations', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export function listInvitations(): Promise<InvitationResponse[]> {
-  return request<InvitationResponse[]>('/invitations')
+  return request('/invitations')
 }
 
-export const DELEGUE_ROLES = [
+export const DELEGUE_STATUS = [
   { value: 'titulaire', label: 'Titulaire' },
   { value: 'suppleant', label: 'Suppléant(e)' },
+  { value: 'employe', label: 'Salarié(e) non-élu(e)' },
+] as const
+
+export const DELEGUE_ROLES = [
   { value: 'president', label: 'Président(e)' },
   { value: 'vice_president', label: 'Vice-président(e)' },
   { value: 'secretaire', label: 'Secrétaire' },
-  { value: 'tresorier', label: 'Trésorier(ère)' },
+  { value: 'membre', label: 'Membre du bureau' },
 ] as const
 
 export const EMPLOYEE_RANGES = [

@@ -3,40 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import * as api from '../api/client'
 
 interface User {
-  id: number
-  email: string
-  first_name: string
-  last_name: string
-  full_name: string
-  delegue_role: string
-  role: string
-  is_delegue_securite_sante: boolean
-  is_delegue_egalite: boolean
+  id: number; email: string; first_name: string; last_name: string; full_name: string
+  delegue_status: string; delegue_role: string; role: string
+  is_delegue_securite_sante: boolean; is_delegue_egalite: boolean
 }
 
 interface Organization {
-  id: number
-  name: string
-  slug: string
-  company_name: string | null
-  country: string
-  employee_count: number
-  required_titulaires: number
+  id: number; name: string; slug: string; company_name: string | null
+  country: string; employee_count: number; required_titulaires: number
 }
 
-interface AuthState {
-  user: User | null
-  organization: Organization | null
-  token: string | null
-}
+interface AuthState { user: User | null; organization: Organization | null; token: string | null }
 
 interface AuthContextType extends AuthState {
   setAuth: (token: string, user: User, org: Organization) => void
-  logout: () => void
-  fetchDashboard: () => Promise<void>
-  loading: boolean
-  error: string | null
-  setError: (msg: string | null) => void
+  logout: () => void; fetchDashboard: () => Promise<void>
+  loading: boolean; error: string | null; setError: (msg: string | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -65,22 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     try {
       const dash = await api.getDashboard()
-      setState({
-        token: localStorage.getItem('token'),
-        user: dash.user,
-        organization: dash.organization,
-      })
-    } catch {
-      logout()
-    } finally {
-      setLoading(false)
-    }
+      setState({ token: localStorage.getItem('token'), user: dash.user, organization: dash.organization })
+    } catch { logout() }
+    finally { setLoading(false) }
   }, [logout])
 
   return (
-    <AuthContext.Provider
-      value={{ ...state, setAuth, logout, fetchDashboard, loading, error, setError }}
-    >
+    <AuthContext.Provider value={{ ...state, setAuth, logout, fetchDashboard, loading, error, setError }}>
       {children}
     </AuthContext.Provider>
   )

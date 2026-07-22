@@ -28,7 +28,8 @@ class CreateInvitationRequest(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str
-    delegue_role: str
+    delegue_status: str = "titulaire"    # titulaire, suppleant, employe
+    delegue_role: str = "membre"         # president, vice_president, secretaire, membre
     is_delegue_securite_sante: bool = False
     is_delegue_egalite: bool = False
 
@@ -46,6 +47,7 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
     full_name: str
+    delegue_status: str
     delegue_role: str
     role: str
     is_delegue_securite_sante: bool = False
@@ -76,6 +78,7 @@ class InvitationResponse(BaseModel):
     email: str
     first_name: str
     last_name: str
+    delegue_status: str
     delegue_role: str
     is_delegue_securite_sante: bool = False
     is_delegue_egalite: bool = False
