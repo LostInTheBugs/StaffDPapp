@@ -91,10 +91,10 @@ export default function Organigramme() {
             </div>
           </div>
 
-          <h3 style={{ fontSize: '.9rem', color: 'var(--blue)', marginBottom: 8 }}>Titulaires ({n})</h3>
+          <h3 style={{ fontSize: '.9rem', color: 'var(--blue)', marginBottom: 8 }}>Titulaires restants ({Math.max(0, n - 3)})</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-            {Array.from({ length: n }, (_, i) => {
-              const filled = members.filter(m => m.delegue_status === 'titulaire' && m.delegue_role === 'membre' && !['president','vice_president','secretaire'].includes(m.delegue_role))
+            {Array.from({ length: Math.max(0, n - 3) }, (_, i) => {
+              const filled = members.filter(m => m.delegue_status === 'titulaire' && !['president','vice_president','secretaire'].includes(m.delegue_role))
               const m = filled[i]
               return <MemberCell key={`t${i}`} member={m} status="titulaire" />
             })}
