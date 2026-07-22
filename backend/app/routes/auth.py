@@ -180,6 +180,8 @@ def update_profile(
         current_user.email = body["email"]
     if "avatar_url" in body:
         current_user.avatar_url = body["avatar_url"]
+    if "language" in body and body["language"] in ("fr", "en", "de", "pt"):
+        current_user.language = body["language"]
     db.commit()
     db.refresh(current_user)
     return UserResponse.model_validate(current_user)

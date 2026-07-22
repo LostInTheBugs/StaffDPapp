@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import * as api from '../api/client'
 import NavBar from '../components/NavBar'
+import { useT } from '../i18n/I18nContext'
 
 export default function Dashboard() {
+  const { t } = useT()
   const { user, organization, fetchDashboard } = useAuth()
   const [inviteForm, setInviteForm] = useState({
     email: '', first_name: '', last_name: '',
@@ -59,31 +61,31 @@ export default function Dashboard() {
       <NavBar />
       <div className="dashboard">
         <div className="card mb-24">
-          <h2>👤 Mon profil</h2>
+          <h2>{t('dashboard.profile')}</h2>
           <p><strong>{user.full_name}</strong></p>
           <p style={{ color: 'var(--gray-600)' }}>{user.email}</p>
           <p style={{ color: 'var(--gray-600)' }}>
-            Statut : <strong>{statusLabel(user.delegue_status)}</strong>
-            {' — '}Fonction : <strong>{roleLabel(user.delegue_role)}</strong>
+            {t('dashboard.invite_status')} : <strong>{statusLabel(user.delegue_status)}</strong>
+            {' — '}{t('dashboard.invite_role')} : <strong>{roleLabel(user.delegue_role)}</strong>
             {user.is_delegue_securite_sante && ' + 🛡️ Sécurité/Santé'}
             {user.is_delegue_egalite && ' + ⚖️ Égalité'}
           </p>
         </div>
 
         <div className="card mb-24">
-          <h2>📊 Délégation</h2>
+          <h2>{t('dashboard.org')}</h2>
           <p><strong>{organization.name}</strong></p>
           {organization.company_name && <p style={{ color: 'var(--gray-600)' }}>{organization.company_name}</p>}
-          <p style={{ color: 'var(--gray-600)' }}>Effectif : <strong>{organization.employee_count}</strong> salariés</p>
+          <p style={{ color: 'var(--gray-600)' }}>{t('dashboard.employees')} : <strong>{organization.employee_count}</strong> salariés</p>
           <p style={{ color: 'var(--gray-600)' }}>
-            Délégués : <strong>{organization.required_titulaires} titulaires</strong> + {organization.required_titulaires} suppléants
+            {t('dashboard.delegates')} : <strong>{organization.required_titulaires} titulaires</strong> + {organization.required_titulaires} suppléants
           </p>
           <p style={{ color: 'var(--gray-600)', fontSize: '.8rem' }}>Art. L.412-1 — Luxembourg 🇱🇺</p>
         </div>
 
         {isAdmin && (
           <div className="card mb-24">
-            <h2>✉️ Inviter un membre</h2>
+            <h2>{t('dashboard.invite')}</h2>
             {error && <div className="error-msg">{error}</div>}
             <form onSubmit={generateInvite}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>

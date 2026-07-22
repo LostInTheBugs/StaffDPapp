@@ -99,6 +99,7 @@ class UserResponse(BaseModel):
     last_name: str
     full_name: str
     avatar_url: str | None = None
+    language: str = "fr"
     delegue_status: str
     delegue_role: str
     role: str

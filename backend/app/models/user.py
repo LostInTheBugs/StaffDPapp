@@ -46,6 +46,9 @@ class User(Base):
     # Photo de profil
     avatar_url = Column(String(500), nullable=True)
 
+    # Langue préférée
+    language = Column(String(5), default="fr")  # fr, en, de, pt
+
     # Désignations spéciales (Art. L.414-2 et L.414-3)
     is_delegue_securite_sante = Column(Boolean, default=False)
     is_delegue_egalite = Column(Boolean, default=False)
