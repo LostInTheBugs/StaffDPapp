@@ -1,103 +1,67 @@
-# Staff Delegation 🏢
+# StaffDPapp — Staff Delegation Application
 
-Application web de gestion pour les **délégations du personnel** au Luxembourg.
+Outil de gestion pour les **délégations du personnel** au Luxembourg, conforme au Code du travail (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Une personne arrivant sur le site peut :
-- 🔑 Se connecter avec un accès existant
-- ✉️ Créer un accès via un code d'invitation (rejoindre une délégation existante)
-- 🏛️ Créer une nouvelle délégation du personnel (devient administrateur)
+## Fonctionnalités
 
-## Stack
+- 🏛️ **Création de délégation** : nom, entreprise, effectif → calcul automatique du nombre de titulaires/suppléants
+- 👥 **Organigramme** : bureau (président, vice-président, secrétaire) + titulaires + suppléants + désignations spéciales
+- 📅 **Réunions** : calendrier, invitations, points à l'ordre du jour, invitation de la direction (J+5 minimum), stats 6 réunions/an dont 3 avec direction
+- ⏱️ **Mes heures** : suivi des heures de mandat avec crédit hebdomadaire légal (Art. L.415-5)
+- 🔐 **Authentification** : JWT, CAPTCHA mathématique, MFA TOTP, multi-langue (FR/EN/DE/PT)
+- 👤 **Mon profil** : photo, langue, changement de mot de passe, MFA
+
+## Démo
+
+**Comptes de test** (organisation Demo, 120 salariés, 5 titulaires + 5 suppléants) :
+
+| Email | Nom | Statut | Fonction |
+|-------|-----|--------|----------|
+| `sophie@demo.lu` | Sophie Muller | Titulaire | Présidente |
+| `marc@demo.lu` | Marc Weber | Titulaire | Vice-président |
+| `laura@demo.lu` | Laura Schmit | Titulaire | Secrétaire |
+| `tom@demo.lu` | Tom Wagner | Titulaire | Membre |
+| `emma@demo.lu` | Emma Kirsch | Titulaire | Membre |
+| `paul@demo.lu` | Paul Hoffmann | Suppléant | Membre |
+| `anna@demo.lu` | Anna Klein | Suppléant | Membre |
+| `david@demo.lu` | David Fischer | Suppléant | Membre |
+| `clara@demo.lu` | Clara Becker | Suppléant | Membre |
+| `lucas@demo.lu` | Lucas Thill | Suppléant | Membre |
+
+Tous MDP : `demo123456`
+
+- 🧪 **Test** : http://192.168.10.191:3002
+- 🌐 **Production** : https://staffdpapp.cloudfr.net
+
+## Déploiement
+
+```bash
+# Développement local
+cd backend && python -m uvicorn app.main:app --reload
+cd frontend && npm run dev
+
+# Docker Compose
+docker compose up -d --build
+
+# Seed (après suppression du volume)
+bash seed.sh
+```
+
+## Stack technique
 
 | Couche | Technologie |
-|--------|------------|
-| Frontend | React 18 + TypeScript + Vite |
-| Backend | Python FastAPI + SQLAlchemy |
-| Base de données | SQLite (dev) / PostgreSQL (prod) |
-| Auth | JWT + bcrypt |
-| Déploiement | Docker Compose + Traefik |
+|--------|-------------|
+| Frontend | React 18, TypeScript, Vite |
+| Backend | Python 3.11, FastAPI, SQLAlchemy |
+| Base de données | SQLite |
+| Reverse proxy | Traefik + Let's Encrypt (HTTPS) |
+| Déploiement | Docker Compose |
 
-## Installation (développement)
+## Références légales
 
-### Prérequis
-- Python 3.11+
-- Node.js 20+
-- npm
+- Art. L.412-1 : Nombre de délégués selon l'effectif
+- Art. L.414-2/3 : Désignations spéciales (sécurité/santé, égalité)
+- Art. L.415-5 : Crédit d'heures hebdomadaire
+- Art. L.416-1 : Bureau (président, vice-président, secrétaire)
 
-### Backend
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example .env   # adapter SD_SECRET_KEY
-uvicorn app.main:app --reload --port 8000
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Le frontend tourne sur `http://localhost:5173` avec proxy API vers le backend.
-
-## Déploiement (Docker)
-
-```bash
-# Créer le réseau Traefik si pas déjà fait
-docker network create traefik-public
-
-# Lancer
-docker compose up -d --build
-```
-
-Le frontend est exposé sur le port `8080`. Les labels Traefik sont préconfigurés pour les domaines :
-- `staff-delegation.cloudfr.net` → frontend
-- `sd-api.cloudfr.net` → backend API
-
-## API
-
-| Endpoint | Méthode | Auth | Description |
-|----------|---------|------|-------------|
-| `/api/health` | GET | - | Health check |
-| `/api/auth/login` | POST | - | Connexion |
-| `/api/auth/me` | GET | Bearer | Profil utilisateur |
-| `/api/organizations` | POST | - | Créer une délégation |
-| `/api/join` | POST | - | Rejoindre via code |
-| `/api/invitations` | POST | Bearer | Créer une invitation (admin) |
-| `/api/invitations` | GET | Bearer | Lister les invitations actives |
-| `/api/dashboard` | GET | Bearer | Dashboard utilisateur |
-
-## Structure du projet
-
-```
-staff-delegation/
-├── backend/
-│   ├── app/
-│   │   ├── core/          # Config, sécurité, DB
-│   │   ├── models/        # SQLAlchemy (User, Organization, Invitation)
-│   │   ├── routes/        # Endpoints API
-│   │   ├── schemas/       # Pydantic
-│   │   └── main.py        # FastAPI app
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── api/           # Client API
-│   │   ├── components/    # ProtectedRoute
-│   │   ├── hooks/         # useAuth context
-│   │   └── pages/         # Landing, Login, Join, Create, Dashboard
-│   ├── Dockerfile
-│   └── nginx.conf
-├── docker-compose.yml
-├── .env.example
-└── LICENSE
-```
-
-## Licence
-
-MIT — voir [LICENSE](LICENSE)
+Plus d'infos : [CSL - Moyens à disposition de la délégation](https://www.csl.lu/fr/vos-droits/salaries/dialogue-social/representation-du-personnel/moyens-a-disposition-de-la-delegation-du-personnel/)
