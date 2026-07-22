@@ -55,7 +55,7 @@ export default function CreateOrganization() {
     <div className="container">
       <div className="card">
         <h2>🏛️ Créer une délégation du personnel</h2>
-        <p className="subtitle">Créez l'environnement de votre délégation. Vous serez automatiquement Président.</p>
+        <p className="subtitle">Créez l'environnement de votre délégation.</p>
         {error && <div className="error-msg">{error}</div>}
         <form onSubmit={handleSubmit}>
           <fieldset style={{ border: '1px solid var(--gray-300)', borderRadius: 'var(--radius)', padding: '20px 16px', marginBottom: 24 }}>
