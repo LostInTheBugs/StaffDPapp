@@ -122,6 +122,25 @@ def respond_meeting(
     return {"status": "ok"}
 
 
+@router.get("/count/pending")
+def pending_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    count = (
+        db.query(MeetingInvitee)
+        .join(Meeting)
+        .filter(
+            MeetingInvitee.user_id == current_user.id,
+            MeetingInvitee.status == InviteeStatus.pending,
+            Meeting.status == MeetingStatus.planned,
+            Meeting.organization_id == current_user.organization_id,
+        )
+        .count()
+    )
+    return {"count": count}
+
+
 @router.delete("/{meeting_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_meeting(
     meeting_id: int,
