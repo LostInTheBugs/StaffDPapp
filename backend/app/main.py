@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import init_db
-from app.routes import auth, organization
+from app.routes import auth, organization, meeting
 
 app = FastAPI(
     title="Staff Delegation",
@@ -22,6 +22,7 @@ app.add_middleware(
 # Routes
 app.include_router(auth.router)
 app.include_router(organization.router)
+app.include_router(meeting.router)
 
 
 @app.on_event("startup")

@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import EditOrganization from './pages/EditOrganization'
 import AccountSettings from './pages/AccountSettings'
 import Organigramme from './pages/Organigramme'
+import Meetings from './pages/Meetings'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/organization" element={<ProtectedRoute><EditOrganization /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
       <Route path="/organigramme" element={<ProtectedRoute><Organigramme /></ProtectedRoute>} />
+      <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
