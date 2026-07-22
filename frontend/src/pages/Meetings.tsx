@@ -100,12 +100,18 @@ export default function Meetings() {
         <div className="card mb-24">
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <h2>📅 Réunions</h2>
-            <button onClick={() => {
+            <button onClick={async () => {
               const opening = !showForm
               setShowForm(opening)
-              if (opening && members.length > 0) {
-                const titulaires = members.filter(m => m.delegue_status === 'titulaire')
-                setInviteeIds(titulaires.map(m => parseInt(m.id.toString())))
+              if (opening) {
+                // Reload members for fresh list, then auto-select titulaires
+                try {
+                  const r = await fetch('/api/organization/members', { headers: h })
+                  const fresh = await r.json()
+                  setMembers(fresh)
+                  const titulaires = fresh.filter((m: Member) => m.delegue_status === 'titulaire')
+                  setInviteeIds(titulaires.map((m: Member) => parseInt(m.id.toString())))
+                } catch { /* */ }
               }
             }} className="btn btn-primary" style={{ width:'auto', padding:'8px 16px' }}>
               {showForm ? 'Annuler' : '+ Nouvelle réunion'}
