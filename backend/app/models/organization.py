@@ -76,3 +76,15 @@ class Organization(Base):
             return 25
         # >5500: +1 par tranche de 500
         return 25 + ((n - 5500) // 500) + (1 if (n - 5500) % 500 > 0 else 0)
+
+    @property
+    def weekly_credit_hours(self) -> float | None:
+        """Crédit d'heures hebdomadaire total (Art. L.415-5). None si >= 250 (délégués libérés)."""
+        n = self.employee_count
+        if n < 150:
+            h = (40 * n) / 500
+        elif n < 250:
+            h = (40 * n) / 250
+        else:
+            return None
+        return round(h + 0.001)

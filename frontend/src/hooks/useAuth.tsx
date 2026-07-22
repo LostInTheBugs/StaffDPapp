@@ -13,6 +13,7 @@ interface User {
 interface Organization {
   id: number; name: string; slug: string; company_name: string | null
   country: string; employee_count: number; mandate_end_date: string | null; required_titulaires: number
+ weekly_credit_hours: number | null
 }
 
 interface AuthState { user: User | null; organization: Organization | null; token: string | null }

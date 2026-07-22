@@ -15,7 +15,8 @@ const CATEGORIES = [
 ]
 
 export default function TimeTracking() {
-  const { token } = useAuth()
+  const { token, organization } = useAuth()
+  const weeklyPool = organization?.weekly_credit_hours
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [summary, setSummary] = useState({ month: '', total_hours: 0, credit_hours: 20, remaining: 20 })
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), hours: '', description: '', category: 'reunion' })
@@ -70,7 +71,8 @@ export default function TimeTracking() {
 
         <div className="card mb-16" style={{ background: summary.remaining < 0 ? '#fff5f5' : '#f0fff4', padding: 16, display: 'flex', justifyContent: 'space-around', fontSize: '.9rem' }}>
           <span>📅 {summary.month}</span>
-          <span>⏱️ <strong>{summary.total_hours}h</strong> / {summary.credit_hours}h</span>
+          <span>👤 <strong>{summary.total_hours}h</strong> / {summary.credit_hours}h perso</span>
+          {weeklyPool != null && <span>🏢 Crédit délégation : <strong>{weeklyPool}h/sem</strong> (~{weeklyPool * 4}h/mois)</span>}
           <span style={{ color: summary.remaining < 0 ? 'var(--red)' : '#276749', fontWeight: 600 }}>
             {summary.remaining < 0 ? `-${Math.abs(summary.remaining)}h dépassé` : `${summary.remaining}h restant`}
           </span>

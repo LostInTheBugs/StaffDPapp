@@ -24,6 +24,7 @@ interface OrganizationResponse {
   employee_count: number
   mandate_end_date: string | null
   required_titulaires: number
+  weekly_credit_hours: number | null
 }
 
 interface DashboardResponse {

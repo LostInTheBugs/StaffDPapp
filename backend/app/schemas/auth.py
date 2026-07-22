@@ -119,6 +119,7 @@ class OrganizationResponse(BaseModel):
     employee_count: int
     mandate_end_date: str | None = None
     required_titulaires: int
+    weekly_credit_hours: float | None = None
 
     model_config = {"from_attributes": True}
 
