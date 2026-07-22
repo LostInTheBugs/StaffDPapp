@@ -20,6 +20,9 @@ export default function Landing() {
       <p className="text-center mt-16" style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>
         {t('landing.footer')}
       </p>
+      <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', padding: '12px 16px', fontSize: '.78rem', color: '#856404', textAlign: 'center', maxWidth: '600px', margin: '24px auto 0' }}>
+        ⚠️ <strong>Application expérimentale</strong> — Cet outil est fourni à titre de démonstration uniquement. Il ne constitue en aucun cas un conseil juridique et n'est pas garanti conforme à la législation luxembourgeoise. L'utilisation de cette application se fait aux risques et périls de l'utilisateur. Pour toute question relative au droit du travail luxembourgeois, consultez un professionnel qualifié ou la Chambre des Salariés (CSL).
+      </div>
     </div>
   )
 }
