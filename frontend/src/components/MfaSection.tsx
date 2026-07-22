@@ -71,7 +71,8 @@ export default function MfaSection() {
         </div>
       ) : (
         <>
-          <button onClick={setupMfa} className="btn btn-secondary mb-16" disabled={loading}>
+          <button onClick={setupMfa} className="btn btn-secondary" disabled={loading}
+            style={{ display:'inline-block', width:'auto', padding:'10px 24px' }}>
             {loading ? <div className="spinner" /> : '🔐 Configurer MFA'}
           </button>
           <div style={{ borderTop: '1px solid var(--gray-300)', paddingTop: 16 }}>
@@ -81,7 +82,8 @@ export default function MfaSection() {
             <div style={{ display:'flex', gap:8 }}>
               <input type="password" value={disablePass} onChange={e => setDisablePass(e.target.value)}
                 placeholder="Mot de passe" style={{ flex:1, padding:'8px 12px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)' }} />
-              <button onClick={disableMfa} className="btn" style={{ background:'var(--red)', color:'#fff', padding:'8px 16px', flex:'none' }}
+              <button onClick={disableMfa}
+                style={{ background:'var(--red)', color:'#fff', padding:'8px 16px', border:'none', borderRadius:'var(--radius)', cursor:'pointer', fontWeight:600, flex:'none' }}
                 disabled={loading || !disablePass}>
                 Désactiver
               </button>
