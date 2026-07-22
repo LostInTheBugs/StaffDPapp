@@ -20,6 +20,7 @@ def _meeting_to_response(m: Meeting) -> dict:
         "date": m.date,
         "location": m.location,
         "status": m.status.value if m.status else "planned",
+        "direction_invited": m.direction_invited,
         "created_by_name": m.created_by.full_name if m.created_by else None,
         "points": [
             {"description": p.description, "order": p.order}
@@ -58,10 +59,19 @@ def create_meeting(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Validation : direction invitée → J+5 ouvrables minimum
+    if body.direction_invited:
+        from datetime import datetime, timedelta
+        now = datetime.now(body.date.tzinfo) if body.date.tzinfo else datetime.now()
+        min_date = now + timedelta(days=7)  # 5 ouvrables ≈ 7 jours calendaires
+        if body.date < min_date:
+            raise HTTPException(status_code=400, detail="Avec la direction, la réunion doit être planifiée au moins 5 jours ouvrables à l'avance (J+7 calendaires minimum)")
+
     meeting = Meeting(
         title=body.title,
         date=body.date,
         location=body.location,
+        direction_invited=body.direction_invited,
         created_by_id=current_user.id,
         organization_id=current_user.organization_id,
     )
@@ -120,6 +130,32 @@ def respond_meeting(
     invitee.status = InviteeStatus(body.status)
     db.commit()
     return {"status": "ok"}
+
+
+@router.get("/stats")
+def meeting_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime
+    year_start = datetime(datetime.now().year, 1, 1)
+    total = db.query(Meeting).filter(
+        Meeting.organization_id == current_user.organization_id,
+        Meeting.date >= year_start,
+        Meeting.status != MeetingStatus.cancelled,
+    ).count()
+    with_direction = db.query(Meeting).filter(
+        Meeting.organization_id == current_user.organization_id,
+        Meeting.date >= year_start,
+        Meeting.direction_invited == True,
+        Meeting.status != MeetingStatus.cancelled,
+    ).count()
+    return {
+        "total": total,
+        "with_direction": with_direction,
+        "min_required": 6,
+        "min_with_direction": 3,
+    }
 
 
 @router.get("/count/pending")

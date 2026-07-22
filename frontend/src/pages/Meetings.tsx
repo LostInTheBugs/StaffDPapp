@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 
 interface Meeting {
   id: number; title: string; date: string; location: string | null; status: string
+  direction_invited: boolean
   created_by_name: string | null; points: { description: string }[]
   invitees: { id: number; user_id: number; user_name: string | null; status: string }[]
 }
@@ -15,15 +16,19 @@ export default function Meetings() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', date: '', location: '', points: [''] })
+  const [form, setForm] = useState({ title: '', date: '', location: '', direction_invited: false, points: [''] })
   const [inviteeIds, setInviteeIds] = useState<number[]>([])
+  const [stats, setStats] = useState({ total: 0, with_direction: 0, min_required: 6, min_with_direction: 3 })
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const h = { Authorization: `Bearer ${token}` }
 
-  useEffect(() => { loadMeetings(); loadMembers() }, [])
+  useEffect(() => { loadMeetings(); loadMembers(); loadStats() }, [])
+  async function loadStats() {
+    try { const r = await fetch('/api/meetings/stats', { headers: h }); setStats(await r.json()) } catch { /* */ }
+  }
 
   async function loadMeetings() {
     try { const r = await fetch('/api/meetings', { headers: h }); setMeetings(await r.json()) } catch { /* */ }
@@ -47,6 +52,7 @@ export default function Meetings() {
         method: 'POST', headers: { ...h, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title, date: new Date(form.date).toISOString(), location: form.location || null,
+          direction_invited: form.direction_invited,
           points: form.points.filter(p => p.trim()).map((p, i) => ({ description: p, order: i })),
           invitee_ids: inviteeIds,
         }),
@@ -54,7 +60,7 @@ export default function Meetings() {
       if (!res.ok) throw new Error((await res.json()).detail)
       setMsg('Réunion créée ✅')
       setShowForm(false)
-      setForm({ title: '', date: '', location: '', points: [''] })
+      setForm({ title: '', date: '', location: '', direction_invited: false, points: [''] })
       setInviteeIds([])
       loadMeetings()
     } catch (e: any) { setErr(e.message) }
@@ -101,6 +107,12 @@ export default function Meetings() {
                 <div className="form-group"><label>Lieu</label><input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} /></div>
               </div>
 
+              <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, cursor:'pointer', background: form.direction_invited ? '#fff5f5' : 'var(--gray-50)', padding:'10px 14px', borderRadius:'var(--radius)' }}>
+                <input type="checkbox" checked={form.direction_invited} onChange={e => setForm(p => ({ ...p, direction_invited: e.target.checked }))} />
+                <span style={{ fontWeight:600, fontSize:'.9rem' }}>🏢 Inviter la direction</span>
+                <small style={{ color:'var(--gray-600)' }}>(la réunion sera planifiée à J+5 ouvrables minimum)</small>
+              </label>
+
               <label style={{ fontWeight:600, fontSize:'.88rem', display:'block', marginBottom:4 }}>Points à l'ordre du jour</label>
               {form.points.map((p, i) => (
                 <div key={i} style={{ display:'flex', gap:8, marginBottom:8 }}>
@@ -141,6 +153,11 @@ export default function Meetings() {
           </div>
         )}
 
+        <div className="card mb-16" style={{ padding:16, background:'#f0fff4', display:'flex', gap:24, fontSize:'.85rem' }}>
+          <span>📅 <strong>{stats.total}</strong>/{stats.min_required} réunions cette année</span>
+          <span>🏢 <strong>{stats.with_direction}</strong>/{stats.min_with_direction} avec la direction</span>
+        </div>
+
         {meetings.map(m => (
           <div key={m.id} className="card mb-16" style={{ padding:24 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
@@ -151,6 +168,7 @@ export default function Meetings() {
                 </p>
                 <p style={{ color:'var(--gray-600)', fontSize:'.8rem' }}>
                   Créé par {m.created_by_name || '?'} — {m.status}
+                  {m.direction_invited && <span style={{ background:'#fff5f5', color:'#c53030', padding:'1px 6px', borderRadius:4, fontSize:'.7rem', fontWeight:700, marginLeft:6 }}>🏢 Direction invitée</span>}
                 </p>
 
                 {m.points.length > 0 && (

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Enum as SAEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -26,6 +26,7 @@ class Meeting(Base):
     date = Column(DateTime(timezone=True), nullable=False)
     location = Column(String(300), nullable=True)
     status = Column(SAEnum(MeetingStatus), default=MeetingStatus.planned, nullable=False)
+    direction_invited = Column(Boolean, default=False)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

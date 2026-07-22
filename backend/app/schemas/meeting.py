@@ -22,6 +22,7 @@ class CreateMeetingRequest(BaseModel):
     title: str
     date: datetime
     location: str | None = None
+    direction_invited: bool = False
     points: list[MeetingPointSchema] = []
     invitee_ids: list[int] = []
 
@@ -32,6 +33,7 @@ class MeetingResponse(BaseModel):
     date: datetime
     location: str | None
     status: str
+    direction_invited: bool = False
     created_by_name: str | None = None
     points: list[MeetingPointSchema] = []
     invitees: list[MeetingInviteeSchema] = []
