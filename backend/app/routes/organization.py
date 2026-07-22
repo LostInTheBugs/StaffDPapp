@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.security import hash_password, create_access_token, generate_invitation_code
+from app.core.captcha import validate_captcha
 from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
 from app.schemas.auth import (
     RegisterRequest,
@@ -45,6 +46,11 @@ def _invitation_to_response(inv: Invitation) -> dict:
 
 @router.post("/organizations", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def create_organization(body: CreateOrganizationRequest, db: Session = Depends(get_db)):
+    # CAPTCHA
+    if body.captcha_id and body.captcha_answer:
+        if not validate_captcha(body.captcha_id, body.captcha_answer):
+            raise HTTPException(status_code=400, detail="CAPTCHA invalide")
+
     if body.employee_count < 15:
         raise HTTPException(status_code=400, detail="L'effectif minimum est de 15 salariés")
     if db.query(User).filter(User.email == body.admin_email).first():
@@ -84,6 +90,11 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
 
 @router.post("/join", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
+    # CAPTCHA
+    if body.captcha_id and body.captcha_answer:
+        if not validate_captcha(body.captcha_id, body.captcha_answer):
+            raise HTTPException(status_code=400, detail="CAPTCHA invalide")
+
     invitation = (
         db.query(Invitation)
         .filter(Invitation.code == body.invitation_code.upper(), Invitation.is_used == False)

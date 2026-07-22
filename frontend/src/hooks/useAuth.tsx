@@ -5,6 +5,7 @@ import * as api from '../api/client'
 interface User {
   id: number; email: string; first_name: string; last_name: string; full_name: string
   delegue_status: string; delegue_role: string; role: string
+  totp_enabled: boolean
   is_delegue_securite_sante: boolean; is_delegue_egalite: boolean
 }
 

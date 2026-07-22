@@ -14,14 +14,14 @@ class UserRole(str, enum.Enum):
 class DelegueStatus(str, enum.Enum):
     titulaire = "titulaire"
     suppleant = "suppleant"
-    employe = "employe"  # salarié non-élu (ex: délégué sécurité/santé hors délégation)
+    employe = "employe"
 
 
 class DelegueRole(str, enum.Enum):
     president = "president"
     vice_president = "vice_president"
     secretaire = "secretaire"
-    membre = "membre"  # pas de fonction spécifique au bureau
+    membre = "membre"
 
 
 class User(Base):
@@ -33,13 +33,15 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
 
-    # Statut : titulaire, suppléant ou employé (non-élu)
     delegue_status = Column(SAEnum(DelegueStatus), default=DelegueStatus.titulaire, nullable=False)
-    # Fonction au bureau : président, vice-président, secrétaire, membre
     delegue_role = Column(SAEnum(DelegueRole), default=DelegueRole.membre, nullable=False)
 
     role = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     is_active = Column(Boolean, default=True)
+
+    # MFA (TOTP)
+    totp_secret = Column(String(64), nullable=True)
+    totp_enabled = Column(Boolean, default=False)
 
     # Désignations spéciales (Art. L.414-2 et L.414-3)
     is_delegue_securite_sante = Column(Boolean, default=False)

@@ -1,9 +1,25 @@
 from pydantic import BaseModel, EmailStr
 
 
+# ── CAPTCHA ───────────────────────────────────────────────────────
+
+class CaptchaResponse(BaseModel):
+    challenge_id: str
+    question: str
+
+
+# ── Auth / Register ───────────────────────────────────────────────
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    captcha_id: str | None = None
+    captcha_answer: str | None = None
+
+
+class MfaLoginRequest(BaseModel):
+    mfa_token: str
+    totp_code: str
 
 
 class RegisterRequest(BaseModel):
@@ -12,6 +28,8 @@ class RegisterRequest(BaseModel):
     first_name: str
     last_name: str
     invitation_code: str
+    captcha_id: str | None = None
+    captcha_answer: str | None = None
 
 
 class CreateOrganizationRequest(BaseModel):
@@ -22,14 +40,34 @@ class CreateOrganizationRequest(BaseModel):
     admin_password: str
     admin_first_name: str
     admin_last_name: str
+    captcha_id: str | None = None
+    captcha_answer: str | None = None
 
+
+# ── MFA ───────────────────────────────────────────────────────────
+
+class MfaSetupResponse(BaseModel):
+    secret: str
+    qr_code_b64: str
+    uri: str
+
+
+class MfaVerifyRequest(BaseModel):
+    totp_code: str
+
+
+class MfaDisableRequest(BaseModel):
+    password: str
+
+
+# ── Invitation ────────────────────────────────────────────────────
 
 class CreateInvitationRequest(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str
-    delegue_status: str = "titulaire"    # titulaire, suppleant, employe
-    delegue_role: str = "membre"         # president, vice_president, secretaire, membre
+    delegue_status: str = "titulaire"
+    delegue_role: str = "membre"
     is_delegue_securite_sante: bool = False
     is_delegue_egalite: bool = False
 
@@ -39,6 +77,8 @@ class CreateInvitationRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    mfa_required: bool = False
+    mfa_token: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -50,6 +90,7 @@ class UserResponse(BaseModel):
     delegue_status: str
     delegue_role: str
     role: str
+    totp_enabled: bool = False
     is_delegue_securite_sante: bool = False
     is_delegue_egalite: bool = False
 
