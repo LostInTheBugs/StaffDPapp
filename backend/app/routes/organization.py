@@ -247,3 +247,23 @@ def list_members(
         .all()
     )
     return [UserResponse.model_validate(m) for m in members]
+
+
+@router.put("/organization/members/{user_id}/role")
+def change_member_role(
+    user_id: int,
+    body: dict,  # {"role": "admin" | "member"}
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    new_role = body.get("role")
+    if new_role not in ("admin", "member"):
+        raise HTTPException(status_code=400, detail="Rôle invalide (admin ou member)")
+    target = db.query(User).filter(User.id == user_id, User.organization_id == current_user.organization_id).first()
+    if not target:
+        raise HTTPException(status_code=404)
+    target.role = new_role
+    db.commit()
+    return UserResponse.model_validate(target)
