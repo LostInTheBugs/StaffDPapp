@@ -267,3 +267,36 @@ def change_member_role(
     target.role = new_role
     db.commit()
     return UserResponse.model_validate(target)
+
+
+@router.put("/organization/members/{user_id}/designate")
+def designate_member(
+    user_id: int,
+    body: dict,  # {"field": "securite_sante" | "egalite", "value": true | false}
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin" and current_user.delegue_role not in ("president", "vice_president", "secretaire"):
+        raise HTTPException(status_code=403, detail="Réservé au bureau ou administrateurs")
+    field = body.get("field")
+    if field not in ("securite_sante", "egalite"):
+        raise HTTPException(status_code=400, detail="Champ invalide")
+    value = body.get("value", True)
+    target = db.query(User).filter(User.id == user_id, User.organization_id == current_user.organization_id).first()
+    if not target:
+        raise HTTPException(status_code=404)
+    # Si on désigne, on peut aussi désigner le membre précédent
+    if value:
+        if field == "securite_sante":
+            db.query(User).filter(User.organization_id == current_user.organization_id, User.is_delegue_securite_sante == True).update({User.is_delegue_securite_sante: False})
+            target.is_delegue_securite_sante = True
+        else:
+            db.query(User).filter(User.organization_id == current_user.organization_id, User.is_delegue_egalite == True).update({User.is_delegue_egalite: False})
+            target.is_delegue_egalite = True
+    else:
+        if field == "securite_sante":
+            target.is_delegue_securite_sante = False
+        else:
+            target.is_delegue_egalite = False
+    db.commit()
+    return UserResponse.model_validate(target)
