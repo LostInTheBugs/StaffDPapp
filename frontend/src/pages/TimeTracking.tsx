@@ -69,13 +69,11 @@ export default function TimeTracking() {
         {msg && <div className="success-msg">{msg}</div>}
         {err && <div className="error-msg">{err}</div>}
 
-        <div className="card mb-16" style={{ background: summary.remaining < 0 ? '#fff5f5' : '#f0fff4', padding: 16, display: 'flex', justifyContent: 'space-around', fontSize: '.9rem' }}>
+        <div className="card mb-16" style={{ background: '#f0fff4', padding: 16, display: 'flex', justifyContent: 'space-around', fontSize: '.9rem' }}>
           <span>📅 {summary.month}</span>
-          <span>👤 <strong>{summary.total_hours}h</strong> / {summary.credit_hours}h perso</span>
-          {weeklyPool != null && <span>🏢 Crédit délégation : <strong>{weeklyPool}h/sem</strong> (~{weeklyPool * 4}h/mois)</span>}
-          <span style={{ color: summary.remaining < 0 ? 'var(--red)' : '#276749', fontWeight: 600 }}>
-            {summary.remaining < 0 ? `-${Math.abs(summary.remaining)}h dépassé` : `${summary.remaining}h restant`}
-          </span>
+          <span>👤 <strong>{summary.total_hours}h</strong> saisies ce mois</span>
+          {weeklyPool != null && <span>🏢 Crédit délégation (partagé) : <strong>{weeklyPool}h/sem</strong> (~{weeklyPool * 4}h/mois)</span>}
+          <span style={{ color: 'var(--gray-600)', fontSize: '.8rem' }}>Art. L.415-5</span>
         </div>
 
         <div className="card mb-24">
