@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useT } from '../i18n/I18nContext'
+import Footer from './Footer'
 
 export default function NavBar() {
   const { logout, token, user } = useAuth()
@@ -42,6 +43,7 @@ export default function NavBar() {
         {user?.role === 'admin' && <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.organization')}</Link>}
         <Link to="/settings" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.profile')}</Link>
       </nav>
+      <Footer />
     </>
   )
 }
