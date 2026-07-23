@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useT } from '../i18n/I18nContext'
 
 export default function NavBar() {
-  const { logout, token } = useAuth()
+  const { logout, token, user } = useAuth()
   const { t } = useT()
   const [pending, setPending] = useState(0)
 
@@ -39,7 +39,7 @@ export default function NavBar() {
           )}
         </Link>
         <Link to="/hours" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>⏱️ Mes heures</Link>
-        <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.organization')}</Link>
+        {user?.role === 'admin' && <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.organization')}</Link>}
         <Link to="/settings" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.profile')}</Link>
       </nav>
     </>
