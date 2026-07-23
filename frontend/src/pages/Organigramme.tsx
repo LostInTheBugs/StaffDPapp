@@ -59,6 +59,20 @@ export default function Organigramme() {
     } catch (err: any) { setError(err.message) }
   }
 
+  async function changeDelegueRole(memberId: number, newRole: string) {
+    setError(null)
+    try {
+      const res = await fetch(`/api/organization/members/${memberId}/delegue-role`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delegue_role: newRole }),
+      })
+      if (!res.ok) throw new Error((await res.json()).detail || 'Erreur')
+      setContextMenu(null)
+      await loadMembers()
+    } catch (err: any) { setError(err.message) }
+  }
+
   function MemberCell({ member, status, role }: { member?: Member; status: string; role?: string }) {
     if (member) {
       return (
@@ -238,6 +252,19 @@ export default function Organigramme() {
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '.85rem' }}>
                 ⚖️ Délégué à l'égalité
               </button>
+            )}
+            {user?.role === 'admin' && (
+              <>
+                <div style={{ padding: '4px 12px', fontSize: '.7rem', color: 'var(--gray-600)', borderTop: '1px solid var(--gray-200)', marginTop: 4, paddingTop: 8 }}>
+                  Changer fonction :
+                </div>
+                {['president', 'vice_president', 'secretaire', 'membre'].map(r => (
+                  <button key={r} onClick={() => changeDelegueRole(contextMenu.member.id, r)}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: contextMenu.member.delegue_role === r ? '#ebf8ff' : 'none', cursor: 'pointer', fontSize: '.85rem', fontWeight: contextMenu.member.delegue_role === r ? 600 : 400 }}>
+                    {roleLabel(r)}
+                  </button>
+                ))}
+              </>
             )}
             <button onClick={() => setContextMenu(null)}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'var(--gray-50)', cursor: 'pointer', fontSize: '.85rem', color: 'var(--gray-600)' }}>

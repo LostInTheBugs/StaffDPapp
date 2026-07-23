@@ -269,6 +269,36 @@ def change_member_role(
     return UserResponse.model_validate(target)
 
 
+@router.put("/organization/members/{user_id}/delegue-role")
+def change_delegue_role(
+    user_id: int,
+    body: dict,  # {"delegue_role": "president"|"vice_president"|"secretaire"|"membre"}
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    new_role = body.get("delegue_role")
+    if new_role not in ("president", "vice_president", "secretaire", "membre"):
+        raise HTTPException(status_code=400, detail="Rôle invalide")
+    target = db.query(User).filter(User.id == user_id, User.organization_id == current_user.organization_id).first()
+    if not target:
+        raise HTTPException(status_code=404)
+    # Si on assigne un rôle de bureau, on désassigne l'ancien titulaire de ce rôle
+    if new_role != "membre":
+        db.query(User).filter(
+            User.organization_id == current_user.organization_id,
+            User.id != user_id,
+            User.delegue_role == new_role
+        ).update({User.delegue_role: "membre"})
+    target.delegue_role = new_role
+    # Si on met président/VP/secrétaire, le membre doit être titulaire
+    if new_role in ("president", "vice_president", "secretaire") and target.delegue_status == "suppleant":
+        target.delegue_status = "titulaire"
+    db.commit()
+    return UserResponse.model_validate(target)
+
+
 @router.put("/organization/members/{user_id}/designate")
 def designate_member(
     user_id: int,
