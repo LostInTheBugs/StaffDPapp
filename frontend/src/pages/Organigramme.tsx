@@ -44,15 +44,17 @@ export default function Organigramme() {
   }
 
   async function designateMember(memberId: number, field: 'securite_sante' | 'egalite') {
+    setError(null)
     try {
-      await fetch(`/api/organization/members/${memberId}/designate`, {
+      const res = await fetch(`/api/organization/members/${memberId}/designate`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ field, value: true }),
       })
+      if (!res.ok) throw new Error((await res.json()).detail || 'Erreur')
       setShowDesignate(null)
-      loadMembers()
-    } catch { /* */ }
+      await loadMembers()
+    } catch (err: any) { setError(err.message) }
   }
 
   function MemberCell({ member, status, role }: { member?: Member; status: string; role?: string }) {
@@ -165,6 +167,7 @@ export default function Organigramme() {
         {/* Modal : désigner un membre existant */}
         {showDesignate && (
           <div className="card mb-24" style={{ background: '#fffbeb', border: '2px solid #d69e2e' }}>
+            {error && <div className="error-msg" style={{ marginBottom: 12 }}>{error}</div>}
             <h3>Désigner {showDesignate === 'securite_sante' ? '🛡️ Sécurité/Santé' : '⚖️ Égalité'}</h3>
             <p style={{ color: 'var(--gray-600)', marginBottom: 12 }}>Choisir un membre existant :</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
