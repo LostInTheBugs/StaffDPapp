@@ -43,6 +43,8 @@ export default function Organigramme() {
     } catch (err: any) { setError(err.message) }
   }
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; member: Member } | null>(null)
+
   async function designateMember(memberId: number, field: 'securite_sante' | 'egalite') {
     setError(null)
     try {
@@ -60,7 +62,8 @@ export default function Organigramme() {
   function MemberCell({ member, status, role }: { member?: Member; status: string; role?: string }) {
     if (member) {
       return (
-        <div style={{ background: '#ebf8ff', border: '2px solid #2b6cb0', borderRadius: 8, padding: '8px 10px', textAlign: 'center', minWidth: 110, position: 'relative' }}>
+        <div onContextMenu={canInvite ? (e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, member }) } : undefined}
+          style={{ background: '#ebf8ff', border: '2px solid #2b6cb0', borderRadius: 8, padding: '8px 10px', textAlign: 'center', minWidth: 110, position: 'relative', cursor: canInvite ? 'context-menu' : 'default' }}>
           <div style={{ fontWeight: 600, fontSize: '.85rem' }}>{member.first_name} {member.last_name}</div>
           <div style={{ fontSize: '.7rem', color: '#4a5568' }}>
             {roleLabel(member.delegue_role)}
@@ -212,6 +215,37 @@ export default function Organigramme() {
           </div>
         )}
       </div>
+
+      {/* Menu contextuel droit */}
+      {contextMenu && (
+        <>
+          <div onClick={() => setContextMenu(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
+          <div style={{
+            position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 1000,
+            background: '#fff', border: '1px solid var(--gray-300)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.15)',
+            padding: '4px 0', minWidth: 200
+          }}>
+            <div style={{ padding: '6px 12px', fontWeight: 600, fontSize: '.8rem', borderBottom: '1px solid var(--gray-200)' }}>
+              {contextMenu.member.full_name}
+            </div>
+            <button onClick={() => { designateMember(contextMenu.member.id, 'securite_sante'); setContextMenu(null) }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '.85rem' }}>
+              🛡️ Délégué sécurité/santé
+            </button>
+            {contextMenu.member.delegue_status !== 'employe' && (
+              <button onClick={() => { designateMember(contextMenu.member.id, 'egalite'); setContextMenu(null) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '.85rem' }}>
+                ⚖️ Délégué à l'égalité
+              </button>
+            )}
+            <button onClick={() => setContextMenu(null)}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'var(--gray-50)', cursor: 'pointer', fontSize: '.85rem', color: 'var(--gray-600)' }}>
+              Annuler
+            </button>
+          </div>
+        </>
+      )}
     </>
   )
 }
