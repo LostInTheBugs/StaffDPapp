@@ -427,14 +427,33 @@ class TestEmailNormalization:
 # ═══════════════════════════════════════════════════════════════════
 
 class TestMigrationEmailNormalization:
+    """Tests de la migration Alembic 1f40476853f5 (normalisation des emails).
+
+    Importe et appelle les fonctions réelles du module de migration
+    (_find_collisions et _do_upgrade) plutôt que de réécrire le SQL.
+    """
+
+    @staticmethod
+    def _load_migration():
+        """Importe le module de migration par son chemin fichier."""
+        import importlib.util
+        from pathlib import Path
+        spec = importlib.util.spec_from_file_location(
+            "migration_lowercase",
+            Path(__file__).parent.parent
+            / "alembic" / "versions" / "1f40476853f5_lowercase_all_emails.py",
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
 
     def test_migration_lowercase_succeeds(self, db):
-        """Base peuplée d'emails en casse mixte → après migration, tout en minuscules."""
+        """Base peuplée d'emails en casse mixte → après migration, tout normalisé."""
         from app.core.security import hash_password
         from app.models import User, Organization, Invitation
-        from sqlalchemy import text
 
-        # Créer un utilisateur et une invitation avec casse mixte DIRECTEMENT dans la DB
+        migration = self._load_migration()
+
         org = Organization(name="MigOrg", slug="migorg", employee_count=100)
         db.add(org)
         db.commit()
@@ -460,58 +479,174 @@ class TestMigrationEmailNormalization:
         db.add(inv)
         db.commit()
 
-        # Vérifier que les emails sont stockés tels quels avec casse mixte
         assert user.email == "Sophie@Demo.LU"
         assert inv.email == "Invited@Demo.LU"
 
-        # Exécuter le même SQL que la migration
-        db.execute(text("UPDATE users SET email = LOWER(email)"))
-        db.execute(text("UPDATE invitations SET email = LOWER(email)"))
+        # Appeler la VRAIE fonction de migration
+        migration._do_upgrade(db)
         db.commit()
 
-        # Re-read from DB
         db.refresh(user)
         db.refresh(inv)
 
         assert user.email == "sophie@demo.lu"
         assert inv.email == "invited@demo.lu"
 
-    def test_migration_collision_raises(self, db):
-        """Base avec collision → la migration s'arrête proprement."""
+    def test_migration_collision_on_users_raises(self, db):
+        """Collision réelle sur users → blocage propre avec message listant les doublons."""
         from app.models import User, Organization
         from app.core.security import hash_password
-        from sqlalchemy import text
+
+        migration = self._load_migration()
 
         org = Organization(name="CollOrg", slug="collorg", employee_count=100)
         db.add(org)
         db.commit()
 
-        user1 = User(
+        db.add(User(
             email="dupont@test.lu",
             password_hash=hash_password("test"),
-            first_name="A",
-            last_name="B",
+            first_name="A", last_name="B",
             organization_id=org.id,
-        )
-        db.add(user1)
-        db.commit()
-
-        user2 = User(
+        ))
+        db.add(User(
             email="DUPONT@test.lu",
             password_hash=hash_password("test"),
-            first_name="C",
-            last_name="D",
+            first_name="C", last_name="D",
             organization_id=org.id,
-        )
-        db.add(user2)
+        ))
         db.commit()
 
-        # Simuler la détection de collision de la migration
-        result = db.execute(text(
-            "SELECT LOWER(email), COUNT(*), GROUP_CONCAT(email, ', ') "
-            "FROM users GROUP BY LOWER(email) HAVING COUNT(*) > 1"
+        # _find_collisions doit détecter le doublon
+        collisions = migration._find_collisions(db)
+        assert len(collisions) == 1
+        assert "dupont@test.lu" in collisions[0]
+        assert "2 occurrences" in collisions[0]
+
+        # _do_upgrade doit lever une exception
+        import pytest as _pytest
+        with _pytest.raises(Exception) as exc_info:
+            migration._do_upgrade(db)
+        assert "MIGRATION BLOQUÉE" in str(exc_info.value)
+        assert "dupont@test.lu" in str(exc_info.value)
+
+    def test_migration_multiple_invitations_same_email_succeeds(self, db):
+        """Plusieurs invitations avec le même email en casses différentes → la migration réussit."""
+        from app.models import User, Organization, Invitation
+        from app.core.security import hash_password
+
+        migration = self._load_migration()
+
+        org = Organization(name="InvOrg", slug="invorg", employee_count=100)
+        db.add(org)
+        db.commit()
+
+        user = User(
+            email="admin@test.lu",
+            password_hash=hash_password("test"),
+            first_name="A", last_name="B",
+            organization_id=org.id,
+        )
+        db.add(user)
+        db.commit()
+
+        db.add(Invitation(
+            code="INV-A", email="Jean@Test.LU",
+            first_name="J1", last_name="D1",
+            created_by_id=user.id, organization_id=org.id,
         ))
-        rows = result.fetchall()
-        assert len(rows) == 1  # One collision group found
-        assert rows[0][0] == "dupont@test.lu"
-        assert rows[0][1] == 2
+        db.add(Invitation(
+            code="INV-B", email="JEAN@test.lu",
+            first_name="J2", last_name="D2",
+            created_by_id=user.id, organization_id=org.id,
+        ))
+        db.commit()
+
+        # Ne doit PAS lever d'exception (invitations pas de contrainte unique)
+        migration._do_upgrade(db)
+        db.commit()
+
+        # Vérifier que les deux invitations sont normalisées
+        invs = db.query(Invitation).order_by(Invitation.code).all()
+        assert len(invs) == 2
+        assert invs[0].email == "jean@test.lu"
+        assert invs[1].email == "jean@test.lu"
+
+    def test_migration_normalizes_spaces(self, db):
+        """Un email avec espaces parasites est normalisé correctement (strip + lower)."""
+        from app.models import User, Organization
+        from app.core.security import hash_password, normalize_email
+
+        migration = self._load_migration()
+
+        org = Organization(name="SpaceOrg", slug="spaceorg", employee_count=100)
+        db.add(org)
+        db.commit()
+
+        user = User(
+            email=" Sophie@Demo.LU ",
+            password_hash=hash_password("test"),
+            first_name="S", last_name="M",
+            organization_id=org.id,
+        )
+        db.add(user)
+        db.commit()
+
+        assert user.email == " Sophie@Demo.LU "
+
+        migration._do_upgrade(db)
+        db.commit()
+
+        db.refresh(user)
+        expected = normalize_email(" Sophie@Demo.LU ")
+        assert user.email == expected
+        assert user.email == "sophie@demo.lu"
+
+    def test_migration_idempotent(self, db):
+        """Relancer la migration sur une base déjà normalisée ne change rien et ne lève pas d'erreur."""
+        from app.models import User, Organization, Invitation
+        from app.core.security import hash_password
+
+        migration = self._load_migration()
+
+        org = Organization(name="IdemOrg", slug="idemorg", employee_count=100)
+        db.add(org)
+        db.commit()
+
+        user = User(
+            email="sophie@demo.lu",
+            password_hash=hash_password("test"),
+            first_name="S", last_name="M",
+            organization_id=org.id,
+        )
+        db.add(user)
+        db.commit()
+
+        inv = Invitation(
+            code="IDEM01",
+            email="invited@demo.lu",
+            first_name="I", last_name="P",
+            created_by_id=user.id, organization_id=org.id,
+        )
+        db.add(inv)
+        db.commit()
+
+        # Premier passage
+        migration._do_upgrade(db)
+        db.commit()
+
+        db.refresh(user)
+        db.refresh(inv)
+        email_u1 = user.email
+        email_i1 = inv.email
+        assert email_u1 == "sophie@demo.lu"
+        assert email_i1 == "invited@demo.lu"
+
+        # Deuxième passage
+        migration._do_upgrade(db)
+        db.commit()
+
+        db.refresh(user)
+        db.refresh(inv)
+        assert user.email == email_u1
+        assert inv.email == email_i1
