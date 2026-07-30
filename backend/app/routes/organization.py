@@ -48,9 +48,8 @@ def _invitation_to_response(inv: Invitation) -> dict:
 @router.post("/organizations", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def create_organization(body: CreateOrganizationRequest, db: Session = Depends(get_db)):
     # CAPTCHA
-    if body.captcha_id and body.captcha_answer:
-        if not validate_captcha(body.captcha_id, body.captcha_answer):
-            raise HTTPException(status_code=400, detail="CAPTCHA invalide")
+    if not validate_captcha(body.captcha_id, body.captcha_answer):
+        raise HTTPException(status_code=400, detail="CAPTCHA invalide")
 
     if body.employee_count < 15:
         raise HTTPException(status_code=400, detail="L'effectif minimum est de 15 salariés")
@@ -92,9 +91,8 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
 @router.post("/join", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
     # CAPTCHA
-    if body.captcha_id and body.captcha_answer:
-        if not validate_captcha(body.captcha_id, body.captcha_answer):
-            raise HTTPException(status_code=400, detail="CAPTCHA invalide")
+    if not validate_captcha(body.captcha_id, body.captcha_answer):
+        raise HTTPException(status_code=400, detail="CAPTCHA invalide")
 
     invitation = (
         db.query(Invitation)
