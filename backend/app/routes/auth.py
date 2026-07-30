@@ -29,9 +29,8 @@ def get_captcha():
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     # Validate CAPTCHA
-    if body.captcha_id and body.captcha_answer:
-        if not validate_captcha(body.captcha_id, body.captcha_answer):
-            raise HTTPException(status_code=400, detail="CAPTCHA invalide")
+    if not validate_captcha(body.captcha_id, body.captcha_answer):
+        raise HTTPException(status_code=400, detail="CAPTCHA invalide")
 
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.password_hash):
