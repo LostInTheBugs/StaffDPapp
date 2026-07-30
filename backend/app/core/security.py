@@ -40,3 +40,8 @@ def generate_invitation_code(length: int | None = None) -> str:
     n = length if length is not None else settings.invitation_code_length
     alphabet = string.ascii_uppercase + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(n))
+
+
+def normalize_email(email: str) -> str:
+    """Trim whitespace and lower-case an email for case-insensitive comparisons."""
+    return email.strip().lower()

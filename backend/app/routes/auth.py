@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.core.security import verify_password, create_access_token, hash_password, decode_access_token
+from app.core.security import verify_password, create_access_token, hash_password, decode_access_token, normalize_email
 from app.core.captcha import validate_captcha
 from app.core.mfa import generate_totp_secret, generate_totp_uri, generate_qr_code_b64, verify_totp
 from app.models import User
@@ -32,7 +32,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     if not validate_captcha(body.captcha_id, body.captcha_answer):
         raise HTTPException(status_code=400, detail="CAPTCHA invalide")
 
-    user = db.query(User).filter(User.email == body.email).first()
+    user = db.query(User).filter(User.email == normalize_email(body.email)).first()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
     if not user.is_active:
@@ -168,10 +168,10 @@ def update_profile(
     if "last_name" in body:
         current_user.last_name = body["last_name"]
     if "email" in body:
-        existing = db.query(User).filter(User.email == body["email"], User.id != current_user.id).first()
+        existing = db.query(User).filter(User.email == normalize_email(body["email"]), User.id != current_user.id).first()
         if existing:
             raise HTTPException(status_code=409, detail="Cet email est déjà utilisé")
-        current_user.email = body["email"]
+        current_user.email = normalize_email(body["email"])
     if "avatar_url" in body:
         current_user.avatar_url = body["avatar_url"]
     if "language" in body and body["language"] in ("fr", "en", "de", "pt"):
