@@ -48,6 +48,38 @@ docker compose up -d --build
 bash seed.sh
 ```
 
+## Mise à jour
+
+### v0.2 — Normalisation des emails + Sécurité JWT
+
+**⚠️ Cette mise à jour déconnecte tous les utilisateurs.** Les tokens émis avant le déploiement sont invalidés — chaque utilisateur devra se reconnecter.
+
+**Procédure de mise à jour :**
+
+1. Arrêter le service : `docker compose down`
+2. Supprimer le volume (⚠️ perte des données) : `docker volume rm staff-delegation_sd-data`
+3. Reconstruire : `docker compose up -d --build`
+4. Lancer les migrations Alembic : `docker compose exec backend alembic upgrade head`
+5. Réensemencer les données : `bash seed.sh`
+
+**Changements notables :**
+- Tous les emails sont désormais stockés en minuscules (normalisation automatique à l'écriture et à la lecture). Une migration de base de données est incluse pour les bases existantes.
+- Les tokens JWT contiennent désormais un claim `typ` obligatoire. Tout token émis avant cette version est rejeté (déconnexion générale).
+- Le CAPTCHA est obligatoire côté frontend (le bouton est désactivé tant qu'il n'est pas résolu).
+
+### Commandes Alembic
+
+```bash
+# Appliquer les migrations
+cd backend && alembic upgrade head
+
+# Voir l'état courant
+cd backend && alembic current
+
+# Créer une nouvelle migration
+cd backend && alembic revision --autogenerate -m "description"
+```
+
 ## Stack technique
 
 | Couche | Technologie |
