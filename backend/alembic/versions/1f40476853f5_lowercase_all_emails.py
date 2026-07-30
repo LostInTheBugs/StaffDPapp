@@ -1,16 +1,19 @@
-"""lowercase all emails
+"""Normalise tous les emails (strip + lowercase) dans users et invitations.
 
 Revision ID: 1f40476853f5
 Revises: 31140e6e07a7
 Create Date: 2026-07-30 21:47:00.000000
 
-Normalises tous les emails en minuscules dans users et invitations.
-Détecte les collisions AVANT de modifier quoi que ce soit.
+Utilise exactement la même fonction normalize_email() que l'application
+(app.core.security) pour garantir une cohérence parfaite.
+Détecte les collisions sur users AVANT modification (invitations non
+concernées : pas de contrainte d'unicité sur invitations.email).
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from app.core.security import normalize_email
 
 
 # revision identifiers, used by Alembic.
@@ -20,50 +23,77 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _find_collisions(conn, table_name: str) -> list[str]:
-    """Trouve les emails qui deviendraient des doublons après normalisation."""
-    result = conn.execute(
-        sa.text(
-            f"SELECT LOWER(email) AS norm, COUNT(*) AS cnt, GROUP_CONCAT(email, ', ') AS originals "
-            f"FROM {table_name} GROUP BY norm HAVING cnt > 1"
-        )
-    )
+def _find_collisions(conn) -> list[str]:
+    """Trouve les emails de la table users qui deviendraient des doublons
+    après normalisation via normalize_email().
+
+    Ne concerne QUE la table users, seule porteuse de la contrainte unique.
+    Les invitations n'ont pas de contrainte d'unicité sur l'email.
+    """
+    rows = conn.execute(sa.text("SELECT id, email FROM users")).fetchall()
+
+    groups: dict[str, list[str]] = {}
+    for row in rows:
+        norm = normalize_email(row.email)
+        groups.setdefault(norm, []).append(row.email)
+
     collisions = []
-    for row in result:
-        collisions.append(f"  - {row.norm}: {row.cnt} occurrences ({row.originals})")
+    for norm, originals in groups.items():
+        if len(originals) > 1:
+            collisions.append(
+                f"  - {norm}: {len(originals)} occurrences ({', '.join(originals)})"
+            )
     return collisions
 
 
-def upgrade() -> None:
-    conn = op.get_bind()
+def _do_upgrade(conn) -> None:
+    """Normalise les emails dans users et invitations avec normalize_email().
 
-    # 1. Détection des collisions
-    user_collisions = _find_collisions(conn, "users")
-    inv_collisions = _find_collisions(conn, "invitations")
-
-    all_collisions = user_collisions + inv_collisions
-    if all_collisions:
+    - users : détection de collisions AVANT normalisation (bloque si trouvées).
+    - invitations : normalisation sans contrôle préalable (pas d'unicité).
+    - Seules les lignes dont l'email change sont modifiées (idempotent).
+    """
+    # 1. Détection des collisions sur users uniquement
+    collisions = _find_collisions(conn)
+    if collisions:
         msg = (
             "\n\n╔══════════════════════════════════════════════════════╗\n"
             "║  ⛔ MIGRATION BLOQUÉE — emails en conflit détectés ║\n"
             "╚══════════════════════════════════════════════════════╝\n"
             "\n"
-            "La normalisation en minuscules ne peut pas être appliquée\n"
-            "car les emails suivants ne diffèrent QUE par la casse :\n\n"
-        )
-        if user_collisions:
-            msg += "📧 Table users :\n" + "\n".join(user_collisions) + "\n\n"
-        if inv_collisions:
-            msg += "📧 Table invitations :\n" + "\n".join(inv_collisions) + "\n\n"
-        msg += (
+            "La normalisation des emails ne peut pas être appliquée\n"
+            "car les emails suivants de la table users ne diffèrent\n"
+            "QUE par la casse ou les espaces :\n\n"
+            "📧 Table users :\n" + "\n".join(collisions) + "\n\n"
             "➡️  Résolvez les doublons manuellement (fusionnez ou supprimez\n"
             "    les comptes en double) avant de relancer la migration.\n\n"
         )
         raise Exception(msg)
 
-    # 2. Normalisation
-    conn.execute(sa.text("UPDATE users SET email = LOWER(email)"))
-    conn.execute(sa.text("UPDATE invitations SET email = LOWER(email)"))
+    # 2. Normalisation des users
+    rows = conn.execute(sa.text("SELECT id, email FROM users")).fetchall()
+    for row in rows:
+        norm = normalize_email(row.email)
+        if norm != row.email:
+            conn.execute(
+                sa.text("UPDATE users SET email = :email WHERE id = :id"),
+                {"email": norm, "id": row.id},
+            )
+
+    # 3. Normalisation des invitations (sans détection de collision)
+    rows = conn.execute(sa.text("SELECT id, email FROM invitations")).fetchall()
+    for row in rows:
+        norm = normalize_email(row.email)
+        if norm != row.email:
+            conn.execute(
+                sa.text("UPDATE invitations SET email = :email WHERE id = :id"),
+                {"email": norm, "id": row.id},
+            )
+
+
+def upgrade() -> None:
+    conn = op.get_bind()
+    _do_upgrade(conn)
 
 
 def downgrade() -> None:
