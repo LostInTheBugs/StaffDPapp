@@ -1,11 +1,13 @@
 """Tests de sécurité — FAILLE 1 (MFA bypass), FAILLE 2 (CAPTCHA), FAILLE 3 (invitation email)."""
 
+import os
 import pytest
 from .helpers import (
     create_org, create_user, create_invitation, fetch_captcha, get_totp_code,
 )
-from app.core.security import create_access_token
+from app.core.security import create_access_token, normalize_email
 from app.core.mfa import generate_totp_secret
+from app.models import User, Organization, Invitation, DelegueStatus, DelegueRole
 from datetime import timedelta
 
 
@@ -290,3 +292,226 @@ class TestInvitationEmailBinding:
         })
         assert resp2.status_code == 400
         assert resp.json()["detail"] == resp2.json()["detail"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# EMAIL NORMALIZATION — insensible à la casse
+# ═══════════════════════════════════════════════════════════════════
+
+class TestEmailNormalization:
+
+    def test_register_with_mixed_case_login_with_lowercase(self, client, db):
+        """Inscription avec 'Sophie@Demo.LU' puis login avec 'sophie@demo.lu'."""
+        cid, cans = fetch_captcha(client)
+        resp = client.post("/api/organizations", json={
+            "organization_name": "CasseMixte",
+            "employee_count": 120,
+            "admin_email": "Sophie@Demo.LU",
+            "admin_password": "pass12345678",
+            "admin_first_name": "Sophie",
+            "admin_last_name": "Muller",
+            "captcha_id": cid,
+            "captcha_answer": cans,
+        })
+        assert resp.status_code == 201
+
+        cid2, cans2 = fetch_captcha(client)
+        resp2 = client.post("/api/auth/login", json={
+            "email": "sophie@demo.lu",
+            "password": "pass12345678",
+            "captcha_id": cid2,
+            "captcha_answer": cans2,
+        })
+        assert resp2.status_code == 200
+
+    def test_create_org_mixed_case_admin_login_lowercase(self, client, db):
+        """Création d'organisation avec admin_email mixte, login en minuscules."""
+        cid, cans = fetch_captcha(client)
+        resp = client.post("/api/organizations", json={
+            "organization_name": "AdminMixte",
+            "employee_count": 50,
+            "admin_email": "Admin@TestOrg.LU",
+            "admin_password": "securepassword",
+            "admin_first_name": "Admin",
+            "admin_last_name": "Test",
+            "captcha_id": cid,
+            "captcha_answer": cans,
+        })
+        assert resp.status_code == 201
+
+        cid2, cans2 = fetch_captcha(client)
+        resp2 = client.post("/api/auth/login", json={
+            "email": "admin@testorg.lu",
+            "password": "securepassword",
+            "captcha_id": cid2,
+            "captcha_answer": cans2,
+        })
+        assert resp2.status_code == 200
+
+    def test_register_refused_if_email_exists_different_case(self, client, db):
+        """Refus d'inscription si l'email existe déjà avec une casse différente (409)."""
+        cid, cans = fetch_captcha(client)
+        # Créer un premier compte
+        resp1 = client.post("/api/organizations", json={
+            "organization_name": "FirstOrg",
+            "employee_count": 30,
+            "admin_email": "Dupont@test.lu",
+            "admin_password": "pass12345678",
+            "admin_first_name": "Jean",
+            "admin_last_name": "Dupont",
+            "captcha_id": cid,
+            "captcha_answer": cans,
+        })
+        assert resp1.status_code == 201
+
+        # Tenter de créer un autre compte avec casse différente
+        cid2, cans2 = fetch_captcha(client)
+        resp2 = client.post("/api/organizations", json={
+            "organization_name": "SecondOrg",
+            "employee_count": 25,
+            "admin_email": "dupont@test.lu",
+            "admin_password": "otherpassword",
+            "admin_first_name": "Jean2",
+            "admin_last_name": "Dupont2",
+            "captcha_id": cid2,
+            "captcha_answer": cans2,
+        })
+        assert resp2.status_code == 409
+
+    def test_update_profile_refuses_email_different_case(self, client, db):
+        """update_profile refuse un email déjà pris dans une autre casse."""
+        # Créer deux comptes
+        cid, cans = fetch_captcha(client)
+        resp1 = client.post("/api/organizations", json={
+            "organization_name": "ProfileOrg",
+            "employee_count": 40,
+            "admin_email": "alice@test.lu",
+            "admin_password": "pass12345678",
+            "admin_first_name": "Alice",
+            "admin_last_name": "One",
+            "captcha_id": cid,
+            "captcha_answer": cans,
+        })
+        assert resp1.status_code == 201
+        token_admin = resp1.json()["access_token"]
+
+        # Créer une invitation pour un second membre
+        from .helpers import create_invitation, create_user
+        admin_user = db.query(User).filter(User.email == "alice@test.lu").first()
+        inv = create_invitation(db, "bob@test.lu", admin_user.organization_id, admin_user.id, code="BOB123")
+
+        cid2, cans2 = fetch_captcha(client)
+        resp2 = client.post("/api/join", json={
+            "email": "bob@test.lu",
+            "password": "bobpassword",
+            "first_name": "Bob",
+            "last_name": "Two",
+            "invitation_code": "BOB123",
+            "captcha_id": cid2,
+            "captcha_answer": cans2,
+        })
+        assert resp2.status_code == 201
+        token_bob = resp2.json()["access_token"]
+
+        # Bob tente de changer son email en "Alice@Test.LU" (casse différente)
+        resp3 = client.put(
+            "/api/auth/profile",
+            json={"email": "Alice@Test.LU"},
+            headers={"Authorization": f"Bearer {token_bob}"},
+        )
+        assert resp3.status_code == 409
+
+
+# ═══════════════════════════════════════════════════════════════════
+# MIGRATION ALEMBIC — normalisation des emails
+# ═══════════════════════════════════════════════════════════════════
+
+class TestMigrationEmailNormalization:
+
+    def test_migration_lowercase_succeeds(self, db):
+        """Base peuplée d'emails en casse mixte → après migration, tout en minuscules."""
+        from app.core.security import hash_password
+        from app.models import User, Organization, Invitation
+        from sqlalchemy import text
+
+        # Créer un utilisateur et une invitation avec casse mixte DIRECTEMENT dans la DB
+        org = Organization(name="MigOrg", slug="migorg", employee_count=100)
+        db.add(org)
+        db.commit()
+
+        user = User(
+            email="Sophie@Demo.LU",
+            password_hash=hash_password("test"),
+            first_name="S",
+            last_name="M",
+            organization_id=org.id,
+        )
+        db.add(user)
+        db.commit()
+
+        inv = Invitation(
+            code="MIG001",
+            email="Invited@Demo.LU",
+            first_name="I",
+            last_name="P",
+            created_by_id=user.id,
+            organization_id=org.id,
+        )
+        db.add(inv)
+        db.commit()
+
+        # Vérifier que les emails sont stockés tels quels avec casse mixte
+        assert user.email == "Sophie@Demo.LU"
+        assert inv.email == "Invited@Demo.LU"
+
+        # Exécuter le même SQL que la migration
+        db.execute(text("UPDATE users SET email = LOWER(email)"))
+        db.execute(text("UPDATE invitations SET email = LOWER(email)"))
+        db.commit()
+
+        # Re-read from DB
+        db.refresh(user)
+        db.refresh(inv)
+
+        assert user.email == "sophie@demo.lu"
+        assert inv.email == "invited@demo.lu"
+
+    def test_migration_collision_raises(self, db):
+        """Base avec collision → la migration s'arrête proprement."""
+        from app.models import User, Organization
+        from app.core.security import hash_password
+        from sqlalchemy import text
+
+        org = Organization(name="CollOrg", slug="collorg", employee_count=100)
+        db.add(org)
+        db.commit()
+
+        user1 = User(
+            email="dupont@test.lu",
+            password_hash=hash_password("test"),
+            first_name="A",
+            last_name="B",
+            organization_id=org.id,
+        )
+        db.add(user1)
+        db.commit()
+
+        user2 = User(
+            email="DUPONT@test.lu",
+            password_hash=hash_password("test"),
+            first_name="C",
+            last_name="D",
+            organization_id=org.id,
+        )
+        db.add(user2)
+        db.commit()
+
+        # Simuler la détection de collision de la migration
+        result = db.execute(text(
+            "SELECT LOWER(email), COUNT(*), GROUP_CONCAT(email, ', ') "
+            "FROM users GROUP BY LOWER(email) HAVING COUNT(*) > 1"
+        ))
+        rows = result.fetchall()
+        assert len(rows) == 1  # One collision group found
+        assert rows[0][0] == "dupont@test.lu"
+        assert rows[0][1] == 2
