@@ -2,7 +2,7 @@
 
 import re
 import pyotp
-from app.core.security import hash_password
+from app.core.security import hash_password, normalize_email
 from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
 
 
@@ -40,7 +40,7 @@ def create_user(db, email, password, org_id, role="member", delegue_status="titu
 def create_invitation(db, email, org_id, created_by_id, code="TESTCODE", **kwargs):
     inv = Invitation(
         code=code,
-        email=email.lower(),
+        email=normalize_email(email),
         first_name="Invited",
         last_name="Person",
         delegue_status=DelegueStatus(kwargs.pop("delegue_status", "titulaire")),
