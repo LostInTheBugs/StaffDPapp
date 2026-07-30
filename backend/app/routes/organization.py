@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.core.security import hash_password, create_access_token, generate_invitation_code
+from app.core.security import hash_password, create_access_token, generate_invitation_code, normalize_email
 from app.core.captcha import validate_captcha
 from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
 from app.schemas.auth import (
@@ -53,7 +53,7 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
 
     if body.employee_count < 15:
         raise HTTPException(status_code=400, detail="L'effectif minimum est de 15 salariés")
-    if db.query(User).filter(User.email == body.admin_email).first():
+    if db.query(User).filter(User.email == normalize_email(body.admin_email)).first():
         raise HTTPException(status_code=409, detail="Cet email existe déjà")
 
     base_slug = _make_slug(body.organization_name)
@@ -71,7 +71,7 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
     db.flush()
 
     admin = User(
-        email=body.admin_email,
+        email=normalize_email(body.admin_email),
         password_hash=hash_password(body.admin_password),
         first_name=body.admin_first_name,
         last_name=body.admin_last_name,
@@ -99,17 +99,17 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
         .filter(
             Invitation.code == body.invitation_code.upper(),
             Invitation.is_used == False,
-            Invitation.email == body.email.lower(),
+            Invitation.email == normalize_email(body.email),
         )
         .first()
     )
     if not invitation:
         raise HTTPException(status_code=400, detail="Code d'invitation invalide ou déjà utilisé")
-    if db.query(User).filter(User.email == body.email).first():
+    if db.query(User).filter(User.email == normalize_email(body.email)).first():
         raise HTTPException(status_code=409, detail="Cet email existe déjà")
 
     user = User(
-        email=body.email,
+        email=normalize_email(body.email),
         password_hash=hash_password(body.password),
         first_name=body.first_name,
         last_name=body.last_name,
@@ -165,7 +165,7 @@ def create_invitation(
 
     invitation = Invitation(
         code=code,
-        email=body.email.lower(),
+        email=normalize_email(body.email),
         first_name=body.first_name,
         last_name=body.last_name,
         delegue_status=DelegueStatus(body.delegue_status),
