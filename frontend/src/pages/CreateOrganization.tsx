@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useT } from '../i18n/I18nContext'
 import CaptchaWidget from '../components/CaptchaWidget'
 import * as api from '../api/client'
 
@@ -15,6 +16,7 @@ export default function CreateOrganization() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAuth()
+  const { t } = useT()
   const navigate = useNavigate()
 
   function update(field: string, value: string | number) {
@@ -96,9 +98,12 @@ export default function CreateOrganization() {
 
           <CaptchaWidget onCaptcha={(id, ans) => { setCaptchaId(id); setCaptchaAnswer(ans) }} />
 
-          <button type="submit" className="btn btn-gold" disabled={loading}>
-            {loading ? <div className="spinner" /> : 'Créer la délégation'}
+          <button type="submit" className="btn btn-gold" disabled={loading || !captchaAnswer}>
+            {loading ? <div className="spinner" /> : t('create.submit', 'Créer la délégation')}
           </button>
+          {!captchaAnswer && !loading && (
+            <p className="text-center" style={{ color: 'var(--gray-600)', fontSize: '0.85rem', marginTop: 8 }}>{t('create.captcha', 'Veuillez résoudre le CAPTCHA')}</p>
+          )}
         </form>
         <p className="text-center mt-16"><Link to="/" className="link">← Retour</Link></p>
       </div>
