@@ -68,13 +68,13 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   return res.json()
 }
 
-export function login(email: string, password: string, captcha_id?: string, captcha_answer?: string): Promise<TokenResponse> {
+export function login(email: string, password: string, captcha_id: string, captcha_answer: string): Promise<TokenResponse> {
   return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, captcha_id, captcha_answer }) })
 }
 
 export function joinOrganization(data: {
   email: string; password: string; first_name: string; last_name: string; invitation_code: string
-  captcha_id?: string; captcha_answer?: string
+  captcha_id: string; captcha_answer: string
 }): Promise<TokenResponse> {
   return request('/join', { method: 'POST', body: JSON.stringify(data) })
 }
@@ -83,7 +83,7 @@ export function createOrganization(data: {
   organization_name: string; company_name?: string; employee_count: number
   admin_email: string; admin_password: string; admin_first_name: string; admin_last_name: string
   admin_delegue_status?: string; admin_delegue_role?: string
-  captcha_id?: string; captcha_answer?: string
+  captcha_id: string; captcha_answer: string
 }): Promise<TokenResponse> {
   return request('/organizations', { method: 'POST', body: JSON.stringify(data) })
 }
