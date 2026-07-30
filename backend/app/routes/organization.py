@@ -96,7 +96,11 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
 
     invitation = (
         db.query(Invitation)
-        .filter(Invitation.code == body.invitation_code.upper(), Invitation.is_used == False)
+        .filter(
+            Invitation.code == body.invitation_code.upper(),
+            Invitation.is_used == False,
+            Invitation.email == body.email.lower(),
+        )
         .first()
     )
     if not invitation:
@@ -161,7 +165,7 @@ def create_invitation(
 
     invitation = Invitation(
         code=code,
-        email=body.email,
+        email=body.email.lower(),
         first_name=body.first_name,
         last_name=body.last_name,
         delegue_status=DelegueStatus(body.delegue_status),
