@@ -88,6 +88,24 @@ Le port est surchargeable via la variable d'environnement `SD_PORT` dans tous le
 - **Base de données** : SQLite (développement), PostgreSQL (production recommandé)
 - **Reverse proxy** : Traefik + Let's Encrypt (HTTPS)
 
+## Mise à jour
+
+> **⚠️ La mise à jour vers la prochaine version déconnecte tous les utilisateurs.**
+> Les jetons JWT émis auparavant sont invalidés : chaque personne devra se reconnecter.
+> Voir [CHANGELOG.md](CHANGELOG.md) pour le détail des changements.
+
+**Procédure :**
+
+1. Sauvegarder la base : `docker compose exec backend cp /app/data/staff_delegation.db /app/data/backup-$(date +%F).db`
+2. Récupérer la nouvelle version : `git pull`
+3. Reconstruire : `docker compose up -d --build`
+4. Appliquer les migrations : `docker compose exec backend alembic upgrade head`
+
+Les migrations Alembic préservent les données existantes — **ne supprimez pas le volume**.
+Si la migration de normalisation des emails s'interrompt, c'est que deux comptes ne
+diffèrent que par la casse : le message d'erreur liste les doublons à résoudre avant
+de relancer.
+
 ## Stack technique
 
 | Couche | Technologie |
