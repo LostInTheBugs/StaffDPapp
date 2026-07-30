@@ -88,6 +88,20 @@ The port can be overridden via the `SD_PORT` environment variable in all context
 - **Database**: SQLite (development), PostgreSQL (production recommended)
 - **Reverse proxy**: Traefik + Let's Encrypt (HTTPS)
 
+## Upgrade
+
+> **⚠️ Updating to the next version logs out all users.** Previously issued JWT tokens are invalidated: everyone will need to log in again. See [CHANGELOG.md](CHANGELOG.md) for details.
+
+**Procedure:**
+
+1. Backup the database: `docker compose exec backend cp /app/data/staff_delegation.db /app/data/backup-$(date +%F).db`
+2. Pull the new version: `git pull`
+3. Rebuild: `docker compose up -d --build`
+4. Apply migrations: `docker compose exec backend alembic upgrade head`
+
+Alembic migrations preserve existing data — **do not delete the volume**.
+If the email normalization migration stops, two accounts differ only by case: the error message lists the duplicates to resolve before retrying.
+
 ## Tech stack
 
 | Layer | Technology |
