@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useT } from '../i18n/I18nContext'
 import CaptchaWidget from '../components/CaptchaWidget'
 import * as api from '../api/client'
 
@@ -17,6 +18,7 @@ export default function Login() {
   const [totpCode, setTotpCode] = useState('')
 
   const { setAuth } = useAuth()
+  const { t } = useT()
   const navigate = useNavigate()
 
   async function handleSubmit(e: FormEvent) {
@@ -26,7 +28,7 @@ export default function Login() {
       // Step 1: password + captcha
       setLoading(true)
       try {
-        const resp = await api.login(email, password, captchaId || undefined, captchaAnswer || undefined)
+        const resp = await api.login(email, password, captchaId, captchaAnswer)
         if (resp.mfa_required && resp.mfa_token) {
           setMfaToken(resp.mfa_token)
         } else {
@@ -80,9 +82,12 @@ export default function Login() {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? <div className="spinner" /> : mfaToken ? 'Vérifier' : 'Se connecter'}
+          <button type="submit" className="btn btn-primary" disabled={loading || !captchaAnswer}>
+            {loading ? <div className="spinner" /> : mfaToken ? t('login.mfa_verify', 'Vérifier') : t('login.submit', 'Se connecter')}
           </button>
+          {!captchaAnswer && !mfaToken && !loading && (
+            <p className="text-center" style={{ color: 'var(--gray-600)', fontSize: '0.85rem', marginTop: 8 }}>{t('login.captcha', 'Veuillez résoudre le CAPTCHA')}</p>
+          )}
         </form>
 
         {mfaToken && (
