@@ -39,21 +39,16 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Compte désactivé")
 
-    # MFA: if enabled, return a temporary MFA token (2 min expiry)
+    # MFA: if enabled, return a temporary MFA token (3 min expiry)
     if user.totp_enabled:
-        mfa_token = create_access_token(
-            data={"sub": str(user.id), "mfa": True, "org_id": user.organization_id},
-            expires_delta=None  # default 24h — but we want short-lived
-        )
-        # Create a short-lived token specifically for MFA
         from datetime import timedelta
         mfa_token = create_access_token(
-            data={"sub": str(user.id), "mfa": True},
+            data={"sub": str(user.id), "mfa": True, "typ": "mfa_pending"},
             expires_delta=timedelta(minutes=3),
         )
         return TokenResponse(access_token="", mfa_required=True, mfa_token=mfa_token)
 
-    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id})
+    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access"})
     return TokenResponse(access_token=token, mfa_required=False)
 
 
@@ -61,7 +56,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 def mfa_login(body: MfaLoginRequest, db: Session = Depends(get_db)):
     """Second step: verify TOTP code after password."""
     payload = decode_access_token(body.mfa_token)
-    if payload is None or not payload.get("mfa"):
+    if payload is None or payload.get("typ") != "mfa_pending" or not payload.get("mfa"):
         raise HTTPException(status_code=401, detail="Token MFA invalide ou expiré")
 
     user_id = payload.get("sub")
@@ -74,7 +69,7 @@ def mfa_login(body: MfaLoginRequest, db: Session = Depends(get_db)):
     if not verify_totp(user.totp_secret, body.totp_code):
         raise HTTPException(status_code=401, detail="Code TOTP invalide")
 
-    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id})
+    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access"})
     return TokenResponse(access_token=token, mfa_required=False)
 
 
