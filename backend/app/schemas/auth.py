@@ -13,8 +13,8 @@ class CaptchaResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-    captcha_id: str | None = None
-    captcha_answer: str | None = None
+    captcha_id: str
+    captcha_answer: str
 
 
 class MfaLoginRequest(BaseModel):
@@ -28,8 +28,8 @@ class RegisterRequest(BaseModel):
     first_name: str
     last_name: str
     invitation_code: str
-    captcha_id: str | None = None
-    captcha_answer: str | None = None
+    captcha_id: str
+    captcha_answer: str
 
 
 class CreateOrganizationRequest(BaseModel):
@@ -42,8 +42,8 @@ class CreateOrganizationRequest(BaseModel):
     admin_last_name: str
     admin_delegue_status: str = "titulaire"
     admin_delegue_role: str = "president"
-    captcha_id: str | None = None
-    captcha_answer: str | None = None
+    captcha_id: str
+    captcha_answer: str
 
 
 # ── MFA ───────────────────────────────────────────────────────────
