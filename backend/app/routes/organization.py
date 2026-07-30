@@ -85,7 +85,7 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
     db.commit()
     db.refresh(admin)
 
-    token = create_access_token(data={"sub": str(admin.id), "org_id": org.id})
+    token = create_access_token(data={"sub": str(admin.id), "org_id": org.id, "typ": "access"})
     return TokenResponse(access_token=token)
 
 
@@ -124,7 +124,7 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id})
+    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access"})
     return TokenResponse(access_token=token)
 
 
