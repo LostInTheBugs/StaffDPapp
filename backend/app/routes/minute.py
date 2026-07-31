@@ -11,7 +11,7 @@ from app.models.minute import Minute, MinuteSection, MinuteStatus, SectionVisibi
 from app.models.meeting import Meeting
 from app.schemas.minute import (
     MinuteResponse, CreateMinuteRequest, UpdateSectionsRequest,
-    SectionSchema, DirectionPreviewResponse,
+    SectionSchema, PreviewSectionSchema, DirectionPreviewResponse,
 )
 
 router = APIRouter(tags=["minutes"])
@@ -44,6 +44,15 @@ def _minute_to_response(m: Minute) -> dict:
         "updated_at": m.updated_at,
         "sections": [_section_to_dict(s) for s in (m.sections or [])],
     }
+
+
+def _projection_fingerprint(sections: list) -> list[tuple[int, str, bytes]]:
+    """Représentation canonique de la version direction : liste ordonnée de
+    (position renumérotée, title, content_bytes) pour les sections partagées.
+    Utilisée à la fois par direction_preview (projection) et update_sections
+    (comparaison avant/après) pour garantir qu'elles ne peuvent pas diverger."""
+    partage = [s for s in sections if s.visibility == SectionVisibility.partage]
+    return [(i, s.title, s.content) for i, s in enumerate(partage)]
 
 
 # ── POST /api/meetings/{meeting_id}/minutes ────────────────────────
@@ -240,21 +249,16 @@ def direction_preview(
     if not minute:
         raise HTTPException(status_code=404, detail="PV non trouvé")
 
-    # Projection : uniquement les sections partage
-    partage_sections = [
-        s for s in (minute.sections or [])
-        if s.visibility == SectionVisibility.partage
-    ]
+    # Projection via la même fonction que celle utilisée pour la comparaison
+    # avant/après dans update_sections — garantit l'absence de divergence.
+    fingerprint = _projection_fingerprint(list(minute.sections or []))
 
-    # Renuméroter les sections en continu (pas de trous)
     preview_sections = []
-    for i, s in enumerate(partage_sections):
+    for pos, title, content_bytes in fingerprint:
         preview_sections.append({
-            "id": s.id,
-            "position": i,
-            "title": s.title,
-            "visibility": "partage",
-            "content": base64.b64encode(s.content).decode("ascii") if s.content else "",
+            "position": pos,
+            "title": title,
+            "content": base64.b64encode(content_bytes).decode("ascii") if content_bytes else "",
         })
 
     return {
