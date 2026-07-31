@@ -178,12 +178,18 @@ interface MinuteResponse {
   sections: Section[]
 }
 
+interface PreviewSection {
+  position: number
+  title: string
+  content: string  // base64
+}
+
 interface DirectionPreview {
   minute_id: number
   meeting_title: string | null
   validated_by_name: string | null
   validated_at: string | null
-  sections: Section[]
+  sections: PreviewSection[]
   generated_at: string
 }
 

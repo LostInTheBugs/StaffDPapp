@@ -37,10 +37,19 @@ class UpdateSectionsRequest(BaseModel):
     sections: list[SectionSchema]
 
 
+class PreviewSectionSchema(BaseModel):
+    """Section destinée à la direction : pas d'id ni de visibility (toujours 'partage')."""
+    position: int
+    title: str
+    content: str  # base64-encoded
+
+    model_config = {"from_attributes": True}
+
+
 class DirectionPreviewResponse(BaseModel):
     minute_id: int
     meeting_title: str | None = None
     validated_by_name: str | None = None
     validated_at: datetime | None = None
-    sections: list[SectionSchema]
+    sections: list[PreviewSectionSchema]
     generated_at: datetime
