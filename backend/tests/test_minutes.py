@@ -949,3 +949,64 @@ def test_add_interne_keeps_validated(client, org_with_users):
     assert data["status"] == "valide"
     assert data["validated_by_id"] == old_validated_by
     assert data["validated_at"] == old_validated_at
+
+
+def test_reorder_partage_resets_when_sections_sent_out_of_order(client, org_with_users):
+    """Réordonnancement détecté même si le client envoie les sections dans le
+    désordre. Sans order_by explicite côté serveur, l'empreinte "après" dépendrait
+    de l'ordre de retour des lignes SQLite, qui n'est garanti nulle part."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, _, _ = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "PA", "content": _b64("a"), "visibility": "partage"},
+            {"position": 1, "title": "PB", "content": _b64("b"), "visibility": "partage"},
+        ],
+    )
+
+    # Inversion, mais envoyée dans un ordre de liste inverse des positions :
+    # position 1 en premier, position 0 en second.
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 1, "title": "PA", "content": _b64("a"), "visibility": "partage"},
+                {"position": 0, "title": "PB", "content": _b64("b"), "visibility": "partage"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "brouillon"
+
+
+def test_noop_update_sent_out_of_order_keeps_validated(client, org_with_users):
+    """Aucun changement réel, mais sections envoyées dans le désordre :
+    le PV doit RESTER validé (pas de faux positif)."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, _, _ = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "PA", "content": _b64("a"), "visibility": "partage"},
+            {"position": 1, "title": "PB", "content": _b64("b"), "visibility": "partage"},
+        ],
+    )
+
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 1, "title": "PB", "content": _b64("b"), "visibility": "partage"},
+                {"position": 0, "title": "PA", "content": _b64("a"), "visibility": "partage"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "valide"

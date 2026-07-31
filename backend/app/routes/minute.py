@@ -185,9 +185,14 @@ def update_sections(
     db.flush()
 
     # Empreinte de la projection direction APRÈS modification
+    # order_by explicite : l'empreinte "avant" vient de minute.sections, qui est
+    # ordonnée par position (order_by sur la relation). Sans le même tri ici, on
+    # comparerait deux listes construites dans des ordres différents, et un
+    # réordonnancement de sections partagées pourrait passer inaperçu.
     new_sections = (
         db.query(MinuteSection)
         .filter(MinuteSection.minute_id == minute.id)
+        .order_by(MinuteSection.position)
         .all()
     )
     new_fingerprint = _projection_fingerprint(new_sections)
