@@ -671,3 +671,281 @@ def test_direction_preview_interleaved_no_count_leak(client, org_with_users):
     assert "I1" not in raw
     assert "I2" not in raw
     assert "I3" not in raw
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Défaut 2 — règles de retour en brouillon (projection fingerprint)
+# ═══════════════════════════════════════════════════════════════════
+
+
+def _create_validated_minute(client, token_s, token_validator, sections=None):
+    """Helper : crée un PV, le fait valider, retourne (minute_id, validated_by_id, validated_at)."""
+    h_s = {"Authorization": f"Bearer {token_s}"}
+    h_v = {"Authorization": f"Bearer {token_validator}"}
+
+    if sections is None:
+        sections = [
+            {"position": 0, "title": "Interne", "content": _b64("secret"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("public"),
+             "visibility": "partage"},
+        ]
+
+    meeting = _create_meeting(client, token_s)
+    r = client.post(
+        f"/api/meetings/{meeting['id']}/minutes",
+        json={"sections": sections},
+        headers=h_s,
+    )
+    assert r.status_code == 201
+    minute_id = r.json()["id"]
+
+    # Validate
+    r = client.post(f"/api/minutes/{minute_id}/validate", headers=h_v)
+    assert r.status_code == 200
+
+    # Read back to get validated_by_id and validated_at
+    r = client.get(f"/api/minutes/{minute_id}", headers=h_s)
+    data = r.json()
+    assert data["status"] == "valide"
+    return minute_id, data["validated_by_id"], data["validated_at"]
+
+
+def test_modify_only_interne_keeps_validated(client, org_with_users):
+    """PV validé + modif UNIQUEMENT section interne → le PV RESTE validé."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, old_validated_by, old_validated_at = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "Interne", "content": _b64("v1"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("v1"),
+             "visibility": "partage"},
+        ],
+    )
+
+    # Modifier UNIQUEMENT la section interne
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 0, "title": "Interne modifié", "content": _b64("v2"),
+                 "visibility": "interne"},
+                {"position": 1, "title": "Public", "content": _b64("v1"),
+                 "visibility": "partage"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "valide", f"Expected 'valide' but got '{data['status']}'"
+    assert data["validated_by_id"] == old_validated_by
+    assert data["validated_at"] == old_validated_at
+
+
+def test_modify_partage_content_resets(client, org_with_users):
+    """PV validé + modif CONTENU section partagée → retour en brouillon."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, _, _ = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "Interne", "content": _b64("v1"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("v1"),
+             "visibility": "partage"},
+        ],
+    )
+
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 0, "title": "Interne", "content": _b64("v1"),
+                 "visibility": "interne"},
+                {"position": 1, "title": "Public", "content": _b64("v2"),
+                 "visibility": "partage"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "brouillon"
+    assert data["validated_by_id"] is None
+    assert data["validated_at"] is None
+
+
+def test_modify_partage_title_resets(client, org_with_users):
+    """PV validé + modif TITRE section partagée → retour en brouillon."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, _, _ = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "Interne", "content": _b64("v1"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("v1"),
+             "visibility": "partage"},
+        ],
+    )
+
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 0, "title": "Interne", "content": _b64("v1"),
+                 "visibility": "interne"},
+                {"position": 1, "title": "Public modifié", "content": _b64("v1"),
+                 "visibility": "partage"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "brouillon"
+    assert data["validated_by_id"] is None
+
+
+def test_reorder_partage_resets(client, org_with_users):
+    """PV validé + RÉORDONNEMENT de deux sections partagées → retour en brouillon."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, _, _ = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "PA", "content": _b64("a"),
+             "visibility": "partage"},
+            {"position": 1, "title": "PB", "content": _b64("b"),
+             "visibility": "partage"},
+        ],
+    )
+
+    # Inverser l'ordre
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 0, "title": "PB", "content": _b64("b"),
+                 "visibility": "partage"},
+                {"position": 1, "title": "PA", "content": _b64("a"),
+                 "visibility": "partage"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "brouillon"
+    assert data["validated_by_id"] is None
+
+
+def test_delete_all_partage_resets(client, org_with_users):
+    """PV validé + SUPPRESSION de toutes les sections partagées → retour en brouillon."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, _, _ = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "Interne", "content": _b64("v1"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("v1"),
+             "visibility": "partage"},
+        ],
+    )
+
+    # Supprimer la section partagée (ne garder qu'interne)
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 0, "title": "Interne", "content": _b64("v1"),
+                 "visibility": "interne"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "brouillon"
+    assert data["validated_by_id"] is None
+
+
+def test_noop_update_keeps_validated(client, org_with_users):
+    """PV validé + renvoi des MÊMES sections → le PV RESTE validé."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    sections = [
+        {"position": 0, "title": "Interne", "content": _b64("v1"),
+         "visibility": "interne"},
+        {"position": 1, "title": "Public", "content": _b64("v1"),
+         "visibility": "partage"},
+    ]
+    minute_id, old_validated_by, old_validated_at = _create_validated_minute(
+        client, sophie_token, marc_token, sections=sections,
+    )
+
+    # Renvoyer exactement les mêmes sections
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={"sections": sections},
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "valide"
+    assert data["validated_by_id"] == old_validated_by
+    assert data["validated_at"] == old_validated_at
+
+
+def test_add_interne_keeps_validated(client, org_with_users):
+    """PV validé + ajout d'une nouvelle section interne → le PV RESTE validé."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id, old_validated_by, old_validated_at = _create_validated_minute(
+        client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "Interne", "content": _b64("v1"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("v1"),
+             "visibility": "partage"},
+        ],
+    )
+
+    # Ajouter une nouvelle section interne
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={
+            "sections": [
+                {"position": 0, "title": "Interne", "content": _b64("v1"),
+                 "visibility": "interne"},
+                {"position": 1, "title": "Public", "content": _b64("v1"),
+                 "visibility": "partage"},
+                {"position": 2, "title": "Nouvelle interne", "content": _b64("new"),
+                 "visibility": "interne"},
+            ]
+        },
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "valide"
+    assert data["validated_by_id"] == old_validated_by
+    assert data["validated_at"] == old_validated_at
