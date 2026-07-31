@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import NavBar from '../components/NavBar'
 import { useAuth } from '../hooks/useAuth'
 import { useT } from '../i18n/I18nContext'
+import { exportDirectionPDF, type DirectionPreview } from '../lib/pdfExport'
 
 interface Section {
   id: number | null
@@ -10,6 +11,14 @@ interface Section {
   title: string
   visibility: string
   content: string
+}
+
+interface PublicationEntry {
+  id: number
+  published_by_name: string | null
+  published_at: string
+  pdf_sha256: string
+  sections_count: number
 }
 
 interface MinuteData {
@@ -22,6 +31,7 @@ interface MinuteData {
   validated_by_name: string | null
   validated_at: string | null
   sections: Section[]
+  publications: PublicationEntry[]
 }
 
 interface MeetingInfo {
@@ -44,6 +54,14 @@ function b64Decode(str: string): string {
   return new TextDecoder().decode(bytes)
 }
 
+async function sha256Hex(data: Uint8Array): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+const BUREAU_ROLES = ['president', 'vice_president', 'secretaire']
+
 export default function MinutesPage() {
   const { meetingId } = useParams<{ meetingId: string }>()
   const navigate = useNavigate()
@@ -56,10 +74,12 @@ export default function MinutesPage() {
   const [sections, setSections] = useState<Section[]>([])
   const [showPreview, setShowPreview] = useState(false)
   const [previewSections, setPreviewSections] = useState<Section[]>([])
+  const [previewMeta, setPreviewMeta] = useState<DirectionPreview | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [validating, setValidating] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
@@ -194,6 +214,7 @@ export default function MinutesPage() {
       const r = await fetch(`/api/minutes/${minute.id}/direction-preview`, { headers: h })
       if (!r.ok) throw new Error('Erreur')
       const data = await r.json()
+      setPreviewMeta(data)
       setPreviewSections(decodeSections(data.sections))
       setShowPreview(true)
     } catch (e: any) {
@@ -201,7 +222,55 @@ export default function MinutesPage() {
     }
   }
 
+  async function handleExportAndPublish() {
+    if (!minute || !previewMeta) return
+    setExporting(true)
+    setErr(null)
+    try {
+      // 1. Generate PDF client-side
+      const pdfBytes = await exportDirectionPDF(previewMeta)
+
+      // 2. Compute SHA-256 via WebCrypto
+      const sha256 = await sha256Hex(pdfBytes)
+
+      // 3. Call /publish
+      const r = await fetch(`/api/minutes/${minute.id}/publish`, {
+        method: 'POST',
+        headers: { ...h, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdf_sha256: sha256 }),
+      })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({ detail: 'Erreur' }))
+        throw new Error(body.detail || 'Erreur')
+      }
+
+      // 4. Download the file
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `PV-direction-${minute.id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      // 5. Refresh to get updated status + publication history
+      const mr = await fetch(`/api/minutes/${minute.id}`, { headers: h })
+      if (mr.ok) setMinute(await mr.json())
+
+      setMsg(t('minutes.published'))
+      setTimeout(() => setMsg(null), 3000)
+      setShowPreview(false)
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const isCreator = minute && user?.id === minute.created_by_id
+  const isBureau = minute && user?.delegue_role && BUREAU_ROLES.includes(user.delegue_role)
 
   const statusLabel = (s: string) => {
     if (s === 'brouillon') return t('minutes.status_brouillon')
@@ -209,6 +278,9 @@ export default function MinutesPage() {
     if (s === 'diffuse') return t('minutes.status_diffuse')
     return s
   }
+
+  // Has the PV been modified since last publication? Published + not valide => obsolete
+  const isPublishedObsolete = minute?.status === 'brouillon' && minute?.publications?.length > 0
 
   if (loading) return <><NavBar /><div className="dashboard"><p>{t('common.loading')}</p></div></>
 
@@ -218,6 +290,17 @@ export default function MinutesPage() {
       <div className="dashboard">
         {msg && <div className="success-msg">{msg}</div>}
         {err && <div className="error-msg">{err}</div>}
+
+        {/* Obsolescence banner */}
+        {isPublishedObsolete && (
+          <div style={{
+            background: '#fff3cd', border: '1px solid #ffc107',
+            padding: '12px 16px', borderRadius: '8px', marginBottom: '16px',
+            color: '#856404', fontSize: '.9rem', fontWeight: 600,
+          }}>
+            ⚠️ {t('minutes.obsolete_warning')}
+          </div>
+        )}
 
         {/* Preview Modal */}
         {showPreview && (
@@ -263,9 +346,19 @@ export default function MinutesPage() {
                     </div>
                   ))
                 )}
-                <button onClick={() => setShowPreview(false)} className="btn" style={{ marginTop: '16px', width: '100%' }}>
-                  {t('minutes.close_preview')}
-                </button>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                  <button onClick={() => setShowPreview(false)} className="btn"
+                    style={{ flex: 1 }}>
+                    {t('minutes.close_preview')}
+                  </button>
+                  {previewSections.length > 0 && minute?.status === 'valide' && isBureau && (
+                    <button onClick={handleExportAndPublish} className="btn btn-primary"
+                      disabled={exporting}
+                      style={{ flex: 1, background: '#2b6cb0', color: '#fff', border: 'none' }}>
+                      {exporting ? <div className="spinner" /> : t('minutes.export_and_publish')}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -298,6 +391,35 @@ export default function MinutesPage() {
             </button>
           </div>
         </div>
+
+        {/* Publication history */}
+        {minute && minute.publications && minute.publications.length > 0 && (
+          <div className="card mb-24" style={{ background: '#f7fafc' }}>
+            <h3 style={{ marginBottom: '12px', fontSize: '.95rem' }}>{t('minutes.publication_history')}</h3>
+            <table style={{ width: '100%', fontSize: '.85rem', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--gray-300)', textAlign: 'left' }}>
+                  <th style={{ padding: '4px 8px' }}>{t('minutes.pub_date')}</th>
+                  <th style={{ padding: '4px 8px' }}>{t('minutes.pub_by')}</th>
+                  <th style={{ padding: '4px 8px' }}>{t('minutes.pub_sections')}</th>
+                  <th style={{ padding: '4px 8px' }}>{t('minutes.pub_hash')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {minute.publications.map((pub) => (
+                  <tr key={pub.id} style={{ borderBottom: '1px solid var(--gray-200)' }}>
+                    <td style={{ padding: '6px 8px' }}>{new Date(pub.published_at).toLocaleString()}</td>
+                    <td style={{ padding: '6px 8px' }}>{pub.published_by_name || '—'}</td>
+                    <td style={{ padding: '6px 8px' }}>{pub.sections_count}</td>
+                    <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '.75rem' }}>
+                      {pub.pdf_sha256.slice(0, 12)}…
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* No minute yet */}
         {!minute && (
@@ -390,12 +512,12 @@ export default function MinutesPage() {
               <div style={{ textAlign: 'right' }}>
                 <button
                   type="button" onClick={handleValidate}
-                  disabled={!!isCreator || validating || minute.status === 'valide'}
+                  disabled={!!isCreator || validating || minute.status === 'valide' || minute.status === 'diffuse'}
                   className="btn"
                   style={{
-                    background: (isCreator || minute.status === 'valide') ? '#e2e8f0' : '#c6f6d5',
-                    color: (isCreator || minute.status === 'valide') ? '#a0aec0' : '#276749',
-                    border: 'none', cursor: (isCreator || minute.status === 'valide') ? 'not-allowed' : 'pointer',
+                    background: (isCreator || minute.status === 'valide' || minute.status === 'diffuse') ? '#e2e8f0' : '#c6f6d5',
+                    color: (isCreator || minute.status === 'valide' || minute.status === 'diffuse') ? '#a0aec0' : '#276749',
+                    border: 'none', cursor: (isCreator || minute.status === 'valide' || minute.status === 'diffuse') ? 'not-allowed' : 'pointer',
                     fontWeight: 700,
                   }}
                   title={isCreator ? t('minutes.validate_disabled') : ''}

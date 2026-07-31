@@ -52,3 +52,17 @@ class MinuteSection(Base):
     nonce = Column(LargeBinary, nullable=True)
 
     minute = relationship("Minute", back_populates="sections")
+
+
+class MinutePublication(Base):
+    __tablename__ = "minute_publications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    minute_id = Column(Integer, ForeignKey("minutes.id"), nullable=False)
+    published_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    published_at = Column(DateTime(timezone=True), nullable=False)
+    pdf_sha256 = Column(String(64), nullable=False)
+    sections_count = Column(Integer, nullable=False)
+
+    minute = relationship("Minute")
+    published_by = relationship("User")

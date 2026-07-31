@@ -166,5 +166,13 @@
   "minutes.status_diffuse": "Published",
   "minutes.validated_by": "Validated by",
   "minutes.validated_at": "on",
-  "minutes.back_to_meeting": "← Back to meeting"
+  "minutes.back_to_meeting": "← Back to meeting",
+  "minutes.export_and_publish": "📥 Export and publish",
+  "minutes.published": "Minutes published and PDF downloaded ✅",
+  "minutes.publication_history": "📋 Publication history",
+  "minutes.pub_date": "Date",
+  "minutes.pub_by": "Published by",
+  "minutes.pub_sections": "Sections",
+  "minutes.pub_hash": "Hash (SHA-256)",
+  "minutes.obsolete_warning": "⚠️ The minutes have been modified since the last publication. The published version is no longer up to date. Please validate and publish again."
 }
