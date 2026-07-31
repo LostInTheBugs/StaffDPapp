@@ -576,3 +576,98 @@ def test_create_minute_meeting_not_found(client, org_with_users):
         headers=h,
     )
     assert r.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Défaut 1 — direction-preview : aucune fuite d'id ni d'existence
+# ═══════════════════════════════════════════════════════════════════
+
+
+def _recursive_no_key(obj, key: str):
+    """Vérifie récursivement qu'aucune clé n'existe dans l'arbre JSON."""
+    if isinstance(obj, dict):
+        assert key not in obj, f"Clé '{key}' trouvée dans: {obj}"
+        for v in obj.values():
+            _recursive_no_key(v, key)
+    elif isinstance(obj, list):
+        for item in obj:
+            _recursive_no_key(item, key)
+
+
+def test_direction_preview_no_id_anywhere(client, org_with_users):
+    """La réponse direction-preview ne contient AUCUN champ 'id', à aucun niveau."""
+    token = org_with_users["sophie_token"]
+    h = {"Authorization": f"Bearer {token}"}
+    meeting = _create_meeting(client, token)
+
+    r = client.post(
+        f"/api/meetings/{meeting['id']}/minutes",
+        json={
+            "sections": [
+                {"position": 0, "title": "Interne", "content": _b64("secret"),
+                 "visibility": "interne"},
+                {"position": 1, "title": "Public", "content": _b64("public"),
+                 "visibility": "partage"},
+            ]
+        },
+        headers=h,
+    )
+    minute_id = r.json()["id"]
+
+    r = client.get(f"/api/minutes/{minute_id}/direction-preview", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+
+    # minute_id is at top level of the response, not inside sections
+    # The check: no 'id' inside any section object
+    _recursive_no_key(data["sections"], "id")
+
+
+def test_direction_preview_interleaved_no_count_leak(client, org_with_users):
+    """PV avec 5 sections entrelacées : rien ne permet de déduire le compte total."""
+    token = org_with_users["sophie_token"]
+    h = {"Authorization": f"Bearer {token}"}
+    meeting = _create_meeting(client, token)
+
+    r = client.post(
+        f"/api/meetings/{meeting['id']}/minutes",
+        json={
+            "sections": [
+                {"position": 0, "title": "I1", "content": _b64("x"),
+                 "visibility": "interne"},
+                {"position": 1, "title": "P1", "content": _b64("a"),
+                 "visibility": "partage"},
+                {"position": 2, "title": "I2", "content": _b64("x"),
+                 "visibility": "interne"},
+                {"position": 3, "title": "I3", "content": _b64("x"),
+                 "visibility": "interne"},
+                {"position": 4, "title": "P2", "content": _b64("b"),
+                 "visibility": "partage"},
+            ]
+        },
+        headers=h,
+    )
+    minute_id = r.json()["id"]
+
+    r = client.get(f"/api/minutes/{minute_id}/direction-preview", headers=h)
+    assert r.status_code == 200
+    data = r.json()
+
+    sections = data["sections"]
+    assert len(sections) == 2
+    # Positions renumérotées en continu
+    assert sections[0]["position"] == 0
+    assert sections[0]["title"] == "P1"
+    assert sections[1]["position"] == 1
+    assert sections[1]["title"] == "P2"
+
+    # Rien dans la réponse ne permet de déduire qu'il y avait 5 sections au total
+    # (pas de count, pas d'id, pas de metadata par section)
+    assert "count" not in data
+    assert "total" not in data
+    # Vérifie qu'aucun id ni référence interne ne fuite
+    _recursive_no_key(sections, "id")
+    raw = str(data)
+    assert "I1" not in raw
+    assert "I2" not in raw
+    assert "I3" not in raw
