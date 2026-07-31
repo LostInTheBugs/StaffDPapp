@@ -154,3 +154,82 @@ export const EMPLOYEE_RANGES = [
   { min: 4701, max: 5100, titulaires: 24 },
   { min: 5101, max: 5500, titulaires: 25 },
 ] as const
+
+interface Section {
+  id: number | null
+  position: number
+  title: string
+  visibility: string
+  content: string  // base64
+}
+
+interface MinuteResponse {
+  id: number
+  meeting_id: number
+  status: string
+  is_encrypted: boolean
+  created_by_id: number
+  created_by_name: string | null
+  validated_by_id: number | null
+  validated_by_name: string | null
+  validated_at: string | null
+  created_at: string | null
+  updated_at: string | null
+  sections: Section[]
+}
+
+interface DirectionPreview {
+  minute_id: number
+  meeting_title: string | null
+  validated_by_name: string | null
+  validated_at: string | null
+  sections: Section[]
+  generated_at: string
+}
+
+function b64Encode(str: string): string {
+  return btoa(unescape(encodeURIComponent(str)))
+}
+
+function b64Decode(str: string): string {
+  return decodeURIComponent(escape(atob(str)))
+}
+
+export function createMinute(meetingId: number, sections: Section[]): Promise<MinuteResponse> {
+  const payload = {
+    sections: sections.map(s => ({
+      ...s,
+      content: s.content ? b64Encode(s.content) : '',
+    })),
+  }
+  return request(`/meetings/${meetingId}/minutes`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function getMeetingMinute(meetingId: number): Promise<MinuteResponse> {
+  return request(`/meetings/${meetingId}/minute`)
+}
+
+export function getMinute(minuteId: number): Promise<MinuteResponse> {
+  return request(`/minutes/${minuteId}`)
+}
+
+export function updateSections(minuteId: number, sections: Section[]): Promise<MinuteResponse> {
+  const payload = {
+    sections: sections.map(s => ({
+      ...s,
+      content: s.content ? b64Encode(s.content) : '',
+    })),
+  }
+  return request(`/minutes/${minuteId}/sections`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function validateMinute(minuteId: number): Promise<{ status: string; message: string }> {
+  return request(`/minutes/${minuteId}/validate`, { method: 'POST' })
+}
+
+export function getDirectionPreview(minuteId: number): Promise<DirectionPreview> {
+  return request(`/minutes/${minuteId}/direction-preview`)
+}
+
+export { b64Encode, b64Decode }
+export type { Section, MinuteResponse, DirectionPreview }
