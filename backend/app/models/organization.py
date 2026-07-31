@@ -74,8 +74,12 @@ class Organization(Base):
             return 24
         if n <= 5500:
             return 25
-        # >5500: +1 par tranche de 500
-        return 25 + ((n - 5500) // 500) + (1 if (n - 5500) % 500 > 0 else 0)
+        # >5500: +1 par tranche ENTIÈRE de 500 (arrondi inférieur)
+        # Texte officiel (brochure LCGB 10/2023) : « 1 membre titulaire
+        # supplémentaire par tranche ENTIÈRE de 500 salariés, lorsque
+        # l'effectif des salariés excède 5.500. »
+        # Ex. : 5501 → 25, 6000 → 26, 6001 → 26, 6500 → 27.
+        return 25 + (n - 5500) // 500
 
     @property
     def weekly_credit_hours(self) -> float | None:
@@ -87,4 +91,12 @@ class Organization(Base):
             h = (40 * n) / 250
         else:
             return None
+        # +0.001 contourne l'arrondi « banquier » de Python : round()
+        # utilise banker's rounding (arrondi au pair) qui arrondit .5
+        # vers le nombre pair le plus proche (round(2.5)=2, round(3.5)=4).
+        # La loi luxembourgeoise (Art. L.415-5) impose un arrondi
+        # arithmétique : ≥0.5 → supérieur, <0.5 → inférieur.
+        # Le +0.001 décale les valeurs juste au-dessus du seuil .5
+        # pour garantir l'arrondi supérieur systématique, sans affecter
+        # les autres fractions (ex. round(2.5+0.001)=3, round(2.49+0.001)=2).
         return round(h + 0.001)
