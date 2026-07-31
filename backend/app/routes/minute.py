@@ -163,22 +163,17 @@ def update_sections(
     if not minute:
         raise HTTPException(status_code=404, detail="PV non trouvé")
 
-    # Si le PV est déjà validé et qu'on modifie une section partage, repasser en brouillon
-    had_partage = any(
-        s.visibility == SectionVisibility.partage
-        for s in (minute.sections or [])
-    )
+    # Empreinte de la projection direction AVANT modification
+    old_fingerprint = _projection_fingerprint(list(minute.sections or []))
 
     # Supprimer les anciennes sections
     for s in list(minute.sections or []):
         db.delete(s)
     db.flush()
 
-    new_has_partage = False
+    # Insérer les nouvelles sections (elles n'ont pas encore d'id)
     for i, sec in enumerate(body.sections):
         vis = SectionVisibility(sec.visibility) if sec.visibility else SectionVisibility.interne
-        if vis == SectionVisibility.partage:
-            new_has_partage = True
         content_bytes = base64.b64decode(sec.content) if sec.content else b""
         db.add(MinuteSection(
             minute_id=minute.id,
@@ -187,9 +182,18 @@ def update_sections(
             visibility=vis,
             content=content_bytes,
         ))
+    db.flush()
 
-    # Si on modifie une section partage après validation, repasser en brouillon
-    if minute.status == MinuteStatus.valide and new_has_partage:
+    # Empreinte de la projection direction APRÈS modification
+    new_sections = (
+        db.query(MinuteSection)
+        .filter(MinuteSection.minute_id == minute.id)
+        .all()
+    )
+    new_fingerprint = _projection_fingerprint(new_sections)
+
+    # Si le PV était validé et que la version direction a changé, repasser en brouillon
+    if minute.status == MinuteStatus.valide and old_fingerprint != new_fingerprint:
         minute.status = MinuteStatus.brouillon
         minute.validated_by_id = None
         minute.validated_at = None
