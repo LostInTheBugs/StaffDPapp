@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import NavBar from '../components/NavBar'
 import { useAuth } from '../hooks/useAuth'
 
@@ -13,6 +14,7 @@ interface Member { id: number; full_name: string; delegue_status: string }
 
 export default function Meetings() {
   const { token, organization } = useAuth()
+  const navigate = useNavigate()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -218,7 +220,7 @@ export default function Meetings() {
                 )}
               </div>
 
-              <div style={{ display:'flex', gap:8 }}>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                 {/* Respond buttons for invitees */}
                 {m.invitees.some(inv => inv.status === 'pending' && members.find(mb => mb.id === inv.user_id)) && (
                   <>
@@ -228,6 +230,10 @@ export default function Meetings() {
                       style={{ background:'#fed7d7', border:'none', color:'#9b2c2c', padding:'4px 10px', borderRadius:4, cursor:'pointer', fontSize:'.8rem' }}>❌ Décline</button>
                   </>
                 )}
+                <button onClick={() => navigate(`/meetings/${m.id}/minutes`)}
+                  style={{ background:'#ebf8ff', border:'1px solid var(--blue)', color:'var(--blue)', padding:'4px 10px', borderRadius:4, cursor:'pointer', fontSize:'.8rem', fontWeight:600, whiteSpace:'nowrap' }}>
+                  📝 PV
+                </button>
                 <button onClick={() => deleteMeeting(m.id)}
                   style={{ background:'none', border:'none', color:'var(--gray-600)', cursor:'pointer', fontSize:'.8rem' }}>🗑️</button>
               </div>
