@@ -237,5 +237,19 @@ export function getDirectionPreview(minuteId: number): Promise<DirectionPreview>
   return request(`/minutes/${minuteId}/direction-preview`)
 }
 
+export interface PublishResult {
+  status: string
+  message: string
+  publication_id: number
+  sections_count: number
+}
+
+export function publishMinute(minuteId: number, pdfSha256: string): Promise<PublishResult> {
+  return request(`/minutes/${minuteId}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ pdf_sha256: pdfSha256 }),
+  })
+}
+
 export { b64Encode, b64Decode }
 export type { Section, MinuteResponse, DirectionPreview }

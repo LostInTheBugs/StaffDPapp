@@ -166,5 +166,13 @@
   "minutes.status_diffuse": "Veröffentlicht",
   "minutes.validated_by": "Validiert von",
   "minutes.validated_at": "am",
-  "minutes.back_to_meeting": "← Zurück zur Sitzung"
+  "minutes.back_to_meeting": "← Zurück zur Sitzung",
+  "minutes.export_and_publish": "📥 Exportieren und veröffentlichen",
+  "minutes.published": "Protokoll veröffentlicht und PDF heruntergeladen ✅",
+  "minutes.publication_history": "📋 Veröffentlichungsverlauf",
+  "minutes.pub_date": "Datum",
+  "minutes.pub_by": "Veröffentlicht von",
+  "minutes.pub_sections": "Abschnitte",
+  "minutes.pub_hash": "Hash (SHA-256)",
+  "minutes.obsolete_warning": "⚠️ Das Protokoll wurde seit der letzten Veröffentlichung geändert. Die veröffentlichte Version ist nicht mehr aktuell. Bitte erneut validieren und veröffentlichen."
 }

@@ -166,5 +166,13 @@
   "minutes.status_diffuse": "Diffusé",
   "minutes.validated_by": "Validé par",
   "minutes.validated_at": "le",
-  "minutes.back_to_meeting": "← Retour à la réunion"
+  "minutes.back_to_meeting": "← Retour à la réunion",
+  "minutes.export_and_publish": "📥 Exporter et diffuser",
+  "minutes.published": "PV diffusé et PDF téléchargé ✅",
+  "minutes.publication_history": "📋 Historique des diffusions",
+  "minutes.pub_date": "Date",
+  "minutes.pub_by": "Diffusé par",
+  "minutes.pub_sections": "Sections",
+  "minutes.pub_hash": "Hash (SHA-256)",
+  "minutes.obsolete_warning": "⚠️ Le contenu du PV a été modifié depuis la dernière diffusion. La version diffusée n'est plus à jour. Veuillez valider et diffuser à nouveau."
 }

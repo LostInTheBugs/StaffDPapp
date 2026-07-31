@@ -1,6 +1,7 @@
 """Tests for the minutes (PV) module — sectioned PV with projection and double validation."""
 import base64
 import pytest
+from app.models.minute import MinuteStatus, Minute
 
 
 def _b64(s: str) -> str:
@@ -1010,3 +1011,161 @@ def test_noop_update_sent_out_of_order_keeps_validated(client, org_with_users):
     )
     assert r.status_code == 200
     assert r.json()["status"] == "valide"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PUBLISH TESTS — POST /api/minutes/{id}/publish
+# ═══════════════════════════════════════════════════════════════════
+
+
+def _create_validated_for_publish(client, token_creator, token_validator, sections=None):
+    """Create a validated minute and return (minute_id, sections_count)."""
+    if sections is None:
+        sections = [
+            {"position": 0, "title": "Interne", "content": _b64("secret"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("info"),
+             "visibility": "partage"},
+        ]
+    h_c = {"Authorization": f"Bearer {token_creator}"}
+    h_v = {"Authorization": f"Bearer {token_validator}"}
+    meeting = _create_meeting(client, token_creator)
+    r = client.post(
+        f"/api/meetings/{meeting['id']}/minutes",
+        json={"sections": sections},
+        headers=h_c,
+    )
+    assert r.status_code == 201
+    minute_id = r.json()["id"]
+    r = client.post(f"/api/minutes/{minute_id}/validate", headers=h_v)
+    assert r.status_code == 200
+    return minute_id
+
+
+def _publish(client, minute_id, token, sha256="a" * 64):
+    h = {"Authorization": f"Bearer {token}"}
+    return client.post(
+        f"/api/minutes/{minute_id}/publish",
+        json={"pdf_sha256": sha256},
+        headers=h,
+    )
+
+
+def test_publish_refused_to_non_bureau(client, org_with_users):
+    """Un membre hors bureau ne peut pas diffuser (403)."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    tom_token = org_with_users["tom_token"]
+    minute_id = _create_validated_for_publish(client, sophie_token, marc_token)
+    r = _publish(client, minute_id, tom_token)
+    assert r.status_code == 403
+
+
+def test_publish_refused_to_other_org(client, org_with_users):
+    """IDOR: un utilisateur d'une autre organisation reçoit 404."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    other_token = org_with_users["other_token"]
+    minute_id = _create_validated_for_publish(client, sophie_token, marc_token)
+    r = _publish(client, minute_id, other_token)
+    assert r.status_code == 404
+
+
+def test_publish_refused_non_valide(client, org_with_users):
+    """Diffusion refusée sur un PV non validé (409)."""
+    sophie_token = org_with_users["sophie_token"]
+    h = {"Authorization": f"Bearer {sophie_token}"}
+    meeting = _create_meeting(client, sophie_token)
+    r = client.post(
+        f"/api/meetings/{meeting['id']}/minutes",
+        json={"sections": [
+            {"position": 0, "title": "S1", "content": _b64("test"),
+             "visibility": "partage"},
+        ]},
+        headers=h,
+    )
+    minute_id = r.json()["id"]
+    r = _publish(client, minute_id, sophie_token)
+    assert r.status_code == 409
+    assert "validé" in r.json()["detail"].lower()
+
+
+def test_publish_creates_history(client, org_with_users):
+    """Une diffusion crée une ligne d'historique et passe le statut à 'diffuse'."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    minute_id = _create_validated_for_publish(client, sophie_token, marc_token)
+    r = _publish(client, minute_id, marc_token, sha256="e" * 64)
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+    # Check minute now has status diffuse
+    h = {"Authorization": f"Bearer {sophie_token}"}
+    r = client.get(f"/api/minutes/{minute_id}", headers=h)
+    assert r.json()["status"] == "diffuse"
+    assert len(r.json()["publications"]) == 1
+    pub = r.json()["publications"][0]
+    assert pub["pdf_sha256"] == "e" * 64
+    assert pub["sections_count"] == 1
+
+
+def test_publish_twice_creates_two_history_entries(client, org_with_users):
+    """Deux diffusions successives créent deux lignes d'historique."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    minute_id = _create_validated_for_publish(client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "S1", "content": _b64("a"), "visibility": "partage"},
+        ])
+
+    # First publish
+    _publish(client, minute_id, marc_token, sha256="a" * 64)
+    # Manually set status back to valide for the second publish
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    m = db.query(Minute).filter(Minute.id == minute_id).first()
+    m.status = MinuteStatus.valide
+    db.commit()
+    db.close()
+
+    r = _publish(client, minute_id, marc_token, sha256="b" * 64)
+    assert r.status_code == 200
+
+    h = {"Authorization": f"Bearer {sophie_token}"}
+    r = client.get(f"/api/minutes/{minute_id}", headers=h)
+    assert len(r.json()["publications"]) == 2
+    hashes = [p["pdf_sha256"] for p in r.json()["publications"]]
+    assert "a" * 64 in hashes
+    assert "b" * 64 in hashes
+
+
+def test_modify_partage_after_publish_resets_to_brouillon(client, org_with_users):
+    """Modifier une section partagée après diffusion repasse le PV en brouillon."""
+    sophie_token = org_with_users["sophie_token"]
+    marc_token = org_with_users["marc_token"]
+    h_s = {"Authorization": f"Bearer {sophie_token}"}
+
+    minute_id = _create_validated_for_publish(client, sophie_token, marc_token,
+        sections=[
+            {"position": 0, "title": "Interne", "content": _b64("secret"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public", "content": _b64("v1"),
+             "visibility": "partage"},
+        ])
+
+    _publish(client, minute_id, marc_token, sha256="c" * 64)
+
+    # Modify the shared section
+    r = client.put(
+        f"/api/minutes/{minute_id}/sections",
+        json={"sections": [
+            {"position": 0, "title": "Interne", "content": _b64("secret"),
+             "visibility": "interne"},
+            {"position": 1, "title": "Public modifié", "content": _b64("v2"),
+             "visibility": "partage"},
+        ]},
+        headers=h_s,
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "brouillon"
+    assert r.json()["validated_by_id"] is None

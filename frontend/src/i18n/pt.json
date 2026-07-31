@@ -166,5 +166,13 @@
   "minutes.status_diffuse": "Publicado",
   "minutes.validated_by": "Validado por",
   "minutes.validated_at": "em",
-  "minutes.back_to_meeting": "← Voltar à reunião"
+  "minutes.back_to_meeting": "← Voltar à reunião",
+  "minutes.export_and_publish": "📥 Exportar e publicar",
+  "minutes.published": "Ata publicada e PDF baixado ✅",
+  "minutes.publication_history": "📋 Histórico de publicações",
+  "minutes.pub_date": "Data",
+  "minutes.pub_by": "Publicado por",
+  "minutes.pub_sections": "Seções",
+  "minutes.pub_hash": "Hash (SHA-256)",
+  "minutes.obsolete_warning": "⚠️ A ata foi modificada desde a última publicação. A versão publicada já não está atualizada. Por favor, valide e publique novamente."
 }

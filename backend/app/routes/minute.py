@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models import User
-from app.models.minute import Minute, MinuteSection, MinuteStatus, SectionVisibility
+from app.models.minute import Minute, MinuteSection, MinutePublication, MinuteStatus, SectionVisibility
 from app.models.meeting import Meeting
 from app.schemas.minute import (
-    MinuteResponse, CreateMinuteRequest, UpdateSectionsRequest,
+    MinuteResponse, MinuteDetailResponse, CreateMinuteRequest, UpdateSectionsRequest,
     SectionSchema, PreviewSectionSchema, DirectionPreviewResponse,
+    PublishRequest, PublicationHistorySchema,
 )
 
 router = APIRouter(tags=["minutes"])
@@ -129,7 +130,7 @@ def get_meeting_minute(
 # ── GET /api/minutes/{id} ──────────────────────────────────────────
 
 
-@router.get("/api/minutes/{minute_id}", response_model=MinuteResponse)
+@router.get("/api/minutes/{minute_id}", response_model=MinuteDetailResponse)
 def get_minute(
     minute_id: int,
     current_user: User = Depends(get_current_user),
@@ -142,7 +143,27 @@ def get_minute(
     )
     if not minute:
         raise HTTPException(status_code=404, detail="PV non trouvé")
-    return _minute_to_response(minute)
+
+    # Build publication history
+    publications = (
+        db.query(MinutePublication)
+        .filter(MinutePublication.minute_id == minute_id)
+        .order_by(MinutePublication.published_at.desc())
+        .all()
+    )
+
+    result = dict(_minute_to_response(minute))
+    result["publications"] = [
+        {
+            "id": p.id,
+            "published_by_name": p.published_by.full_name if p.published_by else None,
+            "published_at": p.published_at,
+            "pdf_sha256": p.pdf_sha256,
+            "sections_count": p.sections_count,
+        }
+        for p in publications
+    ]
+    return result
 
 
 # ── PUT /api/minutes/{id}/sections ─────────────────────────────────
@@ -197,8 +218,9 @@ def update_sections(
     )
     new_fingerprint = _projection_fingerprint(new_sections)
 
-    # Si le PV était validé et que la version direction a changé, repasser en brouillon
-    if minute.status == MinuteStatus.valide and old_fingerprint != new_fingerprint:
+    # Si le PV était validé ou diffusé et que la version direction a changé,
+    # repasser en brouillon (et donc invalider la diffusion précédente).
+    if minute.status in (MinuteStatus.valide, MinuteStatus.diffuse) and old_fingerprint != new_fingerprint:
         minute.status = MinuteStatus.brouillon
         minute.validated_by_id = None
         minute.validated_at = None
@@ -268,6 +290,7 @@ def direction_preview(
             "position": pos,
             "title": title,
             "content": base64.b64encode(content_bytes).decode("ascii") if content_bytes else "",
+            "visibility": "partage",
         })
 
     return {
@@ -277,4 +300,62 @@ def direction_preview(
         "validated_at": minute.validated_at,
         "sections": preview_sections,
         "generated_at": datetime.now(timezone.utc),
+    }
+
+
+# ── POST /api/minutes/{id}/publish ─────────────────────────────────
+
+
+@router.post("/api/minutes/{minute_id}/publish")
+def publish_minute(
+    minute_id: int,
+    body: PublishRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark a minute as published and record the PDF hash.
+    Reserved to the bureau only. Requires status 'valide'."""
+    minute = (
+        db.query(Minute)
+        .filter(Minute.id == minute_id, Minute.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not minute:
+        raise HTTPException(status_code=404, detail="PV non trouvé")
+
+    # Only bureau can publish
+    if current_user.delegue_role.value not in BUREAU_ROLES:
+        raise HTTPException(status_code=403,
+            detail="Seuls les membres du bureau peuvent diffuser un PV")
+
+    # Must be validated
+    if minute.status != MinuteStatus.valide:
+        raise HTTPException(status_code=409,
+            detail="Le PV doit être validé avant diffusion")
+
+    # Count shared sections
+    partage_count = sum(1 for s in (minute.sections or [])
+                        if s.visibility == SectionVisibility.partage)
+
+    # Create publication record
+    pub = MinutePublication(
+        minute_id=minute.id,
+        published_by_id=current_user.id,
+        published_at=datetime.now(timezone.utc),
+        pdf_sha256=body.pdf_sha256,
+        sections_count=partage_count,
+    )
+    db.add(pub)
+
+    # Set minute status to diffuse
+    minute.status = MinuteStatus.diffuse
+    minute.published_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return {
+        "status": "ok",
+        "message": "PV diffusé",
+        "publication_id": pub.id,
+        "sections_count": partage_count,
     }
