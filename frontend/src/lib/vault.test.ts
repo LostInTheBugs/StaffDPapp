@@ -11,8 +11,9 @@
  * - DEK never written to localStorage/sessionStorage
  */
 
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
+  DEFAULT_KDF_PARAMS,
   generateDEK,
   wrapDEK,
   unwrapDEK,
@@ -316,5 +317,57 @@ describe("no DEK persistence", () => {
     for (const term of forbidden) {
       expect(source.includes(term)).toBe(false);
     }
+  });
+});
+
+describe("Paramètres KDF par défaut", () => {
+  it("reste sur des paramètres Argon2id robustes", () => {
+    // Les tests utilisent volontairement des paramètres allégés pour la
+    // rapidité. Sans cette assertion, un affaiblissement des paramètres réels
+    // (par ex. m ramené à 4 MiB) passerait toute la suite au vert.
+    expect(DEFAULT_KDF_PARAMS.algo).toBe("argon2id");
+    expect(DEFAULT_KDF_PARAMS.m).toBeGreaterThanOrEqual(65536); // 64 MiB
+    expect(DEFAULT_KDF_PARAMS.t).toBeGreaterThanOrEqual(3);
+    expect(DEFAULT_KDF_PARAMS.p).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("Aucune écriture dans un stockage persistant (observation à l'exécution)", () => {
+  it("aucun appel à setItem pendant un cycle complet", async () => {
+    // Le contrôle statique du source ne verrait pas une écriture faite
+    // indirectement (helper, dépendance). Ici on observe les APIs elles-mêmes.
+    const localWrites: string[] = [];
+    const sessionWrites: string[] = [];
+
+    const store = () => ({
+      setItem: (k: string) => { localWrites.push(k); },
+      getItem: () => null,
+      removeItem: () => {},
+      clear: () => {},
+      key: () => null,
+      length: 0,
+    });
+    const localSpy = store();
+    const sessionSpy = { ...store(), setItem: (k: string) => { sessionWrites.push(k); } };
+
+    vi.stubGlobal("localStorage", localSpy);
+    vi.stubGlobal("sessionStorage", sessionSpy);
+
+    try {
+      const dek = generateDEK();
+      const password = "observation-runtime";
+      const envelope = await wrapDEK(dek, password, undefined, FAST_KDF);
+      const unwrapped = await unwrapDEK(
+        envelope.wrapped, envelope.nonce, password, envelope.kdfSalt, envelope.kdfParams,
+      );
+      setSessionDEK(unwrapped);
+      expect(isVaultUnlocked()).toBe(true);
+      clearSessionDEK();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(localWrites).toEqual([]);
+    expect(sessionWrites).toEqual([]);
   });
 });
