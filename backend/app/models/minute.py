@@ -46,9 +46,18 @@ class MinuteSection(Base):
     id = Column(Integer, primary_key=True, index=True)
     minute_id = Column(Integer, ForeignKey("minutes.id"), nullable=False)
     position = Column(Integer, nullable=False)
+    # `title` is stored in cleartext so the navigation and table of contents
+    # work without decrypting every section. This is a deliberate trade-off:
+    # section titles leak information ("Litige M. X", "Préparation négociation
+    # salariale"). The UI should advise users to choose neutral, numbered titles
+    # (e.g. "Section 1 – Constats", "Section 2 – Décisions").
     title = Column(String(500), nullable=False)
     visibility = Column(SAEnum(SectionVisibility), default=SectionVisibility.interne, nullable=False)
+    # `content` is either plaintext (UTF-8) or AES-256-GCM ciphertext (when
+    # the vault is enabled). The server NEVER attempts to decrypt or interpret
+    # this field — it is an opaque blob.
     content = Column(LargeBinary, nullable=False)
+    # 12-byte AES-GCM nonce. NULL when content is plaintext, set when encrypted.
     nonce = Column(LargeBinary, nullable=True)
 
     minute = relationship("Minute", back_populates="sections")
