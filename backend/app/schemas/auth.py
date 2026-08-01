@@ -30,6 +30,11 @@ class RegisterRequest(BaseModel):
     invitation_code: str
     captcha_id: str
     captcha_answer: str
+    # Optional vault envelope: if the org has a vault, the client unwraps the
+    # DEK with the invitation code, re-wraps it under the user's password,
+    # and sends this envelope. The server stores it and deletes the old
+    # invitation envelope.
+    vault_envelope: dict | None = None  # {wrapped_dek, nonce, kdf_salt, kdf_params}
 
 
 class CreateOrganizationRequest(BaseModel):
@@ -72,6 +77,12 @@ class CreateInvitationRequest(BaseModel):
     delegue_role: str = "membre"
     is_delegue_securite_sante: bool = False
     is_delegue_egalite: bool = False
+    # Optional vault envelope: if the org has a vault, the inviting member
+    # (who holds the DEK) wraps it under a KEK derived from the invitation
+    # code and sends this envelope. The server stores it in vault_keys
+    # with invitation_id set (user_id NULL), so the invitee can unwrap
+    # the DEK during /join.
+    vault_envelope: dict | None = None  # {wrapped_dek, nonce, kdf_salt, kdf_params}
 
 
 # ── Organization update ────────────────────────────────────────────
