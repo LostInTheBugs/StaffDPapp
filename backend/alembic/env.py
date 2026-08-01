@@ -24,6 +24,7 @@ from app.models.invitation import Invitation       # noqa
 from app.models.meeting import Meeting, MeetingPoint, MeetingInvitee  # noqa
 from app.models.time_entry import TimeEntry        # noqa
 from app.models.minute import Minute, MinuteSection  # noqa
+from app.models.vault_key import VaultKey          # noqa
 
 target_metadata = Base.metadata
 
