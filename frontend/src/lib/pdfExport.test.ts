@@ -43,7 +43,7 @@ function b64Encode(str: string): string {
 let fontBytes: Uint8Array
 
 beforeAll(() => {
-  const fontPath = resolve(__dirname, '__fixtures__', 'DejaVuSans.ttf')
+  const fontPath = resolve(__dirname, '..', 'assets', 'DejaVuSans.ttf')
   fontBytes = new Uint8Array(readFileSync(fontPath))
 })
 
