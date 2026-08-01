@@ -59,6 +59,11 @@ class MinuteSection(Base):
     content = Column(LargeBinary, nullable=False)
     # 12-byte AES-GCM nonce. NULL when content is plaintext, set when encrypted.
     nonce = Column(LargeBinary, nullable=True)
+    # 32-byte HMAC-SHA256(plaintext, DEK) content digest. NULL when plaintext.
+    # Allows the server to detect content changes on encrypted sections without
+    # ever seeing the plaintext — the ciphertext changes with every encryption
+    # (random nonce) but the digest is stable for identical plaintext.
+    content_digest = Column(LargeBinary(32), nullable=True)
 
     minute = relationship("Minute", back_populates="sections")
 
