@@ -262,3 +262,29 @@ export function clearSessionDEK(): void {
 export function isVaultUnlocked(): boolean {
   return _sessionDEK !== null;
 }
+
+/**
+ * Compute a stable, keyed digest of plaintext content for section fingerprinting.
+ *
+ * Uses HMAC-SHA256 with the DEK as key. This is deliberately keyed:
+ * a bare SHA-256(content) would let anyone with read access to the database
+ * confirm plaintext guesses ("Décision approuvée", "RAS", etc.) against the
+ * stored digest. With the DEK as HMAC key, confirmation requires the key,
+ * which the server never sees.
+ *
+ * Returns a 32-byte digest (SHA-256 output length).
+ */
+export async function sectionDigest(
+  plaintext: Uint8Array,
+  dek: Uint8Array,
+): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    dek,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const digest = await crypto.subtle.sign("HMAC", key, plaintext);
+  return new Uint8Array(digest);
+}

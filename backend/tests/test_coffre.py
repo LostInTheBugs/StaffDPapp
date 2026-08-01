@@ -418,6 +418,7 @@ class TestEncryptionGuard:
                     "title": "Section chiffrée",
                     "content": base64.b64encode(os.urandom(64)).decode("ascii"),  # fake ciphertext
                     "nonce": base64.b64encode(os.urandom(12)).decode("ascii"),
+                    "content_digest": base64.b64encode(os.urandom(32)).decode("ascii"),
                     "visibility": "interne",
                 }]
             },
@@ -426,3 +427,276 @@ class TestEncryptionGuard:
         assert r.status_code == 201, f"Expected 201, got {r.status_code}: {r.json()}"
         data = r.json()
         assert data["is_encrypted"] is True
+
+
+# ═══════════════════════════════════════════════════════════════════
+# content_digest — fingerprint stable sur le clair pour les PV chiffrés
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestContentDigestFingerprint:
+    """Le fingerprint des sections chiffrées utilise content_digest (HMAC
+    du clair) et non le ciphertext (qui change à chaque chiffrement à cause
+    du nonce aléatoire)."""
+
+    def _create_encrypted_minute(self, client, db, token, sections):
+        """Helper: create meeting → minute with encrypted sections → return minute_id."""
+        from datetime import datetime, timedelta
+        h = {"Authorization": f"Bearer {token}"}
+        r = client.post("/api/meetings", json={
+            "title": "Réunion chiffrée",
+            "date": (datetime.now() + timedelta(days=1)).isoformat(),
+            "points": [{"description": "P1", "order": 0}],
+            "invitee_ids": [],
+        }, headers=h)
+        assert r.status_code == 201, f"Create meeting failed: {r.json()}"
+        meeting_id = r.json()["id"]
+        r = client.post(
+            f"/api/meetings/{meeting_id}/minutes",
+            json={"sections": sections},
+            headers=h,
+        )
+        assert r.status_code == 201, f"Create minute failed: {r.json()}"
+        return r.json()["id"]
+
+    def test_same_digest_different_ciphertext_stays_validated(self, client, db):
+        """PV validé chiffré : renvoyer les MÊMES sections avec un ciphertext
+        et un nonce DIFFÉRENTS mais le MÊME content_digest → le PV RESTE validé.
+
+        C'est le test central : avec l'implémentation actuelle (fingerprint sur
+        content), ce test ÉCHOUERAIT car le ciphertext change."""
+        # Setup: org with vault enabled, VaultKey
+        org = create_org(db)
+        org.pv_vault_enabled = True
+        db.commit()
+
+        user_s = create_user(db, "secretaire@chiffre.lu", "test123", org.id,
+                             delegue_role="secretaire")
+        user_p = create_user(db, "president@chiffre.lu", "test123", org.id,
+                             delegue_role="president")
+        db_s = SessionLocal()
+        db_s.add(VaultKey(
+            organization_id=org.id, user_id=user_s.id,
+            wrapped_dek=os.urandom(48), nonce=os.urandom(12),
+            kdf_salt=os.urandom(16),
+            kdf_params='{"algo":"argon2id","m":65536,"t":3,"p":1}',
+            dek_version=1,
+        ))
+        db_s.commit()
+        db_s.close()
+
+        token_s = _login(client, "secretaire@chiffre.lu", "test123", *fetch_captcha(client))
+        token_p = _login(client, "president@chiffre.lu", "test123", *fetch_captcha(client))
+        h_s = {"Authorization": f"Bearer {token_s}"}
+        h_p = {"Authorization": f"Bearer {token_p}"}
+
+        # Two different ciphertexts for the SAME plaintext (different nonces)
+        ct1 = base64.b64encode(os.urandom(64)).decode("ascii")
+        ct2 = base64.b64encode(os.urandom(64)).decode("ascii")  # different!
+        n1 = base64.b64encode(os.urandom(12)).decode("ascii")
+        n2 = base64.b64encode(os.urandom(12)).decode("ascii")  # different!
+        # Same digest (stable fingerprint of the plaintext)
+        digest_b64 = base64.b64encode(os.urandom(32)).decode("ascii")
+
+        sections_v1 = [{
+            "position": 0, "title": "Résumé",
+            "content": ct1, "nonce": n1,
+            "content_digest": digest_b64,
+            "visibility": "partage",
+        }]
+
+        minute_id = self._create_encrypted_minute(client, db, token_s, sections_v1)
+
+        # Validate by president
+        r = client.post(f"/api/minutes/{minute_id}/validate", headers=h_p)
+        assert r.status_code == 200, f"Validate failed: {r.json()}"
+
+        # Verify status is valide
+        r = client.get(f"/api/minutes/{minute_id}", headers=h_s)
+        assert r.json()["status"] == "valide"
+
+        # Re-submit: same sections but DIFFERENT ciphertext + nonce, SAME digest
+        r = client.put(
+            f"/api/minutes/{minute_id}/sections",
+            json={"sections": [{
+                "position": 0, "title": "Résumé",
+                "content": ct2, "nonce": n2,
+                "content_digest": digest_b64,
+                "visibility": "partage",
+            }]},
+            headers=h_s,
+        )
+        assert r.status_code == 200, f"Update sections failed: {r.json()}"
+        data = r.json()
+        assert data["status"] == "valide", \
+            f"Expected 'valide' but got '{data['status']}' — fingerprint should use digest, not ciphertext"
+
+    def test_different_digest_resets_to_brouillon(self, client, db):
+        """PV validé chiffré, digest différent → retour en brouillon."""
+        org = create_org(db)
+        org.pv_vault_enabled = True
+        db.commit()
+
+        user_s = create_user(db, "sec2@chiffre.lu", "test123", org.id,
+                             delegue_role="secretaire")
+        user_p = create_user(db, "prez2@chiffre.lu", "test123", org.id,
+                             delegue_role="president")
+        db_s = SessionLocal()
+        db_s.add(VaultKey(
+            organization_id=org.id, user_id=user_s.id,
+            wrapped_dek=os.urandom(48), nonce=os.urandom(12),
+            kdf_salt=os.urandom(16),
+            kdf_params='{"algo":"argon2id","m":65536,"t":3,"p":1}',
+            dek_version=1,
+        ))
+        db_s.commit()
+        db_s.close()
+
+        token_s = _login(client, "sec2@chiffre.lu", "test123", *fetch_captcha(client))
+        token_p = _login(client, "prez2@chiffre.lu", "test123", *fetch_captcha(client))
+        h_s = {"Authorization": f"Bearer {token_s}"}
+        h_p = {"Authorization": f"Bearer {token_p}"}
+
+        ct = base64.b64encode(os.urandom(64)).decode("ascii")
+        nonce = base64.b64encode(os.urandom(12)).decode("ascii")
+        d1 = base64.b64encode(os.urandom(32)).decode("ascii")
+        d2 = base64.b64encode(os.urandom(32)).decode("ascii")  # different
+
+        sections = [{
+            "position": 0, "title": "Résumé",
+            "content": ct, "nonce": nonce,
+            "content_digest": d1, "visibility": "partage",
+        }]
+
+        minute_id = self._create_encrypted_minute(client, db, token_s, sections)
+        r = client.post(f"/api/minutes/{minute_id}/validate", headers=h_p)
+        assert r.status_code == 200
+
+        # Change digest
+        r = client.put(
+            f"/api/minutes/{minute_id}/sections",
+            json={"sections": [{
+                "position": 0, "title": "Résumé",
+                "content": ct, "nonce": nonce,
+                "content_digest": d2, "visibility": "partage",
+            }]},
+            headers=h_s,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] == "brouillon", \
+            f"Expected 'brouillon' but got '{data['status']}' — different digest must reset"
+
+    def test_encrypted_section_without_digest_rejected_400(self, client, db):
+        """Section marquée is_encrypted (nonce présent) sans content_digest → 400."""
+        org = create_org(db)
+        org.pv_vault_enabled = True
+        db.commit()
+
+        user = create_user(db, "sec3@chiffre.lu", "test123", org.id,
+                           delegue_role="secretaire")
+        db_s = SessionLocal()
+        db_s.add(VaultKey(
+            organization_id=org.id, user_id=user.id,
+            wrapped_dek=os.urandom(48), nonce=os.urandom(12),
+            kdf_salt=os.urandom(16),
+            kdf_params='{"algo":"argon2id","m":65536,"t":3,"p":1}',
+            dek_version=1,
+        ))
+        db_s.commit()
+        db_s.close()
+
+        token = _login(client, "sec3@chiffre.lu", "test123", *fetch_captcha(client))
+        h = {"Authorization": f"Bearer {token}"}
+
+        from datetime import datetime, timedelta
+        r = client.post("/api/meetings", json={
+            "title": "Test digest manquant",
+            "date": (datetime.now() + timedelta(days=1)).isoformat(),
+            "points": [{"description": "P1", "order": 0}],
+            "invitee_ids": [],
+        }, headers=h)
+        assert r.status_code == 201
+        meeting_id = r.json()["id"]
+
+        r = client.post(
+            f"/api/meetings/{meeting_id}/minutes",
+            json={"sections": [{
+                "position": 0, "title": "Résumé",
+                "content": base64.b64encode(os.urandom(64)).decode("ascii"),
+                "nonce": base64.b64encode(os.urandom(12)).decode("ascii"),
+                # content_digest MANQUANT
+                "visibility": "partage",
+            }]},
+            headers=h,
+        )
+        assert r.status_code == 400, \
+            f"Expected 400 for missing content_digest, got {r.status_code}: {r.json()}"
+        assert "digest" in r.json()["detail"].lower()
+
+    def test_non_encrypted_pv_unchanged(self, client, db):
+        """Non-régression : les PV non chiffrés continuent de fonctionner
+        comme avant (fingerprint sur content)."""
+        # Setup: org WITHOUT vault
+        org = create_org(db)
+        user_s = create_user(db, "noclair@test.lu", "test123", org.id,
+                             delegue_role="secretaire")
+        user_p = create_user(db, "noclairp@test.lu", "test123", org.id,
+                             delegue_role="president")
+        token_s = _login(client, "noclair@test.lu", "test123", *fetch_captcha(client))
+        token_p = _login(client, "noclairp@test.lu", "test123", *fetch_captcha(client))
+        h_s = {"Authorization": f"Bearer {token_s}"}
+        h_p = {"Authorization": f"Bearer {token_p}"}
+
+        from datetime import datetime, timedelta
+
+        r = client.post("/api/meetings", json={
+            "title": "Réunion clair",
+            "date": (datetime.now() + timedelta(days=1)).isoformat(),
+            "points": [{"description": "P1", "order": 0}],
+            "invitee_ids": [],
+        }, headers=h_s)
+        assert r.status_code == 201
+        meeting_id = r.json()["id"]
+
+        plain_content = base64.b64encode(b"clair v1").decode("ascii")
+
+        r = client.post(
+            f"/api/meetings/{meeting_id}/minutes",
+            json={"sections": [
+                {"position": 0, "title": "S1", "content": plain_content,
+                 "visibility": "partage"},
+            ]},
+            headers=h_s,
+        )
+        assert r.status_code == 201
+        minute_id = r.json()["id"]
+
+        # Validate by other bureau member
+        r = client.post(f"/api/minutes/{minute_id}/validate", headers=h_p)
+        assert r.status_code == 200
+
+        # No-op update: same sections → stays validated
+        r = client.put(
+            f"/api/minutes/{minute_id}/sections",
+            json={"sections": [
+                {"position": 0, "title": "S1", "content": plain_content,
+                 "visibility": "partage"},
+            ]},
+            headers=h_s,
+        )
+        assert r.status_code == 200
+        assert r.json()["status"] == "valide"
+
+        # Change content → resets
+        r = client.put(
+            f"/api/minutes/{minute_id}/sections",
+            json={"sections": [
+                {"position": 0, "title": "S1",
+                 "content": base64.b64encode(b"clair v2").decode("ascii"),
+                 "visibility": "partage"},
+            ]},
+            headers=h_s,
+        )
+        assert r.status_code == 200
+        assert r.json()["status"] == "brouillon"
