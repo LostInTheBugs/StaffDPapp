@@ -33,6 +33,11 @@ export interface WrappedKey {
   dekVersion: number;
 }
 
+export interface EncryptedSection {
+  ciphertext: Uint8Array;
+  nonce: Uint8Array; // 12 bytes, random per section
+}
+
 export const DEFAULT_KDF_PARAMS: KdfParams = {
   algo: "argon2id",
   m: 65536, // 64 MiB
@@ -45,7 +50,6 @@ async function deriveKEK(
   salt: Uint8Array,
   params: KdfParams,
 ): Promise<CryptoKey> {
-  // Argon2id → raw 32-byte key material
   const raw = await argon2id({
     password,
     salt,
@@ -59,6 +63,17 @@ async function deriveKEK(
   return crypto.subtle.importKey(
     "raw",
     raw,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+/** Import a raw 32-byte DEK as a WebCrypto AES-GCM key for section encryption. */
+async function importDEK(dek: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    dek,
     { name: "AES-GCM" },
     false,
     ["encrypt", "decrypt"],
@@ -131,12 +146,76 @@ export async function unwrapDEK(
     );
     return new Uint8Array(plain);
   } catch (e: unknown) {
-    // WebCrypto throws OperationError on GCM auth failure
     if (e instanceof DOMException && e.name === "OperationError") {
       throw new WrongPasswordError();
     }
     throw e;
   }
+}
+
+// ── Section content encryption / decryption ─────────────────────────
+
+/**
+ * Encrypt a section's plaintext content with the DEK.
+ *
+ * Uses a FRESH random 12-byte nonce per call. Two calls with the same
+ * plaintext produce DIFFERENT ciphertexts. The client MUST NOT re-encrypt
+ * a section whose plaintext hasn't changed — send the existing ciphertext
+ * as-is; otherwise the server's fingerprint comparison would detect a
+ * false change.
+ */
+export async function encryptSection(
+  dek: Uint8Array,
+  plaintext: Uint8Array,
+): Promise<EncryptedSection> {
+  const key = await importDEK(dek);
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce },
+    key,
+    plaintext,
+  );
+
+  return {
+    ciphertext: new Uint8Array(ciphertext),
+    nonce,
+  };
+}
+
+/**
+ * Decrypt a section's ciphertext with the DEK.
+ *
+ * Throws on GCM authentication failure (tampered data, wrong DEK).
+ */
+export async function decryptSection(
+  dek: Uint8Array,
+  ciphertext: Uint8Array,
+  nonce: Uint8Array,
+): Promise<Uint8Array> {
+  const key = await importDEK(dek);
+
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: nonce },
+    key,
+    ciphertext,
+  );
+
+  return new Uint8Array(plain);
+}
+
+/**
+ * Derive a KEK from an invitation code (Crockford base32).
+ *
+ * Uses the same Argon2id params as password-derived KEKs so the invitee
+ * can unwrap the DEK, then re-wrap under their own password.
+ */
+export async function deriveKEKFromCode(
+  code: string,
+  salt: Uint8Array,
+  params: KdfParams,
+): Promise<CryptoKey> {
+  return deriveKEK(code, salt, params);
 }
 
 // ── Errors ─────────────────────────────────────────────────────────
@@ -159,7 +238,6 @@ export class WrongPasswordError extends Error {
 let _sessionDEK: Uint8Array | null = null;
 
 export function setSessionDEK(dek: Uint8Array): void {
-  // Defensive: zero out the previous DEK before replacing
   if (_sessionDEK) {
     _sessionDEK.fill(0);
   }
