@@ -7,7 +7,8 @@ class SectionSchema(BaseModel):
     position: int
     title: str
     visibility: str = "interne"
-    content: str  # base64-encoded for JSON transport
+    content: str  # base64-encoded for JSON transport (plaintext or ciphertext)
+    nonce: str | None = None  # base64-encoded 12-byte AES-GCM nonce (set iff encrypted)
 
     model_config = {"from_attributes": True}
 
@@ -47,8 +48,9 @@ class PreviewSectionSchema(BaseModel):
     """
     position: int
     title: str
-    content: str  # base64-encoded
+    content: str  # base64-encoded (ciphertext if vault is enabled)
     visibility: str = "partage"
+    nonce: str | None = None  # base64-encoded 12-byte nonce, set iff encrypted
 
     model_config = {"from_attributes": True}
 

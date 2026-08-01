@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models import User
+from app.models import User, Organization
 from app.models.minute import Minute, MinuteSection, MinutePublication, MinuteStatus, SectionVisibility
 from app.models.meeting import Meeting
+from app.models.vault_key import VaultKey
 from app.schemas.minute import (
     MinuteResponse, MinuteDetailResponse, CreateMinuteRequest, UpdateSectionsRequest,
     SectionSchema, PreviewSectionSchema, DirectionPreviewResponse,
@@ -27,6 +28,7 @@ def _section_to_dict(s: MinuteSection) -> dict:
         "title": s.title,
         "visibility": s.visibility.value if s.visibility else "interne",
         "content": base64.b64encode(s.content).decode("ascii") if s.content else "",
+        "nonce": base64.b64encode(s.nonce).decode("ascii") if s.nonce else None,
     }
 
 
@@ -50,10 +52,44 @@ def _minute_to_response(m: Minute) -> dict:
 def _projection_fingerprint(sections: list) -> list[tuple[int, str, bytes]]:
     """Représentation canonique de la version direction : liste ordonnée de
     (position renumérotée, title, content_bytes) pour les sections partagées.
-    Utilisée à la fois par direction_preview (projection) et update_sections
-    (comparaison avant/après) pour garantir qu'elles ne peuvent pas diverger."""
+
+    Compare les OCTETS du champ content, qu'ils soient en clair ou chiffrés.
+    Avec du contenu chiffré (AES-256-GCM), changer le clair produit un
+    ciphertext différent, donc le fingerprint détecte le changement
+    correctement. MAIS : avec un nonce aléatoire, rechiffrer le même texte
+    produirait un ciphertext différent → faux positif. La solution est côté
+    client : ne rechiffrer une section que si le clair a changé. Sinon,
+    renvoyer le ciphertext existant tel quel. Le serveur compare les octets
+    et ne verra pas de différence.
+    """
     partage = [s for s in sections if s.visibility == SectionVisibility.partage]
     return [(i, s.title, s.content) for i, s in enumerate(partage)]
+
+
+def _get_vault_dek_version(org_id: int, db: Session) -> int | None:
+    """Return the current DEK version for the org's vault, or None if no vault."""
+    vk = db.query(VaultKey).filter(
+        VaultKey.organization_id == org_id, VaultKey.user_id.isnot(None)
+    ).first()
+    return vk.dek_version if vk else None
+
+
+def _check_encryption_guard(org_id: int, sections: list, db: Session) -> None:
+    """If the org's vault is enabled, refuse sections without a nonce.
+
+    This is a server-side guard: the server must NEVER accept plaintext
+    section content when the vault is enabled. An attacker who compromised
+    the client JS could try to send plaintext; this blocks it.
+    """
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org or not org.pv_vault_enabled:
+        return
+    for sec in sections:
+        if not sec.nonce:
+            raise HTTPException(
+                status_code=422,
+                detail="Le coffre est activé : toutes les sections doivent être chiffrées (nonce requis)",
+            )
 
 
 # ── POST /api/meetings/{meeting_id}/minutes ────────────────────────
@@ -80,6 +116,9 @@ def create_minute(
     if existing:
         raise HTTPException(status_code=400, detail="Un PV existe déjà pour cette réunion")
 
+    # Encryption guard: if vault is enabled, refuse plaintext content
+    _check_encryption_guard(current_user.organization_id, body.sections, db)
+
     minute = Minute(
         meeting_id=meeting_id,
         organization_id=current_user.organization_id,
@@ -88,14 +127,25 @@ def create_minute(
     db.add(minute)
     db.flush()
 
+    # Determine DEK version if any section has a nonce
+    has_encrypted = any(sec.nonce for sec in body.sections)
+    if has_encrypted:
+        dek_version = _get_vault_dek_version(current_user.organization_id, db)
+        if dek_version is None:
+            raise HTTPException(status_code=400, detail="Aucune clé de coffre trouvée — créez le coffre d'abord")
+        minute.is_encrypted = True
+        minute.dek_version = dek_version
+
     for i, sec in enumerate(body.sections):
         content_bytes = base64.b64decode(sec.content) if sec.content else b""
+        nonce_bytes = base64.b64decode(sec.nonce) if sec.nonce else None
         db.add(MinuteSection(
             minute_id=minute.id,
             position=sec.position if sec.position is not None else i,
             title=sec.title,
             visibility=SectionVisibility(sec.visibility) if sec.visibility else SectionVisibility.interne,
             content=content_bytes,
+            nonce=nonce_bytes,
         ))
 
     db.commit()
@@ -184,6 +234,9 @@ def update_sections(
     if not minute:
         raise HTTPException(status_code=404, detail="PV non trouvé")
 
+    # Encryption guard
+    _check_encryption_guard(current_user.organization_id, body.sections, db)
+
     # Empreinte de la projection direction AVANT modification
     old_fingerprint = _projection_fingerprint(list(minute.sections or []))
 
@@ -192,24 +245,35 @@ def update_sections(
         db.delete(s)
     db.flush()
 
+    # Determine encryption status
+    has_encrypted = any(sec.nonce for sec in body.sections)
+    dek_version = None
+    if has_encrypted:
+        dek_version = _get_vault_dek_version(current_user.organization_id, db)
+        if dek_version is None:
+            raise HTTPException(status_code=400, detail="Aucune clé de coffre trouvée")
+        minute.is_encrypted = True
+        minute.dek_version = dek_version
+    else:
+        minute.is_encrypted = False
+        minute.dek_version = None
+
     # Insérer les nouvelles sections (elles n'ont pas encore d'id)
     for i, sec in enumerate(body.sections):
         vis = SectionVisibility(sec.visibility) if sec.visibility else SectionVisibility.interne
         content_bytes = base64.b64decode(sec.content) if sec.content else b""
+        nonce_bytes = base64.b64decode(sec.nonce) if sec.nonce else None
         db.add(MinuteSection(
             minute_id=minute.id,
             position=sec.position if sec.position is not None else i,
             title=sec.title,
             visibility=vis,
             content=content_bytes,
+            nonce=nonce_bytes,
         ))
     db.flush()
 
     # Empreinte de la projection direction APRÈS modification
-    # order_by explicite : l'empreinte "avant" vient de minute.sections, qui est
-    # ordonnée par position (order_by sur la relation). Sans le même tri ici, on
-    # comparerait deux listes construites dans des ordres différents, et un
-    # réordonnancement de sections partagées pourrait passer inaperçu.
     new_sections = (
         db.query(MinuteSection)
         .filter(MinuteSection.minute_id == minute.id)
@@ -286,11 +350,19 @@ def direction_preview(
 
     preview_sections = []
     for pos, title, content_bytes in fingerprint:
+        # Get nonce from the original section for encrypted content
+        # (the fingerprint only has position, title, content — we need the nonce)
+        section = next(
+            (s for s in (minute.sections or [])
+             if s.visibility == SectionVisibility.partage and s.title == title),
+            None
+        )
         preview_sections.append({
             "position": pos,
             "title": title,
             "content": base64.b64encode(content_bytes).decode("ascii") if content_bytes else "",
             "visibility": "partage",
+            "nonce": base64.b64encode(section.nonce).decode("ascii") if (section and section.nonce) else None,
         })
 
     return {
