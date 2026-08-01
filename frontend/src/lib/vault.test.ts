@@ -17,6 +17,7 @@ import {
   generateDEK,
   wrapDEK,
   unwrapDEK,
+  sectionDigest,
   setSessionDEK,
   getSessionDEK,
   clearSessionDEK,
@@ -369,5 +370,51 @@ describe("Aucune écriture dans un stockage persistant (observation à l'exécut
 
     expect(localWrites).toEqual([]);
     expect(sessionWrites).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// sectionDigest — HMAC-SHA256(plaintext, DEK)
+// ═══════════════════════════════════════════════════════════════════
+
+describe("sectionDigest", () => {
+  const encoder = new TextEncoder();
+
+  it("est déterministe : même clair + même DEK → même digest", async () => {
+    const dek = generateDEK();
+    const plaintext = encoder.encode("Décision approuvée à l'unanimité");
+
+    const d1 = await sectionDigest(plaintext, dek);
+    const d2 = await sectionDigest(plaintext, dek);
+
+    expect(Buffer.from(d1).equals(Buffer.from(d2))).toBe(true);
+  });
+
+  it("DEK différente → digest différent", async () => {
+    const dek1 = generateDEK();
+    const dek2 = generateDEK();
+    const plaintext = encoder.encode("RAS");
+
+    const d1 = await sectionDigest(plaintext, dek1);
+    const d2 = await sectionDigest(plaintext, dek2);
+
+    expect(Buffer.from(d1).equals(Buffer.from(d2))).toBe(false);
+  });
+
+  it("clair différent, même DEK → digest différent", async () => {
+    const dek = generateDEK();
+
+    const d1 = await sectionDigest(encoder.encode("Décision approuvée"), dek);
+    const d2 = await sectionDigest(encoder.encode("Décision rejetée"), dek);
+
+    expect(Buffer.from(d1).equals(Buffer.from(d2))).toBe(false);
+  });
+
+  it("le digest fait exactement 32 octets (SHA-256)", async () => {
+    const dek = generateDEK();
+    const digest = await sectionDigest(encoder.encode("contenu test"), dek);
+
+    expect(digest.length).toBe(32);
+    expect(digest).toBeInstanceOf(Uint8Array);
   });
 });

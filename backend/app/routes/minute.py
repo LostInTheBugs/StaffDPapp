@@ -29,6 +29,7 @@ def _section_to_dict(s: MinuteSection) -> dict:
         "visibility": s.visibility.value if s.visibility else "interne",
         "content": base64.b64encode(s.content).decode("ascii") if s.content else "",
         "nonce": base64.b64encode(s.nonce).decode("ascii") if s.nonce else None,
+        "content_digest": base64.b64encode(s.content_digest).decode("ascii") if s.content_digest else None,
     }
 
 
@@ -51,19 +52,23 @@ def _minute_to_response(m: Minute) -> dict:
 
 def _projection_fingerprint(sections: list) -> list[tuple[int, str, bytes]]:
     """Représentation canonique de la version direction : liste ordonnée de
-    (position renumérotée, title, content_bytes) pour les sections partagées.
+    (position renumérotée, title, digest_ou_content) pour les sections partagées.
 
-    Compare les OCTETS du champ content, qu'ils soient en clair ou chiffrés.
-    Avec du contenu chiffré (AES-256-GCM), changer le clair produit un
-    ciphertext différent, donc le fingerprint détecte le changement
-    correctement. MAIS : avec un nonce aléatoire, rechiffrer le même texte
-    produirait un ciphertext différent → faux positif. La solution est côté
-    client : ne rechiffrer une section que si le clair a changé. Sinon,
-    renvoyer le ciphertext existant tel quel. Le serveur compare les octets
-    et ne verra pas de différence.
-    """
+    Pour les sections chiffrées (nonce présent), utilise content_digest
+    (HMAC-SHA256 du clair avec la DEK). Ce digest est stable pour un même
+    contenu clair, contrairement au ciphertext AES-GCM qui change à chaque
+    chiffrement à cause du nonce aléatoire.
+
+    Pour les sections en clair (nonce absent), utilise content directement
+    (inchangé par rapport au comportement historique).
+
+    Le problème du nonce aléatoire est ainsi réglé structurellement, et non
+    plus par une convention côté client fragile."""
     partage = [s for s in sections if s.visibility == SectionVisibility.partage]
-    return [(i, s.title, s.content) for i, s in enumerate(partage)]
+    return [
+        (i, s.title, s.content_digest if s.nonce else s.content)
+        for i, s in enumerate(partage)
+    ]
 
 
 def _get_vault_dek_version(org_id: int, db: Session) -> int | None:
@@ -75,11 +80,18 @@ def _get_vault_dek_version(org_id: int, db: Session) -> int | None:
 
 
 def _check_encryption_guard(org_id: int, sections: list, db: Session) -> None:
-    """If the org's vault is enabled, refuse sections without a nonce.
+    """If the org's vault is enabled, refuse sections without a nonce or
+    without a content_digest.
 
     This is a server-side guard: the server must NEVER accept plaintext
     section content when the vault is enabled. An attacker who compromised
     the client JS could try to send plaintext; this blocks it.
+
+    The content_digest guard is equally critical: without it, the server's
+    fingerprint comparison would silently compare ciphertext bytes, which
+    change with every encryption (random GCM nonce). A missing digest would
+    cause random invalidation of validated PVs on every save. Failing loudly
+    (400) is safer than silent data corruption.
     """
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org or not org.pv_vault_enabled:
@@ -89,6 +101,11 @@ def _check_encryption_guard(org_id: int, sections: list, db: Session) -> None:
             raise HTTPException(
                 status_code=422,
                 detail="Le coffre est activé : toutes les sections doivent être chiffrées (nonce requis)",
+            )
+        if not sec.content_digest:
+            raise HTTPException(
+                status_code=400,
+                detail="Le coffre est activé : chaque section chiffrée doit inclure un content_digest (HMAC du clair)",
             )
 
 
@@ -139,6 +156,7 @@ def create_minute(
     for i, sec in enumerate(body.sections):
         content_bytes = base64.b64decode(sec.content) if sec.content else b""
         nonce_bytes = base64.b64decode(sec.nonce) if sec.nonce else None
+        digest_bytes = base64.b64decode(sec.content_digest) if sec.content_digest else None
         db.add(MinuteSection(
             minute_id=minute.id,
             position=sec.position if sec.position is not None else i,
@@ -146,6 +164,7 @@ def create_minute(
             visibility=SectionVisibility(sec.visibility) if sec.visibility else SectionVisibility.interne,
             content=content_bytes,
             nonce=nonce_bytes,
+            content_digest=digest_bytes,
         ))
 
     db.commit()
@@ -263,6 +282,7 @@ def update_sections(
         vis = SectionVisibility(sec.visibility) if sec.visibility else SectionVisibility.interne
         content_bytes = base64.b64decode(sec.content) if sec.content else b""
         nonce_bytes = base64.b64decode(sec.nonce) if sec.nonce else None
+        digest_bytes = base64.b64decode(sec.content_digest) if sec.content_digest else None
         db.add(MinuteSection(
             minute_id=minute.id,
             position=sec.position if sec.position is not None else i,
@@ -270,6 +290,7 @@ def update_sections(
             visibility=vis,
             content=content_bytes,
             nonce=nonce_bytes,
+            content_digest=digest_bytes,
         ))
     db.flush()
 
