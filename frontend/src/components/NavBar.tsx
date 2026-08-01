@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useVault } from '../hooks/useVault'
 import { useT } from '../i18n/I18nContext'
 import Footer from './Footer'
 
 export default function NavBar() {
   const { logout, token, user } = useAuth()
+  const { status } = useVault()
   const { t } = useT()
   const [pending, setPending] = useState(0)
 
@@ -21,6 +23,17 @@ export default function NavBar() {
     const interval = setInterval(fetchPending, 30000)
     return () => clearInterval(interval)
   }, [token])
+
+  // Vault status label and color
+  const vaultLabel =
+    status === 'unlocked' ? t('vault.status_unlocked') :
+    status === 'locked' ? t('vault.status_locked') :
+    t('vault.status_disabled')
+
+  const vaultColor =
+    status === 'unlocked' ? 'var(--green)' :
+    status === 'locked' ? '#dc3545' :
+    'var(--gray-500)'
 
   return (
     <>
@@ -42,6 +55,18 @@ export default function NavBar() {
         <Link to="/hours" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>⏱️ Mes heures</Link>
         {user?.role === 'admin' && <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.organization')}</Link>}
         <Link to="/settings" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.profile')}</Link>
+        {/* Vault status indicator — always visible when authenticated */}
+        <span style={{
+          marginLeft: 'auto',
+          fontSize: '.8rem',
+          fontWeight: 600,
+          color: vaultColor,
+          background: status === 'unlocked' ? '#d4edda' : status === 'locked' ? '#f8d7da' : 'var(--gray-100)',
+          padding: '2px 10px',
+          borderRadius: 4,
+        }}>
+          {vaultLabel}
+        </span>
       </nav>
       <Footer />
     </>
