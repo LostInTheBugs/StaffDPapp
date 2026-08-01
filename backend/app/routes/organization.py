@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.core.security import hash_password, create_access_token, generate_invitation_code, normalize_email
+from app.core.security import (
+    hash_password, create_access_token,
+    generate_invitation_code, hash_invitation_code, verify_invitation_code,
+    normalize_invitation_code, normalize_email,
+)
 from app.core.captcha import validate_captcha
 from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
 from app.schemas.auth import (
@@ -17,6 +21,7 @@ from app.schemas.auth import (
     TokenResponse,
     DashboardResponse,
     InvitationResponse,
+    CreateInvitationResponse,
     OrganizationResponse,
     UserResponse,
 )
@@ -33,7 +38,7 @@ def _make_slug(name: str) -> str:
 
 def _invitation_to_response(inv: Invitation) -> dict:
     return {
-        "code": inv.code,
+        "id": inv.id,
         "email": inv.email,
         "first_name": inv.first_name,
         "last_name": inv.last_name,
@@ -41,6 +46,8 @@ def _invitation_to_response(inv: Invitation) -> dict:
         "delegue_role": inv.delegue_role.value if inv.delegue_role else "membre",
         "is_delegue_securite_sante": inv.is_delegue_securite_sante,
         "is_delegue_egalite": inv.is_delegue_egalite,
+        "is_used": inv.is_used,
+        "created_at": inv.created_at.isoformat() if inv.created_at else None,
         "organization_name": inv.organization.name if inv.organization else None,
     }
 
@@ -94,22 +101,34 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
     if not validate_captcha(body.captcha_id, body.captcha_answer):
         raise HTTPException(status_code=400, detail="CAPTCHA invalide")
 
-    invitation = (
+    # The invitation code is hashed with Argon2id — we cannot do an equality
+    # lookup. Instead, iterate over all unused invitations for this email, and
+    # verify the hash one by one. This is acceptable: invitation tables are small
+    # (tens of rows per org), and Argon2id verification is engineered to be
+    # moderately expensive (memory-hard) to resist brute-forcing.
+    normalized_email = normalize_email(body.email)
+    candidates = (
         db.query(Invitation)
         .filter(
-            Invitation.code == body.invitation_code.upper(),
             Invitation.is_used == False,
-            Invitation.email == normalize_email(body.email),
+            Invitation.email == normalized_email,
         )
-        .first()
+        .all()
     )
+
+    invitation = None
+    for inv in candidates:
+        if verify_invitation_code(body.invitation_code, inv.code_hash):
+            invitation = inv
+            break
+
     if not invitation:
         raise HTTPException(status_code=400, detail="Code d'invitation invalide ou déjà utilisé")
-    if db.query(User).filter(User.email == normalize_email(body.email)).first():
+    if db.query(User).filter(User.email == normalized_email).first():
         raise HTTPException(status_code=409, detail="Cet email existe déjà")
 
     user = User(
-        email=normalize_email(body.email),
+        email=normalized_email,
         password_hash=hash_password(body.password),
         first_name=body.first_name,
         last_name=body.last_name,
@@ -130,7 +149,7 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=token)
 
 
-@router.post("/invitations", response_model=InvitationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/invitations", response_model=CreateInvitationResponse, status_code=status.HTTP_201_CREATED)
 def create_invitation(
     body: CreateInvitationRequest,
     current_user: User = Depends(get_current_user),
@@ -159,12 +178,13 @@ def create_invitation(
     if body.delegue_status == DelegueStatus.employe.value and body.delegue_role != DelegueRole.membre.value:
         raise HTTPException(status_code=400, detail="Un salarié non-élu n'a pas de fonction au bureau")
 
-    code = generate_invitation_code()
-    while db.query(Invitation).filter(Invitation.code == code).first():
-        code = generate_invitation_code()
+    # Generate a 26-char Crockford code, hash it with Argon2id.
+    # The plaintext code is returned ONLY in this response — never stored.
+    plaintext_code = generate_invitation_code()
+    code_hash = hash_invitation_code(plaintext_code)
 
     invitation = Invitation(
-        code=code,
+        code_hash=code_hash,
         email=normalize_email(body.email),
         first_name=body.first_name,
         last_name=body.last_name,
@@ -179,7 +199,9 @@ def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-    return InvitationResponse(**_invitation_to_response(invitation))
+    result = dict(_invitation_to_response(invitation))
+    result["code"] = plaintext_code  # ONE-TIME only
+    return result
 
 
 @router.put("/organization", response_model=OrganizationResponse)
@@ -235,7 +257,7 @@ def list_invitations(
         .filter(Invitation.organization_id == current_user.organization_id, Invitation.is_used == False)
         .all()
     )
-    return [InvitationResponse(**_invitation_to_response(inv)) for inv in invitations]
+    return [_invitation_to_response(inv) for inv in invitations]
 
 
 @router.get("/organization/members", response_model=list[UserResponse])

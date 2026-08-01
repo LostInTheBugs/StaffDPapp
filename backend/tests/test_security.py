@@ -5,7 +5,7 @@ import pytest
 from .helpers import (
     create_org, create_user, create_invitation, fetch_captcha, get_totp_code,
 )
-from app.core.security import create_access_token, normalize_email
+from app.core.security import create_access_token, hash_invitation_code, normalize_email
 from app.core.mfa import generate_totp_secret
 from app.models import User, Organization, Invitation, DelegueStatus, DelegueRole
 from datetime import timedelta
@@ -469,7 +469,7 @@ class TestMigrationEmailNormalization:
         db.commit()
 
         inv = Invitation(
-            code="MIG001",
+            code_hash=hash_invitation_code("MIG001"),
             email="Invited@Demo.LU",
             first_name="I",
             last_name="P",
@@ -551,12 +551,12 @@ class TestMigrationEmailNormalization:
         db.commit()
 
         db.add(Invitation(
-            code="INV-A", email="Jean@Test.LU",
+            code_hash=hash_invitation_code("INV-A"), email="Jean@Test.LU",
             first_name="J1", last_name="D1",
             created_by_id=user.id, organization_id=org.id,
         ))
         db.add(Invitation(
-            code="INV-B", email="JEAN@test.lu",
+            code_hash=hash_invitation_code("INV-B"), email="JEAN@test.lu",
             first_name="J2", last_name="D2",
             created_by_id=user.id, organization_id=org.id,
         ))
@@ -567,7 +567,7 @@ class TestMigrationEmailNormalization:
         db.commit()
 
         # Vérifier que les deux invitations sont normalisées
-        invs = db.query(Invitation).order_by(Invitation.code).all()
+        invs = db.query(Invitation).order_by(Invitation.created_at).all()
         assert len(invs) == 2
         assert invs[0].email == "jean@test.lu"
         assert invs[1].email == "jean@test.lu"
@@ -623,7 +623,7 @@ class TestMigrationEmailNormalization:
         db.commit()
 
         inv = Invitation(
-            code="IDEM01",
+            code_hash=hash_invitation_code("IDEM01"),
             email="invited@demo.lu",
             first_name="I", last_name="P",
             created_by_id=user.id, organization_id=org.id,
