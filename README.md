@@ -4,6 +4,8 @@
 
 Outil de gestion pour les **délégations du personnel** au Luxembourg, inspiré du Code du travail (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
+Version courante : **2026.08.001** — [Voir les releases GitHub](https://github.com/LostInTheBugs/StaffDPapp/releases)
+
 ## Fonctionnalités
 
 - 🏛️ **Création de délégation** : nom, entreprise, effectif → calcul automatique du nombre de titulaires/suppléants
@@ -34,19 +36,57 @@ Tous MDP : `demo123456`
 
 - 🎮 **Demo** : https://staffdpapp.cloudfr.net
 
-## Déploiement
+## Installation et déploiement
+
+### Prérequis
+
+- Docker et Docker Compose
+- Node.js 20+ (pour le développement frontend)
+- Python 3.11+ (pour le développement backend)
+
+### Développement local
 
 ```bash
-# Développement local
-cd backend && python -m uvicorn app.main:app --reload
-cd frontend && npm run dev
+# Backend (port 8005 par défaut)
+cd backend
+pip install -r requirements.txt
+SD_PORT=8005 python -m uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
 
-# Docker Compose
+# Frontend (port 5173)
+cd frontend
+npm install
+npm run dev
+```
+
+### Docker Compose
+
+```bash
+# Build et lancement
 docker compose up -d --build
 
 # Seed (après suppression du volume)
 bash seed.sh
 ```
+
+## Configuration
+
+Copier `.env.example` vers `.env` et adapter les variables :
+
+| Variable | Description | Défaut |
+|----------|-------------|--------|
+| `SD_PORT` | Port d'écoute du backend | `8005` |
+| `SD_SECRET_KEY` | Clé de signature JWT | `change-me-in-production-use-openssl-rand-hex-32` |
+| `SD_DATABASE_URL` | URL de la base de données | `sqlite:///./data/staff_delegation.db` |
+| `SD_ACCESS_TOKEN_EXPIRE_MINUTES` | Expiration des tokens JWT | `1440` (24h) |
+
+Le port est surchargeable via la variable d'environnement `SD_PORT` dans tous les contextes (Docker, développement local). Les fichiers de configuration référencent tous le port 8005 par défaut.
+
+## Dépendances principales
+
+- **Frontend** : React 18, TypeScript, Vite, React Router 6
+- **Backend** : Python 3.11, FastAPI, SQLAlchemy, python-jose, pyotp
+- **Base de données** : SQLite (développement), PostgreSQL (production recommandé)
+- **Reverse proxy** : Traefik + Let's Encrypt (HTTPS)
 
 ## Stack technique
 
