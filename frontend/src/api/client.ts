@@ -81,6 +81,7 @@ export function login(email: string, password: string, captcha_id: string, captc
 export function joinOrganization(data: {
   email: string; password: string; first_name: string; last_name: string; invitation_code: string
   captcha_id: string; captcha_answer: string
+  vault_envelope?: VaultEnvelope | null
 }): Promise<TokenResponse> {
   return request('/join', { method: 'POST', body: JSON.stringify(data) })
 }
@@ -106,6 +107,7 @@ export function createInvitation(data: {
   email: string; first_name: string; last_name: string
   delegue_status: string; delegue_role: string
   is_delegue_securite_sante?: boolean; is_delegue_egalite?: boolean
+  vault_envelope?: VaultEnvelope | null
 }): Promise<CreateInvitationResponse> {
   return request('/invitations', { method: 'POST', body: JSON.stringify(data) })
 }
@@ -256,6 +258,55 @@ export function publishMinute(minuteId: number, pdfSha256: string): Promise<Publ
     body: JSON.stringify({ pdf_sha256: pdfSha256 }),
   })
 }
+
+// ── Vault API ────────────────────────────────────────────────────────
+
+interface VaultStatusResponse {
+  enabled: boolean
+  has_key: boolean
+  dek_version: number | null
+}
+
+interface VaultKeyResponse {
+  wrapped_dek: string   // base64
+  nonce: string         // base64
+  kdf_salt: string      // base64
+  kdf_params: string    // JSON
+  dek_version: number
+}
+
+interface VaultEnvelope {
+  wrapped_dek: string   // base64
+  nonce: string         // base64
+  kdf_salt: string      // base64
+  kdf_params: string    // JSON
+}
+
+export function createVault(envelope: VaultEnvelope): Promise<VaultKeyResponse> {
+  return request('/vault', { method: 'POST', body: JSON.stringify(envelope) })
+}
+
+export function getVaultKey(): Promise<VaultKeyResponse> {
+  return request('/vault/key')
+}
+
+export function replaceVaultKey(envelope: VaultEnvelope): Promise<VaultKeyResponse> {
+  return request('/vault/key', { method: 'PUT', body: JSON.stringify(envelope) })
+}
+
+export function getVaultStatus(): Promise<VaultStatusResponse> {
+  return request('/vault/status')
+}
+
+export function attachInvitationEnvelope(invitationId: number, envelope: VaultEnvelope): Promise<VaultKeyResponse> {
+  return request(`/invitations/${invitationId}/vault-envelope`, { method: 'POST', body: JSON.stringify(envelope) })
+}
+
+export function getJoinVaultEnvelope(code: string, email: string): Promise<VaultKeyResponse> {
+  return request('/join/vault-envelope', { method: 'POST', body: JSON.stringify({ code, email }) })
+}
+
+export type { VaultStatusResponse, VaultKeyResponse, VaultEnvelope }
 
 export { b64Encode, b64Decode }
 export type { Section, MinuteResponse, DirectionPreview }
