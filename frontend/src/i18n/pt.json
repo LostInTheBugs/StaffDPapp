@@ -209,5 +209,7 @@
   "vault.envelope_sent": "Envelope de chave enviado com o convite ✅",
   "vault.section_encrypted": "🔒 Seção cifrada",
   "vault.section_plaintext": "📝 Seção em texto claro",
-  "vault.title_hint": "Use títulos neutros para proteger informações sensíveis (ex: 'Seção 1 – Constatações'). Os títulos permanecem visíveis em texto claro."
+  "vault.title_hint": "Use títulos neutros para proteger informações sensíveis (ex: 'Seção 1 – Constatações'). Os títulos permanecem visíveis em texto claro.",
+  "vault.minutes_locked": "O cofre está bloqueado. Desbloqueie-o para visualizar e editar o conteúdo cifrado das atas.",
+  "vault.minutes_locked_preview": "O cofre está bloqueado. Desbloqueie-o antes de gerar o PDF — os dados cifrados não são legíveis sem a chave."
 }

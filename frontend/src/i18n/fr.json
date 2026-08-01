@@ -209,5 +209,7 @@
   "vault.envelope_sent": "Enveloppe de clé transmise avec l'invitation ✅",
   "vault.section_encrypted": "🔒 Section chiffrée",
   "vault.section_plaintext": "📝 Section en clair",
-  "vault.title_hint": "Pour protéger les informations sensibles, utilisez des titres neutres (ex: « Section 1 – Constats »). Les titres restent visibles en clair."
+  "vault.title_hint": "Pour protéger les informations sensibles, utilisez des titres neutres (ex: « Section 1 – Constats »). Les titres restent visibles en clair.",
+  "vault.minutes_locked": "Le coffre est verrouillé. Déverrouillez-le pour afficher et modifier le contenu chiffré des PV.",
+  "vault.minutes_locked_preview": "Le coffre est verrouillé. Déverrouillez-le avant de générer l'export PDF — les données chiffrées ne sont pas lisibles sans la clé."
 }

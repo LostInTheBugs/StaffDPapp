@@ -209,5 +209,7 @@
   "vault.envelope_sent": "Key envelope sent with invitation ✅",
   "vault.section_encrypted": "🔒 Encrypted section",
   "vault.section_plaintext": "📝 Plaintext section",
-  "vault.title_hint": "Use neutral titles to protect sensitive information (e.g. 'Section 1 – Findings'). Titles remain visible in cleartext."
+  "vault.title_hint": "Use neutral titles to protect sensitive information (e.g. 'Section 1 – Findings'). Titles remain visible in cleartext.",
+  "vault.minutes_locked": "The vault is locked. Unlock it to view and edit encrypted minute content.",
+  "vault.minutes_locked_preview": "The vault is locked. Unlock it before generating the PDF export — encrypted data is not readable without the key."
 }

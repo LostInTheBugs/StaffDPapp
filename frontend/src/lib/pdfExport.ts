@@ -33,6 +33,9 @@ export interface DirectionPreviewSection {
   /** Doit valoir exactement 'partage'. Toute autre valeur (ou l'absence de
    *  valeur) fait écarter la section : voir SHARED_MARKER ci-dessous. */
   visibility?: string
+  /** Base64-encoded 12-byte AES-GCM nonce. Présent lorsque le coffre est actif
+   *  et que le serveur renvoie du ciphertext. Absent (undefined) en clair. */
+  nonce?: string | null
 }
 
 /** Seule marque autorisée à franchir la frontière vers la direction. */

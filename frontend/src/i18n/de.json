@@ -209,5 +209,7 @@
   "vault.envelope_sent": "Schlüsselumschlag mit Einladung gesendet ✅",
   "vault.section_encrypted": "🔒 Verschlüsselter Abschnitt",
   "vault.section_plaintext": "📝 Klartext-Abschnitt",
-  "vault.title_hint": "Verwenden Sie neutrale Titel zum Schutz sensibler Informationen (z.B. 'Abschnitt 1 – Feststellungen'). Titel bleiben im Klartext sichtbar."
+  "vault.title_hint": "Verwenden Sie neutrale Titel zum Schutz sensibler Informationen (z.B. 'Abschnitt 1 – Feststellungen'). Titel bleiben im Klartext sichtbar.",
+  "vault.minutes_locked": "Der Tresor ist gesperrt. Entsperren Sie ihn, um verschlüsselte Protokollinhalte anzuzeigen und zu bearbeiten.",
+  "vault.minutes_locked_preview": "Der Tresor ist gesperrt. Entsperren Sie ihn vor dem PDF-Export — verschlüsselte Daten sind ohne den Schlüssel nicht lesbar."
 }
