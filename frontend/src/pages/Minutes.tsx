@@ -2,16 +2,20 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import NavBar from '../components/NavBar'
 import { useAuth } from '../hooks/useAuth'
+import { useVault } from '../hooks/useVault'
 import { useT } from '../i18n/I18nContext'
 import { exportDirectionPDF, type DirectionPreview } from '../lib/pdfExport'
-
-interface Section {
-  id: number | null
-  position: number
-  title: string
-  visibility: string
-  content: string
-}
+import { encryptSection, sectionDigest, getSessionDEK } from '../lib/vault'
+import {
+  decryptSectionsForDisplay,
+  prepareSectionsForSave,
+  preparePreviewForPdf,
+  needsUnlock,
+  previewNeedsDecryption,
+  VaultLockedError,
+  type ApiSection,
+  type ResolvedSection,
+} from '../lib/minuteCrypto'
 
 interface PublicationEntry {
   id: number
@@ -25,12 +29,13 @@ interface MinuteData {
   id: number
   meeting_id: number
   status: string
+  is_encrypted: boolean
   created_by_id: number
   created_by_name: string | null
   validated_by_id: number | null
   validated_by_name: string | null
   validated_at: string | null
-  sections: Section[]
+  sections: ApiSection[]
   publications: PublicationEntry[]
 }
 
@@ -40,24 +45,16 @@ interface MeetingInfo {
   date: string
 }
 
-function b64Encode(str: string): string {
-  const bytes = new TextEncoder().encode(str)
-  let binary = ''
-  bytes.forEach(b => binary += String.fromCharCode(b))
-  return btoa(binary)
-}
-
-function b64Decode(str: string): string {
-  const binary = atob(str)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return new TextDecoder().decode(bytes)
-}
-
 async function sha256Hex(data: Uint8Array): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let binary = ''
+  bytes.forEach(b => binary += String.fromCharCode(b))
+  return btoa(binary)
 }
 
 const BUREAU_ROLES = ['president', 'vice_president', 'secretaire']
@@ -67,13 +64,14 @@ export default function MinutesPage() {
   const navigate = useNavigate()
   const { token, user } = useAuth()
   const { t } = useT()
+  const vault = useVault()
   const h = { Authorization: `Bearer ${token}` }
 
   const [meeting, setMeeting] = useState<MeetingInfo | null>(null)
   const [minute, setMinute] = useState<MinuteData | null>(null)
-  const [sections, setSections] = useState<Section[]>([])
+  const [sections, setSections] = useState<ResolvedSection[]>([])
   const [showPreview, setShowPreview] = useState(false)
-  const [previewSections, setPreviewSections] = useState<Section[]>([])
+  const [previewSections, setPreviewSections] = useState<ResolvedSection[]>([])
   const [previewMeta, setPreviewMeta] = useState<DirectionPreview | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -83,11 +81,10 @@ export default function MinutesPage() {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  useEffect(() => { loadData() }, [meetingId])
+  // Track whether we already prompted for vault unlock
+  const [vaultPrompted, setVaultPrompted] = useState(false)
 
-  function decodeSections(secs: Section[]): Section[] {
-    return secs.map(s => ({ ...s, content: s.content ? b64Decode(s.content) : '' }))
-  }
+  useEffect(() => { loadData() }, [meetingId])
 
   async function loadData() {
     if (!meetingId) return
@@ -99,9 +96,16 @@ export default function MinutesPage() {
 
       const mint = await fetch(`/api/meetings/${meetingId}/minute`, { headers: h })
       if (mint.ok) {
-        const data = await mint.json()
+        const data: MinuteData = await mint.json()
         setMinute(data)
-        setSections(decodeSections(data.sections))
+
+        const resolved = await decryptSectionsForDisplay(data.sections)
+        setSections(resolved)
+
+        if (needsUnlock(data.sections) && !vaultPrompted) {
+          setErr(t('vault.minutes_locked'))
+          setVaultPrompted(true)
+        }
       }
     } catch (e: any) {
       setErr(e.message)
@@ -115,20 +119,49 @@ export default function MinutesPage() {
     setCreating(true)
     setErr(null)
     try {
+      const encoder = new TextEncoder()
+      let sectionsPayload: any[]
+
+      const dek = getSessionDEK()
+      if (dek) {
+        // Vault active — encrypt the initial empty section
+        const pt = encoder.encode('')
+        const encrypted = await encryptSection(dek, pt)
+        const digest = await sectionDigest(pt, dek)
+        sectionsPayload = [{
+          position: 0,
+          title: 'Introduction',
+          content: bytesToB64(encrypted.ciphertext),
+          nonce: bytesToB64(encrypted.nonce),
+          content_digest: bytesToB64(digest),
+          visibility: 'interne',
+        }]
+      } else {
+        // Plaintext
+        const toB64 = (str: string) => {
+          const bytes = encoder.encode(str)
+          let binary = ''
+          bytes.forEach(b => binary += String.fromCharCode(b))
+          return btoa(binary)
+        }
+        sectionsPayload = [{
+          position: 0, title: 'Introduction', content: toB64(''), visibility: 'interne',
+        }]
+      }
+
       const r = await fetch(`/api/meetings/${meetingId}/minutes`, {
         method: 'POST',
         headers: { ...h, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sections: [{ position: 0, title: 'Introduction', content: b64Encode(''), visibility: 'interne' }]
-        }),
+        body: JSON.stringify({ sections: sectionsPayload }),
       })
       if (!r.ok) {
         const body = await r.json().catch(() => ({ detail: 'Erreur' }))
         throw new Error(body.detail || 'Erreur')
       }
-      const data = await r.json()
+      const data: MinuteData = await r.json()
       setMinute(data)
-      setSections(decodeSections(data.sections))
+      const resolved = await decryptSectionsForDisplay(data.sections)
+      setSections(resolved)
     } catch (e: any) {
       setErr(e.message)
     } finally {
@@ -138,12 +171,17 @@ export default function MinutesPage() {
 
   function addSection() {
     setSections(prev => [...prev, {
-      id: null, position: prev.length, title: '', content: '', visibility: 'interne',
+      id: null, position: prev.length, title: '', content: '',
+      visibility: 'interne', _encrypted: null, _originalPlaintext: '',
     }])
   }
 
   function removeSection(idx: number) {
-    setSections(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, position: i })))
+    setSections(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({
+      ...s, position: i,
+      _encrypted: null,
+      _originalPlaintext: s.content,
+    })))
   }
 
   function moveSection(idx: number, dir: -1 | 1) {
@@ -162,22 +200,21 @@ export default function MinutesPage() {
     setSaving(true)
     setErr(null)
     try {
+      const forSave = await prepareSectionsForSave(sections)
+
       const r = await fetch(`/api/minutes/${minute.id}/sections`, {
         method: 'PUT',
         headers: { ...h, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sections: sections.map((s, i) => ({
-            position: i, title: s.title, content: b64Encode(s.content), visibility: s.visibility,
-          })),
-        }),
+        body: JSON.stringify({ sections: forSave }),
       })
       if (!r.ok) {
         const body = await r.json().catch(() => ({ detail: 'Erreur' }))
         throw new Error(body.detail || 'Erreur')
       }
-      const updated = await r.json()
+      const updated: MinuteData = await r.json()
       setMinute(updated)
-      setSections(decodeSections(updated.sections))
+      const resolved = await decryptSectionsForDisplay(updated.sections)
+      setSections(resolved)
       setMsg(t('minutes.saved'))
       setTimeout(() => setMsg(null), 3000)
     } catch (e: any) {
@@ -213,9 +250,44 @@ export default function MinutesPage() {
     try {
       const r = await fetch(`/api/minutes/${minute.id}/direction-preview`, { headers: h })
       if (!r.ok) throw new Error('Erreur')
-      const data = await r.json()
-      setPreviewMeta(data)
-      setPreviewSections(decodeSections(data.sections))
+      const data: DirectionPreview = await r.json()
+
+      // If the preview has encrypted sections, decrypt them for PDF generation
+      let processedPreview = data
+      if (previewNeedsDecryption(data)) {
+        try {
+          processedPreview = await preparePreviewForPdf(data)
+        } catch (e) {
+          if (e instanceof VaultLockedError) {
+            setErr(t('vault.minutes_locked_preview'))
+            return
+          }
+          throw e
+        }
+      }
+
+      setPreviewMeta(processedPreview)
+      // Decode sections for display
+      const decoder = new TextDecoder()
+      const displaySections: ResolvedSection[] = processedPreview.sections.map(s => {
+        let plaintext = ''
+        if (s.content) {
+          const binary = atob(s.content)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          plaintext = decoder.decode(bytes)
+        }
+        return {
+          id: null as number | null,
+          position: s.position,
+          title: s.title,
+          visibility: s.visibility || 'partage',
+          content: plaintext,
+          _encrypted: null,
+          _originalPlaintext: plaintext,
+        }
+      })
+      setPreviewSections(displaySections)
       setShowPreview(true)
     } catch (e: any) {
       setErr(e.message)
@@ -227,8 +299,23 @@ export default function MinutesPage() {
     setExporting(true)
     setErr(null)
     try {
+      // If preview has encrypted sections, decrypt first
+      let pdfPreview = previewMeta
+      if (previewNeedsDecryption(pdfPreview)) {
+        try {
+          pdfPreview = await preparePreviewForPdf(pdfPreview)
+        } catch (e) {
+          if (e instanceof VaultLockedError) {
+            setErr(t('vault.minutes_locked_preview'))
+            setExporting(false)
+            return
+          }
+          throw e
+        }
+      }
+
       // 1. Generate PDF client-side
-      const pdfBytes = await exportDirectionPDF(previewMeta)
+      const pdfBytes = await exportDirectionPDF(pdfPreview)
 
       // 2. Compute SHA-256 via WebCrypto
       const sha256 = await sha256Hex(pdfBytes)
@@ -282,6 +369,12 @@ export default function MinutesPage() {
   // Has the PV been modified since last publication? Published + not valide => obsolete
   const isPublishedObsolete = minute?.status === 'brouillon' && minute?.publications?.length > 0
 
+  // Is the vault locked while there are encrypted sections?
+  const vaultNeedsUnlock = minute && needsUnlock(minute.sections)
+
+  // Is the export button disabled due to vault lock?
+  const exportDisabledVault = vault.status === 'locked' && previewMeta && previewNeedsDecryption(previewMeta)
+
   if (loading) return <><NavBar /><div className="dashboard"><p>{t('common.loading')}</p></div></>
 
   return (
@@ -290,6 +383,17 @@ export default function MinutesPage() {
       <div className="dashboard">
         {msg && <div className="success-msg">{msg}</div>}
         {err && <div className="error-msg">{err}</div>}
+
+        {/* Vault locked banner */}
+        {vaultNeedsUnlock && (
+          <div style={{
+            background: '#fff5f5', border: '1px solid #fed7d7',
+            padding: '12px 16px', borderRadius: '8px', marginBottom: '16px',
+            color: '#c53030', fontSize: '.9rem',
+          }}>
+            🔒 {t('vault.minutes_locked')}
+          </div>
+        )}
 
         {/* Obsolescence banner */}
         {isPublishedObsolete && (
@@ -353,12 +457,18 @@ export default function MinutesPage() {
                   </button>
                   {previewSections.length > 0 && minute?.status === 'valide' && isBureau && (
                     <button onClick={handleExportAndPublish} className="btn btn-primary"
-                      disabled={exporting}
+                      disabled={exporting || !!exportDisabledVault}
+                      title={exportDisabledVault ? t('vault.minutes_locked_preview') : undefined}
                       style={{ flex: 1, background: '#2b6cb0', color: '#fff', border: 'none' }}>
                       {exporting ? <div className="spinner" /> : t('minutes.export_and_publish')}
                     </button>
                   )}
                 </div>
+                {exportDisabledVault && previewSections.length > 0 && (
+                  <p style={{ color: '#c53030', fontSize: '.8rem', marginTop: '8px', textAlign: 'center' }}>
+                    {t('vault.minutes_locked_preview')}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -383,6 +493,16 @@ export default function MinutesPage() {
               {minute?.validated_by_name && (
                 <p style={{ color: 'var(--gray-600)', fontSize: '.8rem', marginTop: 4 }}>
                   {t('minutes.validated_by')} {minute.validated_by_name} {t('minutes.validated_at')} {minute.validated_at ? new Date(minute.validated_at).toLocaleString() : ''}
+                </p>
+              )}
+              {/* Vault status in header */}
+              {vault.status !== 'disabled' && (
+                <p style={{
+                  marginTop: '8px', fontSize: '.8rem',
+                  color: vault.status === 'unlocked' ? '#276749' : '#975a16',
+                  fontWeight: 600,
+                }}>
+                  {vault.status === 'unlocked' ? t('vault.status_unlocked') : t('vault.status_locked')}
                 </p>
               )}
             </div>
@@ -434,6 +554,16 @@ export default function MinutesPage() {
         {/* Section Editor */}
         {minute && (
           <form onSubmit={saveSections}>
+            {/* Title hint for vault-enabled orgs */}
+            {vault.status !== 'disabled' && (
+              <div style={{
+                background: '#fffff0', border: '1px solid #e2e8f0',
+                padding: '8px 14px', borderRadius: '6px', marginBottom: '12px',
+                color: '#744210', fontSize: '.8rem', fontStyle: 'italic',
+              }}>
+                💡 {t('vault.title_hint')}
+              </div>
+            )}
             {sections.map((s, idx) => (
               <div key={idx} className="card mb-16" style={{
                 borderLeft: `4px solid ${s.visibility === 'interne' ? '#e53e3e' : '#38a169'}`,
@@ -453,7 +583,12 @@ export default function MinutesPage() {
                   />
                   <select
                     value={s.visibility}
-                    onChange={e => setSections(prev => prev.map((ss, i) => i === idx ? { ...ss, visibility: e.target.value } : ss))}
+                    onChange={e => setSections(prev => prev.map((ss, i) => i === idx ? {
+                      ...ss,
+                      visibility: e.target.value,
+                      _encrypted: null,
+                      _originalPlaintext: ss.content,
+                    } : ss))}
                     style={{
                       padding: '8px 12px', border: '1.5px solid var(--gray-300)',
                       borderRadius: 'var(--radius)', fontSize: '.85rem',
@@ -465,6 +600,13 @@ export default function MinutesPage() {
                     <option value="interne">{t('minutes.visibility_interne')}</option>
                     <option value="partage">{t('minutes.visibility_partage')}</option>
                   </select>
+                  {/* Encryption indicator */}
+                  {vault.status !== 'disabled' && (
+                    <span title={s._encrypted ? t('vault.section_encrypted') : t('vault.section_plaintext')}
+                      style={{ fontSize: '.8rem' }}>
+                      {s._encrypted ? '🔒' : '📝'}
+                    </span>
+                  )}
                   <button type="button" onClick={() => moveSection(idx, -1)} disabled={idx === 0}
                     style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', fontSize: '1.2rem', opacity: idx === 0 ? 0.3 : 1 }}>
                     ↑
