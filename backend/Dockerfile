@@ -15,6 +15,6 @@ COPY . .
 # Generate a proper secret key at build time (override via SD_SECRET_KEY env var)
 RUN python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > /app/.env
 
-EXPOSE 8000
+EXPOSE 8005
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${SD_PORT:-8005}"]
