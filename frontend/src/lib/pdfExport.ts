@@ -20,6 +20,12 @@ import { PDFDocument, rgb } from 'pdf-lib'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fontkit = require('@pdf-lib/fontkit')
 
+// Police embarquée dans le bundle (Vite émet l'asset et fournit son URL locale).
+// Surtout PAS de téléchargement depuis Internet : l'application est prévue pour
+// tourner en local, souvent sans accès réseau. Un export PDF ne doit jamais
+// dépendre de la disponibilité d'un CDN.
+import defaultFontUrl from '../assets/DejaVuSans.ttf?url'
+
 export interface DirectionPreviewSection {
   position: number
   title: string
@@ -41,8 +47,6 @@ export interface DirectionPreview {
   generated_at: string
 }
 
-const DEFAULT_FONT_URL =
-  'https://github.com/google/fonts/raw/main/ofl/notosans/static/NotoSans-Regular.ttf'
 
 const MARGIN = 56
 const PAGE_WIDTH = 595  // A4
@@ -105,10 +109,10 @@ export async function exportDirectionPDF(
   if (fontBytes) {
     fontData = fontBytes
   } else {
-    const resp = await fetch(DEFAULT_FONT_URL)
+    const resp = await fetch(defaultFontUrl)
     if (!resp.ok) {
       throw new Error(
-        `Impossible de charger la police Unicode. ` +
+        `Impossible de charger la police Unicode embarquée (${defaultFontUrl}). ` +
         `Le PDF ne peut pas être généré sans prise en charge des accents.`
       )
     }
