@@ -33,7 +33,7 @@ interface DashboardResponse {
 }
 
 interface InvitationResponse {
-  code: string
+  id: number
   email: string
   first_name: string
   last_name: string
@@ -41,7 +41,13 @@ interface InvitationResponse {
   delegue_role: string
   is_delegue_securite_sante: boolean
   is_delegue_egalite: boolean
+  is_used: boolean
+  created_at: string | null
   organization_name: string | null
+}
+
+interface CreateInvitationResponse extends InvitationResponse {
+  code: string  // plaintext, 26 chars Crockford base32 — shown ONLY once at creation
 }
 
 export type { InvitationResponse }
@@ -100,7 +106,7 @@ export function createInvitation(data: {
   email: string; first_name: string; last_name: string
   delegue_status: string; delegue_role: string
   is_delegue_securite_sante?: boolean; is_delegue_egalite?: boolean
-}): Promise<InvitationResponse> {
+}): Promise<CreateInvitationResponse> {
   return request('/invitations', { method: 'POST', body: JSON.stringify(data) })
 }
 
