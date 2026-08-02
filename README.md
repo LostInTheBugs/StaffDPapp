@@ -1,53 +1,53 @@
 # StaffDPapp — Staff Delegation Application
 
-> ⚠️ **Application expérimentale** — Ce logiciel est fourni à titre de démonstration uniquement. Il ne constitue pas un conseil juridique et n'est pas garanti conforme à la législation luxembourgeoise en vigueur. Toute utilisation se fait aux risques et périls de l'utilisateur. Consultez un professionnel qualifié ou la [Chambre des Salariés (CSL)](https://www.csl.lu) pour toute question relative au droit du travail.
+> ⚠️ **Experimental application** — This software is provided for demonstration purposes only. It does not constitute legal advice and is not guaranteed to comply with current Luxembourg legislation. Any use is at the user's own risk. Consult a qualified professional or the [Chambre des Salariés (CSL)](https://www.csl.lu) for any question related to labour law.
 
-Outil de gestion pour les **délégations du personnel** au Luxembourg, inspiré du Code du travail (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
+Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Version courante : **2026.08.001** — [Voir les releases GitHub](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.001** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
-## Fonctionnalités
+## Features
 
-- 🏛️ **Création de délégation** : nom, entreprise, effectif → calcul automatique du nombre de titulaires/suppléants
-- 👥 **Organigramme** : bureau (président, vice-président, secrétaire) + titulaires + suppléants + désignations spéciales
-- 📅 **Réunions** : calendrier, invitations, points à l'ordre du jour, invitation de la direction (J+5 minimum), stats 6 réunions/an dont 3 avec direction
-- ⏱️ **Mes heures** : suivi des heures de mandat avec crédit hebdomadaire légal (Art. L.415-5)
-- 🔐 **Authentification** : JWT, CAPTCHA mathématique, MFA TOTP, multi-langue (FR/EN/DE/PT)
-- 👤 **Mon profil** : photo, langue, changement de mot de passe, MFA
+- 🏛️ **Delegation creation**: name, company, headcount → automatic computation of the number of members/deputies
+- 👥 **Organisation chart**: board (president, vice-president, secretary) + members + deputies + special designations
+- 📅 **Meetings**: calendar, invitations, agenda items, management invitation (J+5 minimum), stats 6 meetings/year including 3 with management
+- ⏱️ **My hours**: mandate hours tracking with legal weekly credit (Art. L.415-5)
+- 🔐 **Authentication**: JWT, math CAPTCHA, TOTP MFA, multi-language (FR/EN/DE/PT)
+- 👤 **My profile**: photo, language, password change, MFA
 
-## Démo
+## Demo
 
-**Comptes de test** (organisation Demo, 120 salariés, 5 titulaires + 5 suppléants) :
+**Test accounts** (Demo organisation, 120 employees, 5 members + 5 deputies):
 
-| Email | Nom | Statut | Fonction |
-|-------|-----|--------|----------|
-| `sophie@demo.lu` | Sophie Muller | Titulaire | Présidente |
-| `marc@demo.lu` | Marc Weber | Titulaire | Vice-président |
-| `laura@demo.lu` | Laura Schmit | Titulaire | Secrétaire |
-| `tom@demo.lu` | Tom Wagner | Titulaire | Membre |
-| `emma@demo.lu` | Emma Kirsch | Titulaire | Membre |
-| `paul@demo.lu` | Paul Hoffmann | Suppléant | Membre |
-| `anna@demo.lu` | Anna Klein | Suppléant | Membre |
-| `david@demo.lu` | David Fischer | Suppléant | Membre |
-| `clara@demo.lu` | Clara Becker | Suppléant | Membre |
-| `lucas@demo.lu` | Lucas Thill | Suppléant | Membre |
+| Email | Name | Status | Role |
+|-------|------|--------|------|
+| `sophie@demo.lu` | Sophie Muller | Member | President |
+| `marc@demo.lu` | Marc Weber | Member | Vice-president |
+| `laura@demo.lu` | Laura Schmit | Member | Secretary |
+| `tom@demo.lu` | Tom Wagner | Member | Member |
+| `emma@demo.lu` | Emma Kirsch | Member | Member |
+| `paul@demo.lu` | Paul Hoffmann | Deputy | Member |
+| `anna@demo.lu` | Anna Klein | Deputy | Member |
+| `david@demo.lu` | David Fischer | Deputy | Member |
+| `clara@demo.lu` | Clara Becker | Deputy | Member |
+| `lucas@demo.lu` | Lucas Thill | Deputy | Member |
 
-Tous MDP : `demo123456`
+All passwords: `demo123456`
 
-- 🎮 **Demo** : https://staffdpapp.cloudfr.net
+- 🎮 **Demo**: https://staffdpapp.cloudfr.net
 
-## Installation et déploiement
+## Installation and deployment
 
-### Prérequis
+### Prerequisites
 
-- Docker et Docker Compose
-- Node.js 20+ (pour le développement frontend)
-- Python 3.11+ (pour le développement backend)
+- Docker and Docker Compose
+- Node.js 20+ (for frontend development)
+- Python 3.11+ (for backend development)
 
-### Développement local
+### Local development
 
 ```bash
-# Backend (port 8005 par défaut)
+# Backend (port 8005 by default)
 cd backend
 pip install -r requirements.txt
 SD_PORT=8005 python -m uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
@@ -61,42 +61,42 @@ npm run dev
 ### Docker Compose
 
 ```bash
-# Build et lancement
+# Build and launch
 docker compose up -d --build
 
-# Seed (après suppression du volume)
+# Seed (after volume deletion)
 bash seed.sh
 ```
 
 ## Configuration
 
-Copier `.env.example` vers `.env` et adapter les variables :
+Copy `.env.example` to `.env` and adjust the variables:
 
-| Variable | Description | Défaut |
-|----------|-------------|--------|
-| `SD_PORT` | Port d'écoute du backend | `8005` |
-| `SD_SECRET_KEY` | Clé de signature JWT | `change-me-in-production-use-openssl-rand-hex-32` |
-| `SD_DATABASE_URL` | URL de la base de données | `sqlite:///./data/staff_delegation.db` |
-| `SD_ACCESS_TOKEN_EXPIRE_MINUTES` | Expiration des tokens JWT | `1440` (24h) |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SD_PORT` | Backend listen port | `8005` |
+| `SD_SECRET_KEY` | JWT signing key | `change-me-in-production-use-openssl-rand-hex-32` |
+| `SD_DATABASE_URL` | Database URL | `sqlite:///./data/staff_delegation.db` |
+| `SD_ACCESS_TOKEN_EXPIRE_MINUTES` | JWT token expiration | `1440` (24h) |
 
-Le port est surchargeable via la variable d'environnement `SD_PORT` dans tous les contextes (Docker, développement local). Les fichiers de configuration référencent tous le port 8005 par défaut.
+The port can be overridden via the `SD_PORT` environment variable in all contexts (Docker, local development). All configuration files reference port 8005 by default.
 
-## Dépendances principales
+## Main dependencies
 
-- **Frontend** : React 18, TypeScript, Vite, React Router 6
-- **Backend** : Python 3.11, FastAPI, SQLAlchemy, python-jose, pyotp
-- **Base de données** : SQLite (développement), PostgreSQL (production recommandé)
-- **Reverse proxy** : Traefik + Let's Encrypt (HTTPS)
+- **Frontend**: React 18, TypeScript, Vite, React Router 6
+- **Backend**: Python 3.11, FastAPI, SQLAlchemy, python-jose, pyotp
+- **Database**: SQLite (development), PostgreSQL (production recommended)
+- **Reverse proxy**: Traefik + Let's Encrypt (HTTPS)
 
-## Stack technique
+## Tech stack
 
-| Couche | Technologie |
-|--------|-------------|
+| Layer | Technology |
+|-------|------------|
 | Frontend | React 18, TypeScript, Vite |
 | Backend | Python 3.11, FastAPI, SQLAlchemy |
-| Base de données | SQLite |
+| Database | SQLite |
 | Reverse proxy | Traefik + Let's Encrypt (HTTPS) |
-| Déploiement | Docker Compose |
+| Deployment | Docker Compose |
 
 ## Development cost (LLM)
 
@@ -113,11 +113,11 @@ This project was built entirely through AI-assisted sessions (Hermes Agent, deep
 
 Full breakdown: [TOKENS.md](TOKENS.md).
 
-## Références légales
+## Legal references
 
-- Art. L.412-1 : Nombre de délégués selon l'effectif
-- Art. L.414-2/3 : Désignations spéciales (sécurité/santé, égalité)
-- Art. L.415-5 : Crédit d'heures hebdomadaire
-- Art. L.416-1 : Bureau (président, vice-président, secrétaire)
+- Art. L.412-1: Number of delegates according to headcount
+- Art. L.414-2/3: Special designations (health/safety, equality)
+- Art. L.415-5: Weekly hours credit
+- Art. L.416-1: Board (president, vice-president, secretary)
 
-Plus d'infos : [CSL - Moyens à disposition de la délégation](https://www.csl.lu/fr/vos-droits/salaries/dialogue-social/representation-du-personnel/moyens-a-disposition-de-la-delegation-du-personnel/)
+More info: [CSL - Means available to the delegation](https://www.csl.lu/en/your-rights/employees/social-dialogue/staff-delegation/means-available-to-the-delegation/)
