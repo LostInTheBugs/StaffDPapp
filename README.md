@@ -98,6 +98,21 @@ Le port est surchargeable via la variable d'environnement `SD_PORT` dans tous le
 | Reverse proxy | Traefik + Let's Encrypt (HTTPS) |
 | Déploiement | Docker Compose |
 
+## Development cost (LLM)
+
+This project was built entirely through AI-assisted sessions (Hermes Agent, deepseek-v4-pro / deepseek-v4-flash). Usage so far (cumulative as of 2026-08-02):
+
+| Metric | Value |
+|---|---|
+| Input tokens | 1 798 041 |
+| Output tokens | 817 279 |
+| **Total (input + output)** | **2 615 320** |
+| Cache read (reused at reduced price) | 352 716 416 |
+| API calls | 1 927 |
+| **Estimated cost** | **≈ 2.65 USD** |
+
+Full breakdown: [TOKENS.md](TOKENS.md).
+
 ## Références légales
 
 - Art. L.412-1 : Nombre de délégués selon l'effectif
