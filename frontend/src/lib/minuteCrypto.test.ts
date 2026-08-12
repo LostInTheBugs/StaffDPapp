@@ -16,6 +16,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import {
   generateDEK,
   encryptSection,
+  decryptSection,
   sectionDigest,
   setSessionDEK,
   clearSessionDEK,
@@ -43,6 +44,10 @@ function b64(str: string): string {
 
 function fromB64(b64str: string): string {
   return decoder.decode(Buffer.from(b64str, "base64"));
+}
+
+function toBytes(b64str: string): Uint8Array {
+  return new Uint8Array(Buffer.from(b64str, "base64"));
 }
 
 afterEach(() => {
@@ -291,6 +296,57 @@ describe("prepareSectionsForSave", () => {
     ];
 
     await expect(prepareSectionsForSave(sections)).rejects.toThrow(VaultLockedError);
+  });
+
+  it("nouvelle section + coffre déverrouillé → TOUJOURS chiffrée (nonce + digest), jamais de clair", async () => {
+    const dek = generateDEK();
+    setSessionDEK(dek);
+
+    const sections: ResolvedSection[] = [
+      {
+        id: null, // nouvelle section
+        position: 0,
+        title: "Décision investissement",
+        visibility: "partage",
+        content: "Le CSE décide d investir 15000 EUR dans un fonds. Montant confidentiel.",
+        _encrypted: null,
+        _originalPlaintext: "",
+      },
+    ];
+
+    const forSave = await prepareSectionsForSave(sections, { vaultActive: true });
+
+    expect(forSave[0].nonce).not.toBeNull();
+    expect(forSave[0].content_digest).not.toBeNull();
+    // Le ciphertext ne doit PAS contenir le clair en base64
+    const raw = fromB64(forSave[0].content);
+    expect(raw).not.toContain("Le CSE");
+    // Déchiffrement round-trip pour prouver que c'est bien le clair chiffré
+    const decrypted = await decryptSection(
+      dek,
+      toBytes(forSave[0].content),
+      toBytes(forSave[0].nonce!),
+    );
+    expect(decoder.decode(decrypted)).toBe(sections[0].content);
+  });
+
+  it("nouvelle section + coffre actif mais verrouillé → VaultLockedError (fail-closed, jamais de clair)", async () => {
+    // Pas de DEK en session
+    const sections: ResolvedSection[] = [
+      {
+        id: null,
+        position: 0,
+        title: "S1",
+        visibility: "interne",
+        content: "contenu sensible",
+        _encrypted: null,
+        _originalPlaintext: "",
+      },
+    ];
+
+    await expect(
+      prepareSectionsForSave(sections, { vaultActive: true }),
+    ).rejects.toThrow(VaultLockedError);
   });
 });
 

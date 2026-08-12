@@ -200,7 +200,9 @@ export default function MinutesPage() {
     setSaving(true)
     setErr(null)
     try {
-      const forSave = await prepareSectionsForSave(sections)
+      const forSave = await prepareSectionsForSave(sections, {
+        vaultActive: vault.status !== 'disabled',
+      })
 
       const r = await fetch(`/api/minutes/${minute.id}/sections`, {
         method: 'PUT',
