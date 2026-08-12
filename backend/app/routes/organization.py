@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import base64
+import json
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -7,10 +9,15 @@ from sqlalchemy import or_
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.core.security import hash_password, create_access_token, generate_invitation_code, normalize_email
+from app.core.security import (
+    hash_password, create_access_token,
+    generate_invitation_code, hash_invitation_code, verify_invitation_code,
+    normalize_invitation_code, normalize_email,
+)
 from app.core.captcha import validate_captcha
 from app.core.ratelimit import check_rate_limit, client_ip
 from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
+from app.models.vault_key import VaultKey
 from app.schemas.auth import (
     RegisterRequest,
     CreateOrganizationRequest,
@@ -19,6 +26,7 @@ from app.schemas.auth import (
     TokenResponse,
     DashboardResponse,
     InvitationResponse,
+    CreateInvitationResponse,
     OrganizationResponse,
     UserResponse,
 )
@@ -35,7 +43,7 @@ def _make_slug(name: str) -> str:
 
 def _invitation_to_response(inv: Invitation) -> dict:
     return {
-        "code": inv.code,
+        "id": inv.id,
         "email": inv.email,
         "first_name": inv.first_name,
         "last_name": inv.last_name,
@@ -43,6 +51,8 @@ def _invitation_to_response(inv: Invitation) -> dict:
         "delegue_role": inv.delegue_role.value if inv.delegue_role else "membre",
         "is_delegue_securite_sante": inv.is_delegue_securite_sante,
         "is_delegue_egalite": inv.is_delegue_egalite,
+        "is_used": inv.is_used,
+        "created_at": inv.created_at.isoformat() if inv.created_at else None,
         "organization_name": inv.organization.name if inv.organization else None,
     }
 
@@ -100,23 +110,36 @@ def join_organization(body: RegisterRequest, request: Request, db: Session = Dep
     if not validate_captcha(body.captcha_id, body.captcha_answer):
         raise HTTPException(status_code=400, detail="CAPTCHA invalide")
 
-    invitation = (
+    # The invitation code is hashed with Argon2id — we cannot do an equality
+    # lookup. Instead, iterate over all unused invitations for this email, and
+    # verify the hash one by one. This is acceptable: invitation tables are small
+    # (tens of rows per org), and Argon2id verification is engineered to be
+    # moderately expensive (memory-hard) to resist brute-forcing.
+    normalized_email = normalize_email(body.email)
+    candidates = (
         db.query(Invitation)
         .filter(
-            Invitation.code == body.invitation_code.upper(),
             Invitation.is_used == False,
-            Invitation.email == normalize_email(body.email),
+            Invitation.email == normalized_email,
+            # Expiration : 30 jours après création (NULL = anciennes, jamais expirées)
             or_(Invitation.expires_at.is_(None), Invitation.expires_at > datetime.now()),
         )
-        .first()
+        .all()
     )
+
+    invitation = None
+    for inv in candidates:
+        if verify_invitation_code(body.invitation_code, inv.code_hash):
+            invitation = inv
+            break
+
     if not invitation:
         raise HTTPException(status_code=400, detail="Code d'invitation invalide, expiré ou déjà utilisé")
-    if db.query(User).filter(User.email == normalize_email(body.email)).first():
+    if db.query(User).filter(User.email == normalized_email).first():
         raise HTTPException(status_code=409, detail="Cet email existe déjà")
 
     user = User(
-        email=normalize_email(body.email),
+        email=normalized_email,
         password_hash=hash_password(body.password),
         first_name=body.first_name,
         last_name=body.last_name,
@@ -128,6 +151,14 @@ def join_organization(body: RegisterRequest, request: Request, db: Session = Dep
         is_delegue_egalite=invitation.is_delegue_egalite,
     )
     db.add(user)
+    db.flush()  # get user.id before commit
+
+    # Vault envelope exchange: if the org has a vault and the client sent a
+    # re-wrapped envelope, delete the old invitation-key envelope and store
+    # the user's envelope.
+    if body.vault_envelope:
+        _handle_join_vault_envelope(db, body.vault_envelope, invitation, user)
+
     invitation.is_used = True
     invitation.used_at = datetime.now(timezone.utc)
     db.commit()
@@ -137,7 +168,7 @@ def join_organization(body: RegisterRequest, request: Request, db: Session = Dep
     return TokenResponse(access_token=token)
 
 
-@router.post("/invitations", response_model=InvitationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/invitations", response_model=CreateInvitationResponse, status_code=status.HTTP_201_CREATED)
 def create_invitation(
     body: CreateInvitationRequest,
     current_user: User = Depends(get_current_user),
@@ -166,12 +197,13 @@ def create_invitation(
     if body.delegue_status == DelegueStatus.employe.value and body.delegue_role != DelegueRole.membre.value:
         raise HTTPException(status_code=400, detail="Un salarié non-élu n'a pas de fonction au bureau")
 
-    code = generate_invitation_code()
-    while db.query(Invitation).filter(Invitation.code == code).first():
-        code = generate_invitation_code()
+    # Generate a 26-char Crockford code, hash it with Argon2id.
+    # The plaintext code is returned ONLY in this response — never stored.
+    plaintext_code = generate_invitation_code()
+    code_hash = hash_invitation_code(plaintext_code)
 
     invitation = Invitation(
-        code=code,
+        code_hash=code_hash,
         email=normalize_email(body.email),
         first_name=body.first_name,
         last_name=body.last_name,
@@ -184,10 +216,22 @@ def create_invitation(
         expires_at=datetime.now() + timedelta(days=30),
     )
     db.add(invitation)
+    db.flush()  # get invitation.id
+
+    # Vault invitation envelope: if the org has a vault and the inviter
+    # (who holds the DEK) sent an envelope wrapped under the invitation code,
+    # store it in vault_keys with invitation_id set.
+    if body.vault_envelope:
+        _store_invitation_vault_envelope(
+            db, body.vault_envelope, invitation, current_user
+        )
+
     db.commit()
     db.refresh(invitation)
 
-    return InvitationResponse(**_invitation_to_response(invitation))
+    result = dict(_invitation_to_response(invitation))
+    result["code"] = plaintext_code  # ONE-TIME only
+    return result
 
 
 @router.put("/organization", response_model=OrganizationResponse)
@@ -243,7 +287,7 @@ def list_invitations(
         .filter(Invitation.organization_id == current_user.organization_id, Invitation.is_used == False)
         .all()
     )
-    return [InvitationResponse(**_invitation_to_response(inv)) for inv in invitations]
+    return [_invitation_to_response(inv) for inv in invitations]
 
 
 @router.get("/organization/members", response_model=list[UserResponse])
@@ -340,3 +384,97 @@ def designate_member(
             target.is_delegue_egalite = False
     db.commit()
     return UserResponse.model_validate(target)
+
+
+# ── Vault envelope helpers ──────────────────────────────────────────
+
+
+def _validate_vault_envelope(env: dict) -> dict:
+    """Validate a vault envelope dict and return decoded blobs, or raise 400."""
+    required = {"wrapped_dek", "nonce", "kdf_salt", "kdf_params"}
+    missing = required - set(env.keys())
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"vault_envelope: champs manquants : {', '.join(sorted(missing))}",
+        )
+    try:
+        wrapped_dek = base64.b64decode(env["wrapped_dek"])
+        nonce = base64.b64decode(env["nonce"])
+        kdf_salt = base64.b64decode(env["kdf_salt"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="vault_envelope: base64 invalide")
+
+    if len(wrapped_dek) < 48:
+        raise HTTPException(status_code=400, detail=f"vault_envelope: wrapped_dek trop court ({len(wrapped_dek)} bytes)")
+    if len(nonce) != 12:
+        raise HTTPException(status_code=400, detail=f"vault_envelope: nonce: attendu 12 bytes, reçu {len(nonce)}")
+    if len(kdf_salt) != 16:
+        raise HTTPException(status_code=400, detail=f"vault_envelope: kdf_salt: attendu 16 bytes, reçu {len(kdf_salt)}")
+
+    # Validate kdf_params JSON
+    try:
+        json.loads(env["kdf_params"])
+    except (json.JSONDecodeError, TypeError):
+        raise HTTPException(status_code=400, detail="vault_envelope: kdf_params: JSON invalide")
+
+    return {"wrapped_dek": wrapped_dek, "nonce": nonce, "kdf_salt": kdf_salt,
+            "kdf_params": env["kdf_params"]}
+
+
+def _store_invitation_vault_envelope(db, envelope: dict, invitation, current_user) -> None:
+    """Validate and store a vault invitation envelope."""
+    org = db.query(Organization).filter(Organization.id == current_user.organization_id).first()
+    if not org or not org.pv_vault_enabled:
+        raise HTTPException(status_code=400, detail="Le coffre n'est pas activé pour cette organisation")
+
+    blobs = _validate_vault_envelope(envelope)
+
+    # Check no existing invitation envelope for this invitation
+    existing = db.query(VaultKey).filter(VaultKey.invitation_id == invitation.id).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Une enveloppe existe déjà pour cette invitation")
+
+    vk = VaultKey(
+        organization_id=current_user.organization_id,
+        invitation_id=invitation.id,  # user_id is NULL
+        wrapped_dek=blobs["wrapped_dek"],
+        nonce=blobs["nonce"],
+        kdf_salt=blobs["kdf_salt"],
+        kdf_params=blobs["kdf_params"],
+        dek_version=1,
+    )
+    db.add(vk)
+
+
+def _handle_join_vault_envelope(db, envelope: dict, invitation, user) -> None:
+    """Process vault envelope exchange during /join.
+
+    Deletes the old invitation-key envelope and stores the user's new
+    password-wrapped envelope.
+    """
+    blobs = _validate_vault_envelope(envelope)
+
+    # Find and delete the invitation envelope
+    invite_key = (
+        db.query(VaultKey)
+        .filter(
+            VaultKey.organization_id == invitation.organization_id,
+            VaultKey.invitation_id == invitation.id,
+        )
+        .first()
+    )
+    if invite_key:
+        db.delete(invite_key)
+
+    # Store the user's new envelope
+    vk = VaultKey(
+        organization_id=invitation.organization_id,
+        user_id=user.id,
+        wrapped_dek=blobs["wrapped_dek"],
+        nonce=blobs["nonce"],
+        kdf_salt=blobs["kdf_salt"],
+        kdf_params=blobs["kdf_params"],
+        dek_version=1,
+    )
+    db.add(vk)

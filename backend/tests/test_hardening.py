@@ -237,7 +237,7 @@ class TestInvitationExpiry:
         })
         assert r.status_code == 201, f"expected 201, got {r.status_code}: {r.text}"
 
-        inv = db.query(Invitation).filter(Invitation.code == r.json()["code"]).first()
+        inv = db.query(Invitation).filter(Invitation.email == "inv@test.com").first()
         assert inv is not None
         assert inv.expires_at is not None
         assert inv.expires_at > datetime.now()

@@ -2,7 +2,7 @@
 
 import re
 import pyotp
-from app.core.security import hash_password, normalize_email
+from app.core.security import hash_password, hash_invitation_code, normalize_email
 from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
 
 
@@ -38,8 +38,14 @@ def create_user(db, email, password, org_id, role="member", delegue_status="titu
 
 
 def create_invitation(db, email, org_id, created_by_id, code="TESTCODE", **kwargs):
+    """Create an invitation with Argon2id-hashed code.
+
+    The plaintext `code` parameter is hashed before storage. This helper
+    replaces what was previously a direct `code=` column assignment.
+    """
+    code_hash = hash_invitation_code(code)
     inv = Invitation(
-        code=code,
+        code_hash=code_hash,
         email=normalize_email(email),
         first_name="Invited",
         last_name="Person",

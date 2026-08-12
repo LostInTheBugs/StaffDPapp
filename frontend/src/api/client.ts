@@ -33,7 +33,7 @@ interface DashboardResponse {
 }
 
 interface InvitationResponse {
-  code: string
+  id: number
   email: string
   first_name: string
   last_name: string
@@ -41,7 +41,13 @@ interface InvitationResponse {
   delegue_role: string
   is_delegue_securite_sante: boolean
   is_delegue_egalite: boolean
+  is_used: boolean
+  created_at: string | null
   organization_name: string | null
+}
+
+interface CreateInvitationResponse extends InvitationResponse {
+  code: string  // plaintext, 26 chars Crockford base32 — shown ONLY once at creation
 }
 
 export type { InvitationResponse }
@@ -75,6 +81,7 @@ export function login(email: string, password: string, captcha_id: string, captc
 export function joinOrganization(data: {
   email: string; password: string; first_name: string; last_name: string; invitation_code: string
   captcha_id: string; captcha_answer: string
+  vault_envelope?: VaultEnvelope | null
 }): Promise<TokenResponse> {
   return request('/join', { method: 'POST', body: JSON.stringify(data) })
 }
@@ -100,7 +107,8 @@ export function createInvitation(data: {
   email: string; first_name: string; last_name: string
   delegue_status: string; delegue_role: string
   is_delegue_securite_sante?: boolean; is_delegue_egalite?: boolean
-}): Promise<InvitationResponse> {
+  vault_envelope?: VaultEnvelope | null
+}): Promise<CreateInvitationResponse> {
   return request('/invitations', { method: 'POST', body: JSON.stringify(data) })
 }
 
@@ -154,3 +162,151 @@ export const EMPLOYEE_RANGES = [
   { min: 4701, max: 5100, titulaires: 24 },
   { min: 5101, max: 5500, titulaires: 25 },
 ] as const
+
+interface Section {
+  id: number | null
+  position: number
+  title: string
+  visibility: string
+  content: string  // base64
+}
+
+interface MinuteResponse {
+  id: number
+  meeting_id: number
+  status: string
+  is_encrypted: boolean
+  created_by_id: number
+  created_by_name: string | null
+  validated_by_id: number | null
+  validated_by_name: string | null
+  validated_at: string | null
+  created_at: string | null
+  updated_at: string | null
+  sections: Section[]
+}
+
+interface PreviewSection {
+  position: number
+  title: string
+  content: string  // base64
+}
+
+interface DirectionPreview {
+  minute_id: number
+  meeting_title: string | null
+  validated_by_name: string | null
+  validated_at: string | null
+  sections: PreviewSection[]
+  generated_at: string
+}
+
+function b64Encode(str: string): string {
+  return btoa(unescape(encodeURIComponent(str)))
+}
+
+function b64Decode(str: string): string {
+  return decodeURIComponent(escape(atob(str)))
+}
+
+export function createMinute(meetingId: number, sections: Section[]): Promise<MinuteResponse> {
+  const payload = {
+    sections: sections.map(s => ({
+      ...s,
+      content: s.content ? b64Encode(s.content) : '',
+    })),
+  }
+  return request(`/meetings/${meetingId}/minutes`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function getMeetingMinute(meetingId: number): Promise<MinuteResponse> {
+  return request(`/meetings/${meetingId}/minute`)
+}
+
+export function getMinute(minuteId: number): Promise<MinuteResponse> {
+  return request(`/minutes/${minuteId}`)
+}
+
+export function updateSections(minuteId: number, sections: Section[]): Promise<MinuteResponse> {
+  const payload = {
+    sections: sections.map(s => ({
+      ...s,
+      content: s.content ? b64Encode(s.content) : '',
+    })),
+  }
+  return request(`/minutes/${minuteId}/sections`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function validateMinute(minuteId: number): Promise<{ status: string; message: string }> {
+  return request(`/minutes/${minuteId}/validate`, { method: 'POST' })
+}
+
+export function getDirectionPreview(minuteId: number): Promise<DirectionPreview> {
+  return request(`/minutes/${minuteId}/direction-preview`)
+}
+
+export interface PublishResult {
+  status: string
+  message: string
+  publication_id: number
+  sections_count: number
+}
+
+export function publishMinute(minuteId: number, pdfSha256: string): Promise<PublishResult> {
+  return request(`/minutes/${minuteId}/publish`, {
+    method: 'POST',
+    body: JSON.stringify({ pdf_sha256: pdfSha256 }),
+  })
+}
+
+// ── Vault API ────────────────────────────────────────────────────────
+
+interface VaultStatusResponse {
+  enabled: boolean
+  has_key: boolean
+  dek_version: number | null
+}
+
+interface VaultKeyResponse {
+  wrapped_dek: string   // base64
+  nonce: string         // base64
+  kdf_salt: string      // base64
+  kdf_params: string    // JSON
+  dek_version: number
+}
+
+interface VaultEnvelope {
+  wrapped_dek: string   // base64
+  nonce: string         // base64
+  kdf_salt: string      // base64
+  kdf_params: string    // JSON
+}
+
+export function createVault(envelope: VaultEnvelope): Promise<VaultKeyResponse> {
+  return request('/vault', { method: 'POST', body: JSON.stringify(envelope) })
+}
+
+export function getVaultKey(): Promise<VaultKeyResponse> {
+  return request('/vault/key')
+}
+
+export function replaceVaultKey(envelope: VaultEnvelope): Promise<VaultKeyResponse> {
+  return request('/vault/key', { method: 'PUT', body: JSON.stringify(envelope) })
+}
+
+export function getVaultStatus(): Promise<VaultStatusResponse> {
+  return request('/vault/status')
+}
+
+export function attachInvitationEnvelope(invitationId: number, envelope: VaultEnvelope): Promise<VaultKeyResponse> {
+  return request(`/invitations/${invitationId}/vault-envelope`, { method: 'POST', body: JSON.stringify(envelope) })
+}
+
+export function getJoinVaultEnvelope(code: string, email: string): Promise<VaultKeyResponse> {
+  return request('/join/vault-envelope', { method: 'POST', body: JSON.stringify({ code, email }) })
+}
+
+export type { VaultStatusResponse, VaultKeyResponse, VaultEnvelope }
+
+export { b64Encode, b64Decode }
+export type { Section, MinuteResponse, DirectionPreview }

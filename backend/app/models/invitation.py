@@ -10,7 +10,11 @@ class Invitation(Base):
     __tablename__ = "invitations"
 
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(20), unique=True, nullable=False, index=True)
+    # Argon2id hash of the invitation code (Crockford base32, 26 chars).
+    # The code itself is NEVER stored in clear — only shown once at creation.
+    # Index removed because lookups now iterate over unused invitations and
+    # verify the hash one by one (acceptable for low-volume invite tables).
+    code_hash = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
