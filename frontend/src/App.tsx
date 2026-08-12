@@ -9,6 +9,7 @@ import AccountSettings from './pages/AccountSettings'
 import Organigramme from './pages/Organigramme'
 import Meetings from './pages/Meetings'
 import TimeTracking from './pages/TimeTracking'
+import MinutesPage from './pages/Minutes'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/organigramme" element={<ProtectedRoute><Organigramme /></ProtectedRoute>} />
       <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
       <Route path="/hours" element={<ProtectedRoute><TimeTracking /></ProtectedRoute>} />
+      <Route path="/meetings/:meetingId/minutes" element={<ProtectedRoute><MinutesPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

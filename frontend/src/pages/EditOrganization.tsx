@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useVault } from '../hooks/useVault'
 import NavBar from '../components/NavBar'
+import VaultCreate from '../components/VaultCreate'
 import * as api from '../api/client'
 
 interface Member {
@@ -10,8 +12,10 @@ interface Member {
 
 export default function EditOrganization() {
   const { user, organization, setAuth, token } = useAuth()
+  const { status } = useVault()
   const navigate = useNavigate()
   const isAdmin = user?.role === 'admin'
+  const isBureau = user?.delegue_role === 'president' || user?.delegue_role === 'vice_president' || user?.delegue_role === 'secretaire'
 
   const [form, setForm] = useState({
     name: organization?.name || '',
@@ -79,6 +83,20 @@ export default function EditOrganization() {
             <button type="submit" className="btn btn-primary">Enregistrer</button>
           </form>
         </div>
+
+        {/* Vault section — visible to bureau when vault is disabled */}
+        {isAdmin && isBureau && status === 'disabled' && <VaultCreate />}
+
+        {/* Show vault status when active */}
+        {isAdmin && status !== 'disabled' && (
+          <div className="card mb-24">
+            <h2>🔐 Coffre-fort des PV</h2>
+            <div className="success-msg" style={{ background: status === 'unlocked' ? '#d4edda' : '#fff3cd', borderColor: status === 'unlocked' ? 'var(--green)' : '#ffc107' }}>
+              {status === 'unlocked' ? '✅ Le coffre est actif et déverrouillé. Les PV sont chiffrés de bout en bout.' :
+               '🔒 Le coffre est actif. Déverrouillez-le pour accéder aux PV chiffrés.'}
+            </div>
+          </div>
+        )}
 
         <div className="card mb-24">
           <h2>👥 Gestion des administrateurs</h2>

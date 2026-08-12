@@ -13,6 +13,29 @@
 ### Changed
 - Déploiement : `alembic stamp 31140e6e07a7` + `upgrade head` au lieu de supprimer le volume
 
+## [Non publié] — PV sectionnés + Coffre-fort
+
+### Ajouté
+- **Coffre-fort des PV** : chiffrement de bout en bout optionnel par organisation (`pv_vault_enabled`). Les contenus des sections sont chiffrés en AES-256-GCM dans le navigateur ; le serveur ne voit jamais le clair.
+- **Enveloppe de clé** : chaque membre dérive une KEK par Argon2id depuis son mot de passe. La DEK est générée dans le navigateur et n'existe jamais en clair hors de celui-ci.
+- **Interface de déverrouillage** : badge d'état du coffre (verrouillé/déverrouillé/désactivé) dans l'interface, formulaire de déverrouillage par mot de passe, création du coffre par un membre du bureau avec avertissement d'irréversibilité.
+- **Invitations sécurisées** : code d'invitation Crockford base32 de 26 caractères (~130 bits), hashé côté serveur (Argon2id). Le code n'est affiché qu'une seule fois. L'enveloppe de clé est transmise avec l'invitation, chiffrée sous le code.
+- **Chiffrement transparent des PV** : au chargement, les sections chiffrées sont déchiffrées avec la DEK de session. À l'enregistrement, seules les sections modifiées sont rechiffrées (nonce aléatoire par section). Le `content_digest` (HMAC-SHA256 du clair) permet au serveur de détecter les changements sans voir le contenu.
+- **Export PDF avec coffre** : les sections de la preview direction sont déchiffrées avant l'export PDF. Export impossible si le coffre est verrouillé (pas de PDF vide ni de ciphertext transmis).
+- **Marque `visibility: 'partage'`** conservée après déchiffrement pour l'export, garantissant que le filtre fail-closed de `pdfExport` ne rejette pas le contenu.
+- **Titres neutres conseillés** : rappel discret dans l'interface lorsque le coffre est actif, invitant à des intitulés de sections neutres (les titres restent en clair).
+
+### Corrigé
+- **Contournement MFA** : `get_current_user` rejette les tokens temporaires MFA (`mfa: true`). Un claim `typ` explicite (`access` / `mfa_pending`) est vérifié.
+- **CAPTCHA obligatoire** : les champs `captcha_id` et `captcha_answer` sont requis côté schéma Pydantic sur `/login`, `/join` et `/organizations`.
+- **Code d'invitation lié à l'email** : `join_organization` filtre sur `code` ET `email`, empêchant l'usurpation d'identité via un code intercepté.
+
+### Modifié
+- **PV sectionné** : un PV est composé de sections marquées `interne` ou `partage`. La version direction est une projection, jamais stockée.
+- **Double validation** : la validation du PV est bloquée pour le rédacteur ; seul un autre membre du bureau peut valider.
+- **Export PDF direction** : généré côté client (`pdf-lib`), métadonnées purgées, numérotation continue, filtre fail-closed sur `visibility: 'partage'`.
+- **Alembic** : migrations pour les tables `minutes`, `minute_sections`, `minute_publications`, `vault_keys` et la colonne `code_hash` sur `invitations`.
+
 ## [2026.08.002] — 2026-08-12
 
 ### Added
