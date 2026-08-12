@@ -206,8 +206,14 @@ export function needsUnlock(apiSections: ApiSection[]): boolean {
  */
 export async function prepareSectionsForSave(
   sections: ResolvedSection[],
+  opts: { vaultActive?: boolean } = {},
 ): Promise<SectionForSave[]> {
   const dek = getSessionDEK();
+  // vaultActive : l'organisation a le coffre activé (même si verrouillé).
+  // Sans lui, les nouvelles sections (_encrypted === null) partiraient en
+  // clair — le serveur les refuserait (422) quand le coffre est actif, mais
+  // c'est trop tard : on doit échouer AVANT l'envoi, de façon fail-closed.
+  const vaultActive = opts.vaultActive ?? false;
 
   const results: SectionForSave[] = [];
 
@@ -245,6 +251,29 @@ export async function prepareSectionsForSave(
     } else if (sec._encrypted && !dek) {
       // Vault locked — can't re-encrypt, but should not happen because
       // the UI must require unlock before editing. Throw explicitly.
+      throw new VaultLockedError();
+    } else if (dek) {
+      // Nouvelle section (ou org à coffre actif) avec DEK en mémoire :
+      // chiffrer obligatoirement — jamais envoyer du clair quand le coffre
+      // est déverrouillé.
+      const plaintextBytes = encoder.encode(sec.content);
+      const encrypted: EncryptedSection = await encryptSection(
+        dek,
+        plaintextBytes,
+      );
+      const digest = await sectionDigest(plaintextBytes, dek);
+
+      results.push({
+        position: sec.position,
+        title: sec.title,
+        visibility: sec.visibility,
+        content: bytesToB64(encrypted.ciphertext),
+        nonce: bytesToB64(encrypted.nonce),
+        content_digest: bytesToB64(digest),
+      });
+    } else if (vaultActive) {
+      // Coffre actif mais verrouillé : ne JAMAIS envoyer de section en
+      // clair — fail-closed.
       throw new VaultLockedError();
     } else {
       // Plaintext section (vault disabled)
