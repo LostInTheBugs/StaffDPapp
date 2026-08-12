@@ -93,6 +93,32 @@ def create_meeting(
     return _meeting_to_response(meeting)
 
 
+@router.get("/stats")
+def meeting_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime
+    year_start = datetime(datetime.now().year, 1, 1)
+    total = db.query(Meeting).filter(
+        Meeting.organization_id == current_user.organization_id,
+        Meeting.date >= year_start,
+        Meeting.status != MeetingStatus.cancelled,
+    ).count()
+    with_direction = db.query(Meeting).filter(
+        Meeting.organization_id == current_user.organization_id,
+        Meeting.date >= year_start,
+        Meeting.direction_invited == True,
+        Meeting.status != MeetingStatus.cancelled,
+    ).count()
+    return {
+        "total": total,
+        "with_direction": with_direction,
+        "min_required": 6,
+        "min_with_direction": 3,
+    }
+
+
 @router.get("/{meeting_id}", response_model=MeetingResponse)
 def get_meeting(
     meeting_id: int,
@@ -130,32 +156,6 @@ def respond_meeting(
     invitee.status = InviteeStatus(body.status)
     db.commit()
     return {"status": "ok"}
-
-
-@router.get("/stats")
-def meeting_stats(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    from datetime import datetime
-    year_start = datetime(datetime.now().year, 1, 1)
-    total = db.query(Meeting).filter(
-        Meeting.organization_id == current_user.organization_id,
-        Meeting.date >= year_start,
-        Meeting.status != MeetingStatus.cancelled,
-    ).count()
-    with_direction = db.query(Meeting).filter(
-        Meeting.organization_id == current_user.organization_id,
-        Meeting.date >= year_start,
-        Meeting.direction_invited == True,
-        Meeting.status != MeetingStatus.cancelled,
-    ).count()
-    return {
-        "total": total,
-        "with_direction": with_direction,
-        "min_required": 6,
-        "min_with_direction": 3,
-    }
 
 
 @router.get("/count/pending")
