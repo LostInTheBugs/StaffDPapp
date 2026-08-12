@@ -15,10 +15,7 @@
  */
 
 import { PDFDocument, rgb } from 'pdf-lib'
-
-// @pdf-lib/fontkit is CJS, import via dynamic require-style for TS compatibility
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const fontkit = require('@pdf-lib/fontkit')
+import fontkit from '@pdf-lib/fontkit'
 
 // Police embarquée dans le bundle (Vite émet l'asset et fournit son URL locale).
 // Surtout PAS de téléchargement depuis Internet : l'application est prévue pour
