@@ -587,6 +587,53 @@ class TestContentDigestFingerprint:
         assert data["status"] == "brouillon", \
             f"Expected 'brouillon' but got '{data['status']}' — different digest must reset"
 
+    def test_direction_preview_returns_ciphertext_and_nonce(self, client, db):
+        """direction-preview d'un PV chiffré : content = ciphertext + nonce.
+
+        Régression : la preview réutilisait _projection_fingerprint, qui
+        renvoie le digest HMAC (32 o) pour les sections chiffrées → le client
+        tentait de déchiffrer un digest → échec AES-GCM, preview jamais
+        affichée, export PDF impossible avec coffre actif.
+        """
+        org = create_org(db)
+        org.pv_vault_enabled = True
+        db.commit()
+
+        user_s = create_user(db, "sec4@chiffre.lu", "test123", org.id,
+                             delegue_role="secretaire")
+        db_s = SessionLocal()
+        db_s.add(VaultKey(
+            organization_id=org.id, user_id=user_s.id,
+            wrapped_dek=os.urandom(48), nonce=os.urandom(12),
+            kdf_salt=os.urandom(16),
+            kdf_params='{"algo":"argon2id","m":65536,"t":3,"p":1}',
+            dek_version=1,
+        ))
+        db_s.commit()
+        db_s.close()
+
+        token_s = _login(client, "sec4@chiffre.lu", "test123", *fetch_captcha(client))
+        h_s = {"Authorization": f"Bearer {token_s}"}
+
+        ct = base64.b64encode(os.urandom(64)).decode("ascii")
+        nonce = base64.b64encode(os.urandom(12)).decode("ascii")
+        digest = base64.b64encode(os.urandom(32)).decode("ascii")
+
+        sections = [{
+            "position": 0, "title": "Résumé",
+            "content": ct, "nonce": nonce,
+            "content_digest": digest, "visibility": "partage",
+        }]
+        minute_id = self._create_encrypted_minute(client, db, token_s, sections)
+
+        r = client.get(f"/api/minutes/{minute_id}/direction-preview", headers=h_s)
+        assert r.status_code == 200
+        ps = r.json()["sections"]
+        assert len(ps) == 1
+        assert ps[0]["content"] == ct, "la preview doit renvoyer le ciphertext, pas le digest"
+        assert ps[0]["nonce"] == nonce, "le nonce doit accompagner le ciphertext"
+        assert ps[0]["content"] != digest, "le digest HMAC ne doit JAMAIS servir de contenu"
+
     def test_encrypted_section_without_digest_rejected_400(self, client, db):
         """Section marquée is_encrypted (nonce présent) sans content_digest → 400."""
         org = create_org(db)
