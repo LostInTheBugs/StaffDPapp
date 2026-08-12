@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 # ── CAPTCHA ───────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ class MfaLoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, description="Au moins 8 caractères")
     first_name: str
     last_name: str
     invitation_code: str
@@ -37,7 +37,7 @@ class CreateOrganizationRequest(BaseModel):
     company_name: str | None = None
     employee_count: int
     admin_email: EmailStr
-    admin_password: str
+    admin_password: str = Field(min_length=8, description="Au moins 8 caractères")
     admin_first_name: str
     admin_last_name: str
     admin_delegue_status: str = "titulaire"

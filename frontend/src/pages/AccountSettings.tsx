@@ -90,7 +90,7 @@ export default function AccountSettings() {
           <h2>🔑 Mot de passe</h2>
           <form onSubmit={changePassword}>
             <div className="form-group"><label>Ancien mot de passe</label><input type="password" value={oldPass} onChange={e => setOldPass(e.target.value)} required /></div>
-            <div className="form-group"><label>Nouveau mot de passe (min. 6)</label><input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required minLength={6} /></div>
+            <div className="form-group"><label>Nouveau mot de passe (min. 8)</label><input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required minLength={8} /></div>
             <button type="submit" className="btn btn-primary" disabled={loading}>Changer le mot de passe</button>
           </form>
         </div>

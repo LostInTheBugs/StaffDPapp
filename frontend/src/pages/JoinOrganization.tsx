@@ -49,7 +49,7 @@ export default function JoinOrganization() {
             <div className="form-group"><label>Nom</label><input value={form.last_name} onChange={e => update('last_name', e.target.value)} required /></div>
           </div>
           <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e => update('email', e.target.value)} required /></div>
-          <div className="form-group"><label>Mot de passe (min. 6)</label><input type="password" value={form.password} onChange={e => update('password', e.target.value)} required minLength={6} /></div>
+          <div className="form-group"><label>Mot de passe (min. 8)</label><input type="password" value={form.password} onChange={e => update('password', e.target.value)} required minLength={8} /></div>
 
           <CaptchaWidget onCaptcha={(id, ans) => { setCaptchaId(id); setCaptchaAnswer(ans) }} />
 

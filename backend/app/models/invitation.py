@@ -27,6 +27,8 @@ class Invitation(Base):
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     used_at = Column(DateTime(timezone=True), nullable=True)
+    # Expiration (30 jours après création ; NULL = jamais pour les anciennes)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
 
     organization = relationship("Organization", back_populates="invitations")
     created_by = relationship("User")

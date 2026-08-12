@@ -42,6 +42,9 @@ class User(Base):
     # MFA (TOTP)
     totp_secret = Column(String(64), nullable=True)
     totp_enabled = Column(Boolean, default=False)
+    # Verrouillage anti brute-force TOTP
+    totp_failed_attempts = Column(Integer, default=0)
+    totp_locked_until = Column(DateTime(timezone=True), nullable=True)
 
     # Photo de profil
     avatar_url = Column(String(500), nullable=True)
