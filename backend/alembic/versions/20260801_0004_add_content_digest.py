@@ -24,11 +24,21 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_column(insp, table: str, column: str) -> bool:
+    """Vérifie l'existence d'une colonne (Inspector.has_column n'existe pas
+    dans toutes les versions de SQLAlchemy)."""
+    return any(c["name"] == column for c in insp.get_columns(table))
+
+
 def upgrade() -> None:
-    op.add_column(
-        'minute_sections',
-        sa.Column('content_digest', sa.LargeBinary(32), nullable=True),
-    )
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    # Idempotent : une base fraîche créée par create_all a déjà content_digest
+    if not _has_column(insp, "minute_sections", "content_digest"):
+        op.add_column(
+            'minute_sections',
+            sa.Column('content_digest', sa.LargeBinary(32), nullable=True),
+        )
 
 
 def downgrade() -> None:
