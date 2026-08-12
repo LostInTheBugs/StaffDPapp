@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026.08.002] — 2026-08-12
+
+### Added
+- Suite de tests backend (104 tests : sécurité, barèmes légaux, MFA, CAPTCHA, emails) — fusion de la branche `fix/securite-auth`
+- Migration Alembic (baseline + normalisation emails en minuscules)
+
+### Fixed
+- **Stats réunions cassées** : `/api/meetings/stats` renvoyait 422 (ordre des routes) — le bandeau affichait `undefined/6`
+- **CAPTCHA contournable** : désormais obligatoire côté backend sur login/join/création d'organisation (422 sans captcha)
+- **Contournement MFA** : les tokens MFA-pending (`typ=mfa_pending`) ne peuvent plus accéder aux routes protégées
+- **Invitation** : le code est désormais lié à l'email (impossible de rejoindre avec une autre identité)
+- **Barème L.412-1 >5500 salariés** : arrondi inférieur (tranche entière de 500), conforme au texte officiel
+- **Normalisation des emails** : comparaison insensible à la casse (login avec `Sophie@Demo.lu` accepté)
+- **Version frontend alignée** : `index.html` et footer affichaient encore 2026.07.001
+
 ## [2026.08.001] — 2026-08-01
 
 ### Added
