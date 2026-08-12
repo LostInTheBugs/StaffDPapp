@@ -365,26 +365,25 @@ def direction_preview(
     if not minute:
         raise HTTPException(status_code=404, detail="PV non trouvé")
 
-    # Projection via la même fonction que celle utilisée pour la comparaison
-    # avant/après dans update_sections — garantit l'absence de divergence.
-    fingerprint = _projection_fingerprint(list(minute.sections or []))
-
+    # Projection : sections `partage` telles quelles (ciphertext + nonce pour
+    # les sections chiffrées). Le client déchiffre avec sa DEK de session.
+    # ⚠️ NE PAS utiliser _projection_fingerprint ici : il renvoie le digest
+    # HMAC (32 o) pour les sections chiffrées → le client tente de déchiffrer
+    # un digest → échec AES-GCM silencieux (DOMException), preview jamais
+    # affichée, export PDF impossible (coffre actif).
     preview_sections = []
-    for pos, title, content_bytes in fingerprint:
-        # Get nonce from the original section for encrypted content
-        # (the fingerprint only has position, title, content — we need the nonce)
-        section = next(
-            (s for s in (minute.sections or [])
-             if s.visibility == SectionVisibility.partage and s.title == title),
-            None
-        )
+    pos = 0
+    for s in minute.sections or []:
+        if s.visibility != SectionVisibility.partage:
+            continue
         preview_sections.append({
             "position": pos,
-            "title": title,
-            "content": base64.b64encode(content_bytes).decode("ascii") if content_bytes else "",
+            "title": s.title,
+            "content": base64.b64encode(s.content).decode("ascii") if s.content else "",
             "visibility": "partage",
-            "nonce": base64.b64encode(section.nonce).decode("ascii") if (section and section.nonce) else None,
+            "nonce": base64.b64encode(s.nonce).decode("ascii") if s.nonce else None,
         })
+        pos += 1
 
     return {
         "minute_id": minute.id,
