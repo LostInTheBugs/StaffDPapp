@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.08.004] — 2026-08-12
+
+### Added
+- **Rate limiting** (anti brute-force) : login et join 10 tentatives/15 min/IP, mfa/login 10/15 min/IP, création d'organisation 5/1h/IP → HTTP 429
+- **Verrouillage TOTP** : 5 codes invalides → compte bloqué 15 minutes (colonnes `totp_failed_attempts`, `totp_locked_until`)
+- **Expiration des invitations** : 30 jours (`invitations.expires_at`, backfill +30 j sur les existantes)
+- **Politique de mot de passe** : minimum 8 caractères (backend + formulaires frontend)
+- **Migration Alembic** `4b6d8e9f0a1c` (chaîne : baseline → lowercase emails → hardening) — fini la suppression de volume à chaque changement de schéma
+- **13 tests** de durcissement (117 au total)
+
+### Changed
+- Déploiement : `alembic stamp 31140e6e07a7` + `upgrade head` au lieu de supprimer le volume
+
 ## [2026.08.002] — 2026-08-12
 
 ### Added
