@@ -19,18 +19,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table('minute_publications',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('minute_id', sa.Integer(), nullable=False),
-        sa.Column('published_by_id', sa.Integer(), nullable=False),
-        sa.Column('published_at', sa.DateTime(timezone=True), nullable=False),
-        sa.Column('pdf_sha256', sa.String(length=64), nullable=False),
-        sa.Column('sections_count', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['minute_id'], ['minutes.id'], ),
-        sa.ForeignKeyConstraint(['published_by_id'], ['users.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_minute_publications_id'), 'minute_publications', ['id'], unique=False)
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    if not insp.has_table("minute_publications"):
+        op.create_table('minute_publications',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('minute_id', sa.Integer(), nullable=False),
+            sa.Column('published_by_id', sa.Integer(), nullable=False),
+            sa.Column('published_at', sa.DateTime(timezone=True), nullable=False),
+            sa.Column('pdf_sha256', sa.String(length=64), nullable=False),
+            sa.Column('sections_count', sa.Integer(), nullable=False),
+            sa.ForeignKeyConstraint(['minute_id'], ['minutes.id'], ),
+            sa.ForeignKeyConstraint(['published_by_id'], ['users.id'], ),
+            sa.PrimaryKeyConstraint('id')
+        )
+        op.create_index(op.f('ix_minute_publications_id'), 'minute_publications', ['id'], unique=False)
 
 
 def downgrade() -> None:

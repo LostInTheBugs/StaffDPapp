@@ -18,39 +18,50 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_column(insp, table: str, column: str) -> bool:
+    """Vérifie l'existence d'une colonne (Inspector.has_column n'existe pas
+    dans toutes les versions de SQLAlchemy)."""
+    return any(c["name"] == column for c in insp.get_columns(table))
+
+
 def upgrade() -> None:
-    # Add pv_vault_enabled to organizations
-    op.add_column(
-        'organizations',
-        sa.Column('pv_vault_enabled', sa.Boolean(), nullable=False, server_default=sa.text('0')),
-    )
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    # Add pv_vault_enabled to organizations (idempotent : create_all ne modifie
+    # pas les tables existantes, mais une base fraîche peut déjà l'avoir)
+    if not _has_column(insp, "organizations", "pv_vault_enabled"):
+        op.add_column(
+            'organizations',
+            sa.Column('pv_vault_enabled', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+        )
 
     # Create vault_keys table with raw SQL to include CHECK constraint
     # (Alembic's create_table + CheckConstraint doesn't reliably emit the
     #  CHECK for SQLite, so we use raw SQL for the full DDL.)
-    op.execute("""
-        CREATE TABLE vault_keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            organization_id INTEGER NOT NULL,
-            user_id INTEGER,
-            invitation_id INTEGER,
-            wrapped_dek BLOB NOT NULL,
-            nonce BLOB NOT NULL,
-            kdf_salt BLOB NOT NULL,
-            kdf_params TEXT NOT NULL,
-            dek_version INTEGER NOT NULL DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (organization_id) REFERENCES organizations(id),
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (invitation_id) REFERENCES invitations(id),
-            CHECK (
-                (user_id IS NOT NULL AND invitation_id IS NULL) OR
-                (user_id IS NULL AND invitation_id IS NOT NULL)
+    if not insp.has_table("vault_keys"):
+        op.execute("""
+            CREATE TABLE vault_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                organization_id INTEGER NOT NULL,
+                user_id INTEGER,
+                invitation_id INTEGER,
+                wrapped_dek BLOB NOT NULL,
+                nonce BLOB NOT NULL,
+                kdf_salt BLOB NOT NULL,
+                kdf_params TEXT NOT NULL,
+                dek_version INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (invitation_id) REFERENCES invitations(id),
+                CHECK (
+                    (user_id IS NOT NULL AND invitation_id IS NULL) OR
+                    (user_id IS NULL AND invitation_id IS NOT NULL)
+                )
             )
-        )
-    """)
-    # Index for the PK lookups
-    op.create_index(op.f('ix_vault_keys_id'), 'vault_keys', ['id'], unique=False)
+        """)
+        # Index for the PK lookups
+        op.create_index(op.f('ix_vault_keys_id'), 'vault_keys', ['id'], unique=False)
 
 
 def downgrade() -> None:

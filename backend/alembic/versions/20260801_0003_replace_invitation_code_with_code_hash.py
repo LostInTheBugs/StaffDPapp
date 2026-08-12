@@ -32,85 +32,96 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_column(insp, table: str, column: str) -> bool:
+    """Vérifie l'existence d'une colonne (Inspector.has_column n'existe pas
+    dans toutes les versions de SQLAlchemy)."""
+    return any(c["name"] == column for c in insp.get_columns(table))
+
+
 def upgrade() -> None:
-    # 1. Add code_hash column (nullable initially to backfill)
-    op.add_column(
-        'invitations',
-        sa.Column('code_hash', sa.String(255), nullable=True),
-    )
-
-    # 2. Backfill: hash existing plaintext codes.
-    # We do this in raw SQL to avoid importing the app's security module
-    # (which has side-effects), but we need Argon2id. Use a Python function
-    # via the Alembic connection's execute.
     conn = op.get_bind()
+    insp = sa.inspect(conn)
 
-    # Import argon2 inline so the migration doesn't depend on app-level imports
-    from argon2 import PasswordHasher, Type
-    ph = PasswordHasher(
-        time_cost=3,
-        memory_cost=65536,
-        parallelism=1,
-        hash_len=32,
-        type=Type.ID,
-    )
+    # 1. Add code_hash column (nullable initially to backfill) — idempotent :
+    #    une base fraîche créée par create_all a déjà code_hash et plus de code.
+    has_code_hash = _has_column(insp, "invitations", "code_hash")
+    has_code = _has_column(insp, "invitations", "code")
 
-    # Fetch rows that still have a code in the old column
-    result = conn.execute(
-        text("SELECT id, code FROM invitations WHERE code IS NOT NULL")
-    ).fetchall()
+    if not has_code_hash:
+        op.add_column(
+            'invitations',
+            sa.Column('code_hash', sa.String(255), nullable=True),
+        )
 
-    hashed_count = 0
-    invalidated_count = 0
-
-    for row in result:
-        inv_id, code = row
-        if code and code.strip():
-            try:
-                code_hash = ph.hash(code.strip())
-                conn.execute(
-                    text("UPDATE invitations SET code_hash = :h WHERE id = :i"),
-                    {"h": code_hash, "i": inv_id},
-                )
-                hashed_count += 1
-            except Exception:
-                # Code exists but cannot be hashed — mark invitation as used
-                # so the dangling row cannot be exploited.
-                conn.execute(
-                    text(
-                        "UPDATE invitations SET is_used = 1, "
-                        "code_hash = 'MIGRATION_INVALID' WHERE id = :i"
-                    ),
-                    {"i": inv_id},
-                )
-                invalidated_count += 1
-        else:
-            # Empty/null code (shouldn't happen — column was NOT NULL) —
-            # mark as used.
-            conn.execute(
-                text(
-                    "UPDATE invitations SET is_used = 1, "
-                    "code_hash = 'MIGRATION_INVALID' WHERE id = :i"
-                ),
-                {"i": inv_id},
+        # 2. Backfill: hash existing plaintext codes (only if the old column exists).
+        if has_code:
+            # Import argon2 inline so the migration doesn't depend on app-level imports
+            from argon2 import PasswordHasher, Type
+            ph = PasswordHasher(
+                time_cost=3,
+                memory_cost=65536,
+                parallelism=1,
+                hash_len=32,
+                type=Type.ID,
             )
-            invalidated_count += 1
 
-    print(
-        f"  Invitation code migration: {hashed_count} hashed, "
-        f"{invalidated_count} invalidated"
-    )
+            # Fetch rows that still have a code in the old column
+            result = conn.execute(
+                text("SELECT id, code FROM invitations WHERE code IS NOT NULL")
+            ).fetchall()
 
-    # 3. Now that all rows have code_hash, make it NOT NULL
-    with op.batch_alter_table('invitations') as batch_op:
-        batch_op.alter_column('code_hash', nullable=False)
+            hashed_count = 0
+            invalidated_count = 0
 
-    # 4. Drop the old code column and its index.
+            for row in result:
+                inv_id, code = row
+                if code and code.strip():
+                    try:
+                        code_hash = ph.hash(code.strip())
+                        conn.execute(
+                            text("UPDATE invitations SET code_hash = :h WHERE id = :i"),
+                            {"h": code_hash, "i": inv_id},
+                        )
+                        hashed_count += 1
+                    except Exception:
+                        # Code exists but cannot be hashed — mark invitation as used
+                        # so the dangling row cannot be exploited.
+                        conn.execute(
+                            text(
+                                "UPDATE invitations SET is_used = 1, "
+                                "code_hash = 'MIGRATION_INVALID' WHERE id = :i"
+                            ),
+                            {"i": inv_id},
+                        )
+                        invalidated_count += 1
+                else:
+                    # Empty/null code (shouldn't happen — column was NOT NULL) —
+                    # mark as used.
+                    conn.execute(
+                        text(
+                            "UPDATE invitations SET is_used = 1, "
+                            "code_hash = 'MIGRATION_INVALID' WHERE id = :i"
+                        ),
+                        {"i": inv_id},
+                    )
+                    invalidated_count += 1
+
+            print(
+                f"  Invitation code migration: {hashed_count} hashed, "
+                f"{invalidated_count} invalidated"
+            )
+
+        # 3. Now that all rows have code_hash, make it NOT NULL
+        with op.batch_alter_table('invitations') as batch_op:
+            batch_op.alter_column('code_hash', nullable=False)
+
+    # 4. Drop the old code column and its index (if still present).
     # In SQLite, we cannot drop a column with ALTER...DROP COLUMN easily
     # in older versions, but the batch_alter_table handles this for us.
-    with op.batch_alter_table('invitations') as batch_op:
-        batch_op.drop_index('ix_invitations_code')
-        batch_op.drop_column('code')
+    if has_code:
+        with op.batch_alter_table('invitations') as batch_op:
+            batch_op.drop_index('ix_invitations_code')
+            batch_op.drop_column('code')
 
 
 def downgrade() -> None:
