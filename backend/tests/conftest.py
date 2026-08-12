@@ -11,6 +11,7 @@ os.environ["SD_DATABASE_URL"] = f"sqlite:///{_db_path}"
 
 from app.main import app
 from app.core.database import SessionLocal, Base, engine
+from app.core.ratelimit import reset_rate_limits
 
 
 def _cleanup():
@@ -28,6 +29,7 @@ atexit.register(_cleanup)
 def setup_db():
     """Recreate tables before each test for isolation."""
     Base.metadata.create_all(bind=engine)
+    reset_rate_limits()
     yield
     Base.metadata.drop_all(bind=engine)
 

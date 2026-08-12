@@ -1,13 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.security import hash_password, create_access_token, generate_invitation_code, normalize_email
 from app.core.captcha import validate_captcha
+from app.core.ratelimit import check_rate_limit, client_ip
 from app.models import User, UserRole, Organization, Invitation, DelegueStatus, DelegueRole
 from app.schemas.auth import (
     RegisterRequest,
@@ -46,7 +48,9 @@ def _invitation_to_response(inv: Invitation) -> dict:
 
 
 @router.post("/organizations", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def create_organization(body: CreateOrganizationRequest, db: Session = Depends(get_db)):
+def create_organization(body: CreateOrganizationRequest, request: Request, db: Session = Depends(get_db)):
+    # Anti-spam : 5 créations / 1h / IP
+    check_rate_limit(f"org:{client_ip(request)}", 5, 3600)
     # CAPTCHA
     if not validate_captcha(body.captcha_id, body.captcha_answer):
         raise HTTPException(status_code=400, detail="CAPTCHA invalide")
@@ -89,7 +93,9 @@ def create_organization(body: CreateOrganizationRequest, db: Session = Depends(g
 
 
 @router.post("/join", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
+def join_organization(body: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    # Anti brute-force : 10 tentatives / 15 min / IP
+    check_rate_limit(f"join:{client_ip(request)}", 10, 900)
     # CAPTCHA
     if not validate_captcha(body.captcha_id, body.captcha_answer):
         raise HTTPException(status_code=400, detail="CAPTCHA invalide")
@@ -100,11 +106,12 @@ def join_organization(body: RegisterRequest, db: Session = Depends(get_db)):
             Invitation.code == body.invitation_code.upper(),
             Invitation.is_used == False,
             Invitation.email == normalize_email(body.email),
+            or_(Invitation.expires_at.is_(None), Invitation.expires_at > datetime.now()),
         )
         .first()
     )
     if not invitation:
-        raise HTTPException(status_code=400, detail="Code d'invitation invalide ou déjà utilisé")
+        raise HTTPException(status_code=400, detail="Code d'invitation invalide, expiré ou déjà utilisé")
     if db.query(User).filter(User.email == normalize_email(body.email)).first():
         raise HTTPException(status_code=409, detail="Cet email existe déjà")
 
@@ -174,6 +181,7 @@ def create_invitation(
         is_delegue_egalite=body.is_delegue_egalite,
         created_by_id=current_user.id,
         organization_id=current_user.organization_id,
+        expires_at=datetime.now() + timedelta(days=30),
     )
     db.add(invitation)
     db.commit()
