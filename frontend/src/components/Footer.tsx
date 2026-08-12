@@ -15,7 +15,7 @@ export default function Footer() {
       justifyContent: 'center',
       gap: 24,
     }}>
-      <span>StaffDPapp v2026.07.001</span>
+      <span>StaffDPapp v2026.08.001</span>
       <a href="https://github.com/LostInTheBugs/StaffDPapp" target="_blank" rel="noopener noreferrer"
         style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>
         GitHub
