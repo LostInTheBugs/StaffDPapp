@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as api from '../api/client'
 
@@ -54,6 +54,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch { logout() }
     finally { setLoading(false) }
   }, [logout])
+
+  // Recharger le profil au montage quand un token existe (reload direct d'une
+  // page protégée, navigation par URL) — sinon user reste null et la nav perd
+  // les liens admin / les pages protégées par rôle redirigent à tort.
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token && state.user === null) {
+      fetchDashboard()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <AuthContext.Provider value={{ ...state, setAuth, logout, fetchDashboard, loading, error, setError }}>
