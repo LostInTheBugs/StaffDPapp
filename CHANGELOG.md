@@ -2,103 +2,103 @@
 
 ## [2026.08.008] — 2026-08-13 (stable)
 
-Version stable validée par l'utilisateur — fonctionnalités identiques à la v2026.08.007
-(pré-release de test). Voir la section 2026.08.007 pour le détail complet.
+Stable release validated by the user — same features as v2026.08.007
+(test pre-release). See the 2026.08.007 section for full details.
 
-## [2026.08.007] — 2026-08-13 (pré-release de test)
+## [2026.08.007] — 2026-08-13 (test pre-release)
 
-### Ajouté — Notifications par email (configurables par l'administrateur de la délégation)
-- **3 modes d'acheminement**, interchangeables sans changer l'application :
-  1. **Fichiers .eml** (aucun SMTP requis) : téléchargement individuel + export en lot — cas « serveur interne sans accès au SMTP »
-  2. **SMTP** : envoi direct (STARTTLS/SSL, authentifié ou non), retry automatique, email de test
-  3. **Standalone** : export JSON + CLI `email_sender.py` (Python stdlib) exécutable sur n'importe quelle machine ayant un accès SMTP
-- **File de sortie unique (outbox)** : statuts (prêt/envoyé/échec/annulé), réessai, annulation, marquage manuel (mode standalone)
-- **Déclencheurs** : convocation de réunion (membres + direction), rappel J-X avant réunion, invitation membre (avec le code), **PV validé → direction** (lien sécurisé), **PV validé → ensemble de la délégation**
-- **Partage sécurisé du PV avec la direction** : lien `/p/<token>` + code de lecture — le serveur ne voit jamais le clair (enveloppe DEK chiffrée sous le code, déchiffrement dans le navigateur du destinataire), expiration 14 jours, révocation possible, export PDF côté lecteur
-- Templates multilingues FR/EN/DE/PT (langue du destinataire)
-- **Bandeau « nouvelle version disponible »** (GitHub releases) — seul lien externe de l'application
+### Added — Email notifications (configured by the delegation administrator)
+- **3 delivery modes**, interchangeable without changing the app:
+  1. **`.eml` files** (no SMTP required): individual download + batch export — for "internal server without SMTP access"
+  2. **SMTP**: direct send (STARTTLS/SSL, with or without auth), automatic retry, test email
+  3. **Standalone**: JSON export + `email_sender.py` CLI (Python stdlib) runnable on any machine with SMTP access
+- **Single outbox queue**: statuses (ready/sent/failed/cancelled), retry, cancel, manual marking (standalone mode)
+- **Triggers**: meeting invitation (members + management), reminder J-X before meeting, member invitation (with the code), **validated minutes → management** (secure link), **validated minutes → whole delegation**
+- **Secure minutes sharing with management**: `/p/<token>` link + reading code — the server never sees plaintext (DEK wrapped under the code, decrypted in the recipient's browser), 14-day expiry, revocation, reader-side PDF export
+- Multilingual templates FR/EN/DE/PT (recipient's language)
+- **"New version available" banner** (GitHub releases) — the app's only external link
 
 ### Migration
-- Alembic `20260801_0005` (idempotente) : tables `email_configs`, `email_outbox`, `minute_share_links`
+- Alembic `20260801_0005` (idempotent): `email_configs`, `email_outbox`, `minute_share_links` tables
 
 ## [2026.08.006-c2] — 2026-08-13
 
-### Corrigé
-- **Preview direction inutilisable avec coffre actif** : `direction_preview` renvoyait le digest HMAC (32 o) au lieu du ciphertext pour les sections chiffrées → DOMException AES-GCM silencieuse, modale jamais affichée, export PDF bloqué. La preview renvoie désormais les sections `partage` telles quelles (ciphertext + nonce), renumérotation continue conservée (pas de fuite du compte total). +1 test de non-régression (193 backend).
+### Fixed
+- **Direction preview unusable with an active vault**: `direction_preview` returned the HMAC digest (32 bytes) instead of the ciphertext for encrypted sections → silent AES-GCM DOMException, modal never shown, PDF export blocked. The preview now returns the `partage` sections as-is (ciphertext + nonce), continuous renumbering preserved (no total count leak). +1 regression test (193 backend).
 
 ## [2026.08.006-c1] — 2026-08-13
 
-### Corrigé
-- **Nouvelles sections envoyées en clair quand le coffre est actif** : `prepareSectionsForSave` routait les sections sans enveloppe (`_encrypted: null`) en clair → le serveur les rejetait (422) → impossibilité d'ajouter une section avec coffre actif. Les nouvelles sections sont désormais chiffrées dès que le coffre est actif (`vault.status !== 'disabled'`), fail-closed (`VaultLockedError` si verrouillé). +2 tests (91 frontend).
+### Fixed
+- **New sections sent in clear text when the vault is active**: `prepareSectionsForSave` routed unwrapped sections (`_encrypted: null`) as plaintext → server rejected them (422) → impossible to add a section with an active vault. New sections are now encrypted as soon as the vault is active (`vault.status !== 'disabled'`), fail-closed (`VaultLockedError` if locked). +2 tests (91 frontend).
 
 ## [2026.08.006] — 2026-08-12
 
-### Ajouté
-- **Coffre-fort des PV** : chiffrement de bout en bout optionnel par organisation (`pv_vault_enabled`). Les contenus des sections sont chiffrés en AES-256-GCM dans le navigateur ; le serveur ne voit jamais le clair.
-- **Enveloppe de clé** : chaque membre dérive une KEK par Argon2id depuis son mot de passe. La DEK est générée dans le navigateur et n'existe jamais en clair hors de celui-ci.
-- **Interface de déverrouillage** : badge d'état du coffre (verrouillé/déverrouillé/désactivé) dans l'interface, formulaire de déverrouillage par mot de passe, création du coffre par un membre du bureau avec avertissement d'irréversibilité.
-- **Invitations sécurisées** : code d'invitation Crockford base32 de 26 caractères (~130 bits), hashé côté serveur (Argon2id). Le code n'est affiché qu'une seule fois. L'enveloppe de clé est transmise avec l'invitation, chiffrée sous le code.
-- **Chiffrement transparent des PV** : au chargement, les sections chiffrées sont déchiffrées avec la DEK de session. À l'enregistrement, seules les sections modifiées sont rechiffrées (nonce aléatoire par section). Le `content_digest` (HMAC-SHA256 du clair, keyé par la DEK) permet au serveur de détecter les changements sans voir le contenu.
-- **Export PDF avec coffre** : les sections de la preview direction sont déchiffrées avant l'export PDF. Export impossible si le coffre est verrouillé (pas de PDF vide ni de ciphertext transmis).
-- **Titres neutres conseillés** : rappel discret dans l'interface lorsque le coffre est actif, invitant à des intitulés de sections neutres (les titres restent en clair).
-- **Migrations Alembic idempotentes** : compatibles avec `create_all` de l'app, l'ordre de démarrage app/migration n'a plus d'importance.
+### Added
+- **Minutes vault**: optional end-to-end encryption per organization (`pv_vault_enabled`). Section contents are AES-256-GCM encrypted in the browser; the server never sees plaintext.
+- **Key envelope**: each member derives a KEK via Argon2id from their password. The DEK is generated in the browser and never exists in clear outside of it.
+- **Unlock UI**: vault status badge (locked/unlocked/disabled), password unlock form, vault creation by a board member with irreversibility warning.
+- **Secure invitations**: 26-character Crockford base32 invitation code (~130 bits), hashed server-side (Argon2id). The code is shown only once. The key envelope travels with the invitation, encrypted under the code.
+- **Transparent minutes encryption**: on load, encrypted sections are decrypted with the session DEK. On save, only modified sections are re-encrypted (random nonce per section). The `content_digest` (HMAC-SHA256 of plaintext, keyed by DEK) lets the server detect changes without seeing content.
+- **PDF export with vault**: direction preview sections are decrypted before PDF export. Export impossible while the vault is locked (no blank PDF, no ciphertext transmitted).
+- **Neutral titles hint**: subtle reminder in the UI when the vault is active, suggesting neutral section headings (titles remain in clear text).
+- **Idempotent Alembic migrations**: compatible with the app's `create_all`, app/migration startup order no longer matters.
 
-### Corrigé
-- **Bundle navigateur plantait** : `require('@pdf-lib/fontkit')` laissé en CJS dans le bundle → `ReferenceError: require is not defined` → page blanche. Import ESM propre, police DejaVuSans embarquée.
-- **Contournement MFA** : `get_current_user` rejette les tokens temporaires MFA (`mfa: true`). Un claim `typ` explicite (`access` / `mfa_pending`) est vérifié.
-- **CAPTCHA obligatoire** : les champs `captcha_id` et `captcha_answer` sont requis côté schéma Pydantic sur `/login`, `/join` et `/organizations`.
-- **Code d'invitation lié à l'email** : `join_organization` filtre sur `code` ET `email`, empêchant l'usurpation d'identité via un code intercepté.
+### Fixed
+- **Browser bundle crashed**: `require('@pdf-lib/fontkit')` left as CJS in the bundle → `ReferenceError: require is not defined` → blank page. Clean ESM import, embedded DejaVuSans font.
+- **MFA bypass**: `get_current_user` rejects temporary MFA tokens (`mfa: true`). An explicit `typ` claim (`access` / `mfa_pending`) is verified.
+- **Mandatory CAPTCHA**: `captcha_id` and `captcha_answer` are required in the Pydantic schemas on `/login`, `/join` and `/organizations`.
+- **Invitation code bound to email**: `join_organization` filters on `code` AND `email`, preventing identity theft via an intercepted code.
 
-### Modifié
-- **PV sectionné** : un PV est composé de sections marquées `interne` ou `partage`. La version direction est une projection, jamais stockée.
-- **Double validation** : la validation du PV est bloquée pour le rédacteur ; seul un autre membre du bureau peut valider.
-- **Export PDF direction** : généré côté client (`pdf-lib`), métadonnées purgées, numérotation continue, filtre fail-closed sur `visibility: 'partage'`.
-- **Alembic** : migrations pour les tables `minutes`, `minute_sections`, `minute_publications`, `vault_keys` et la colonne `code_hash` sur `invitations` (9 invitations existantes migrées sans perte).
+### Changed
+- **Sectioned minutes**: a minute is made of sections marked `interne` or `partage`. The management version is a projection, never stored.
+- **Double validation**: minute validation is blocked for the author; only another board member can validate.
+- **Management PDF export**: generated client-side (`pdf-lib`), purged metadata, continuous numbering, fail-closed filter on `visibility: 'partage'`.
+- **Alembic**: migrations for `minutes`, `minute_sections`, `minute_publications`, `vault_keys` tables and the `code_hash` column on `invitations` (9 existing invitations migrated without loss).
 
 ## [2026.08.004] — 2026-08-12
 
 ### Added
-- **Rate limiting** (anti brute-force) : login et join 10 tentatives/15 min/IP, mfa/login 10/15 min/IP, création d'organisation 5/1h/IP → HTTP 429
-- **Verrouillage TOTP** : 5 codes invalides → compte bloqué 15 minutes (colonnes `totp_failed_attempts`, `totp_locked_until`)
-- **Expiration des invitations** : 30 jours (`invitations.expires_at`, backfill +30 j sur les existantes)
-- **Politique de mot de passe** : minimum 8 caractères (backend + formulaires frontend)
-- **Migration Alembic** `4b6d8e9f0a1c` (chaîne : baseline → lowercase emails → hardening) — fini la suppression de volume à chaque changement de schéma
-- **13 tests** de durcissement (117 au total)
+- **Rate limiting** (anti brute-force): login and join 10 attempts/15 min/IP, mfa/login 10/15 min/IP, organization creation 5/1h/IP → HTTP 429
+- **TOTP lockout**: 5 invalid codes → account blocked for 15 minutes (`totp_failed_attempts`, `totp_locked_until` columns)
+- **Invitation expiry**: 30 days (`invitations.expires_at`, backfill +30 days on existing ones)
+- **Password policy**: minimum 8 characters (backend + frontend forms)
+- **Alembic migration** `4b6d8e9f0a1c` (chain: baseline → lowercase emails → hardening) — no more volume deletion on schema changes
+- **13 hardening tests** (117 total)
 
 ### Changed
-- Déploiement : `alembic stamp 31140e6e07a7` + `upgrade head` au lieu de supprimer le volume
+- Deployment: `alembic stamp 31140e6e07a7` + `upgrade head` instead of deleting the volume
 
 ## [2026.08.002] — 2026-08-12
 
 ### Added
-- Suite de tests backend (104 tests : sécurité, barèmes légaux, MFA, CAPTCHA, emails) — fusion de la branche `fix/securite-auth`
-- Migration Alembic (baseline + normalisation emails en minuscules)
+- Backend test suite (104 tests: security, legal scales, MFA, CAPTCHA, emails) — merge of the `fix/securite-auth` branch
+- Alembic migration (baseline + lowercase email normalization)
 
 ### Fixed
-- **Stats réunions cassées** : `/api/meetings/stats` renvoyait 422 (ordre des routes) — le bandeau affichait `undefined/6`
-- **CAPTCHA contournable** : désormais obligatoire côté backend sur login/join/création d'organisation (422 sans captcha)
-- **Contournement MFA** : les tokens MFA-pending (`typ=mfa_pending`) ne peuvent plus accéder aux routes protégées
-- **Invitation** : le code est désormais lié à l'email (impossible de rejoindre avec une autre identité)
-- **Barème L.412-1 >5500 salariés** : arrondi inférieur (tranche entière de 500), conforme au texte officiel
-- **Normalisation des emails** : comparaison insensible à la casse (login avec `Sophie@Demo.lu` accepté)
-- **Version frontend alignée** : `index.html` et footer affichaient encore 2026.07.001
+- **Broken meeting stats**: `/api/meetings/stats` returned 422 (route ordering) — the banner displayed `undefined/6`
+- **Bypassable CAPTCHA**: now mandatory backend-side on login/join/organization creation (422 without captcha)
+- **MFA bypass**: MFA-pending tokens (`typ=mfa_pending`) can no longer access protected routes
+- **Invitation**: the code is now bound to the email (impossible to join with another identity)
+- **L.412-1 scale >5500 employees**: rounded down (full 500-slice), per the official text
+- **Email normalization**: case-insensitive comparison (login with `Sophie@Demo.lu` accepted)
+- **Frontend version aligned**: `index.html` and footer still displayed 2026.07.001
 
 ## [2026.08.001] — 2026-08-01
 
 ### Added
-- Fichier `VERSION` à la racine contenant la version `2026.08.001`
-- `CHANGELOG.md` avec suivi des versions
-- Variable d'environnement `SD_PORT` pour le port d'écoute du backend
+- `VERSION` file at the root containing version `2026.08.001`
+- `CHANGELOG.md` with version tracking
+- `SD_PORT` environment variable for the backend listening port
 
 ### Changed
-- Version du projet uniformisée à `2026.08.001` dans tous les manifestes (`package.json`, `app/main.py`)
-- Port d'écoute par défaut du backend : `8000` → `8005`
-- Backend Dockerfile : le port est désormais surchargeable via `${SD_PORT:-8005}` au lieu d'être codé en dur
-- `.env.example` : ajout de `SD_PORT=8005`
-- `docker-compose.yml` : ajout de `SD_PORT` dans les variables d'environnement du backend
-- `frontend/nginx.conf` : proxy API vers le backend sur le port `8005`
-- `frontend/vite.config.ts` : proxy de développement vers `localhost:8005`
-- `README.md` : enrichi avec version courante, lien releases GitHub, configuration complète, dépendances
+- Project version unified to `2026.08.001` in all manifests (`package.json`, `app/main.py`)
+- Default backend listening port: `8000` → `8005`
+- Backend Dockerfile: the port is now overridable via `${SD_PORT:-8005}` instead of hardcoded
+- `.env.example`: added `SD_PORT=8005`
+- `docker-compose.yml`: added `SD_PORT` in the backend environment variables
+- `frontend/nginx.conf`: API proxy to the backend on port `8005`
+- `frontend/vite.config.ts`: development proxy to `localhost:8005`
+- `README.md`: enriched with current version, GitHub releases link, full configuration, dependencies
 
 ### Fixed
-- Cohérence du port entre tous les fichiers de configuration (Docker, dev, nginx, vite)
+- Port consistency across all configuration files (Docker, dev, nginx, vite)
