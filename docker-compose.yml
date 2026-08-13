@@ -23,6 +23,11 @@ services:
       - traefik-public
     labels:
       - "traefik.enable=true"
+      # Force le réseau pour la découverte Traefik : le frontend est sur
+      # sd-net + traefik-public ; sans ce label, Traefik peut résoudre l'IP
+      # du réseau privé (sd-net) et ne pas joindre le conteneur (timeout 30s,
+      # 504). Vue sur ionos04 lors de la migration depuis ionos05.
+      - "traefik.docker.network=traefik-public"
       # HTTP router (redirects to HTTPS)
       - "traefik.http.routers.sd-web.rule=Host(`staffdpapp.cloudfr.net`)"
       - "traefik.http.routers.sd-web.middlewares=sd-redirect"
