@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026.08.006-c2] — 2026-08-13
+
+### Corrigé
+- **Preview direction inutilisable avec coffre actif** : `direction_preview` renvoyait le digest HMAC (32 o) au lieu du ciphertext pour les sections chiffrées → DOMException AES-GCM silencieuse, modale jamais affichée, export PDF bloqué. La preview renvoie désormais les sections `partage` telles quelles (ciphertext + nonce), renumérotation continue conservée (pas de fuite du compte total). +1 test de non-régression (193 backend).
+
+## [2026.08.006-c1] — 2026-08-13
+
+### Corrigé
+- **Nouvelles sections envoyées en clair quand le coffre est actif** : `prepareSectionsForSave` routait les sections sans enveloppe (`_encrypted: null`) en clair → le serveur les rejetait (422) → impossibilité d'ajouter une section avec coffre actif. Les nouvelles sections sont désormais chiffrées dès que le coffre est actif (`vault.status !== 'disabled'`), fail-closed (`VaultLockedError` si verrouillé). +2 tests (91 frontend).
+
 ## [2026.08.006] — 2026-08-12
 
 ### Ajouté
