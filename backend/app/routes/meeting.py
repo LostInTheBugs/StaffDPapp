@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -56,6 +56,8 @@ def list_meetings(
 @router.post("", response_model=MeetingResponse, status_code=status.HTTP_201_CREATED)
 def create_meeting(
     body: CreateMeetingRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -83,14 +85,56 @@ def create_meeting(
         db.add(MeetingPoint(meeting_id=meeting.id, description=pt.description, order=pt.order or i))
 
     # Invitees
+    invited_users = []
     for uid in body.invitee_ids:
         user = db.query(User).filter(User.id == uid, User.organization_id == current_user.organization_id).first()
         if user:
             db.add(MeetingInvitee(meeting_id=meeting.id, user_id=uid))
+            invited_users.append(user)
 
     db.commit()
     db.refresh(meeting)
+
+    # ── Déclencheur : convocations par email (si notifications actives) ──
+    _queue_meeting_invites(db, request, background_tasks, meeting, invited_users)
     return _meeting_to_response(meeting)
+
+
+def _queue_meeting_invites(
+    db: Session, request: Request, background_tasks: BackgroundTasks,
+    meeting: Meeting, invited_users: list[User],
+) -> None:
+    """Met en file les convocations (membres + direction) — silencieux si
+    les notifications sont désactivées pour l'organisation."""
+    from app.models.email import EmailConfig, EmailEventType, TransportMode
+    from app.services.email_service import queue_email, send_ready_smtp
+
+    cfg = db.query(EmailConfig).filter(EmailConfig.organization_id == meeting.organization_id).first()
+    if cfg is None or not cfg.enabled:
+        return
+    base_url = str(request.base_url)
+    agenda = ", ".join(p.description for p in (meeting.points or [])[:5])
+    meeting_date = meeting.date
+    if meeting_date.tzinfo:
+        meeting_date = meeting_date.replace(tzinfo=None)
+
+    ctx_base = {
+        "base_url": base_url,
+        "meeting_title": meeting.title,
+        "meeting_date": f"{meeting_date:%d/%m/%Y}",
+        "meeting_location": meeting.location or "",
+        "agenda": agenda,
+    }
+    for user in invited_users:
+        ctx = dict(ctx_base, recipient_name=user.full_name or user.email, meeting_id=meeting.id)
+        queue_email(db, meeting.organization_id, EmailEventType.meeting_invite.value,
+                    user.full_name, user.email, user.language or "fr", ctx)
+    if meeting.direction_invited and cfg.direction_email:
+        ctx = dict(ctx_base, recipient_name="Direction", meeting_id=meeting.id)
+        queue_email(db, meeting.organization_id, EmailEventType.meeting_invite.value,
+                    "Direction", cfg.direction_email, "fr", ctx)
+    if cfg.transport_mode == TransportMode.smtp:
+        background_tasks.add_task(send_ready_smtp, db, meeting.organization_id)
 
 
 @router.get("/stats")
