@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useT } from '../i18n/I18nContext'
 import CaptchaWidget from '../components/CaptchaWidget'
+import VersionCheck from '../components/VersionCheck'
 import * as api from '../api/client'
 
 export default function Login() {
@@ -55,7 +56,9 @@ export default function Login() {
   }
 
   return (
-    <div className="container">
+    <>
+      <VersionCheck />
+      <div className="container">
       <div className="card">
         <h2>🔑 {mfaToken ? 'Vérification MFA' : 'Connexion'}</h2>
 
@@ -105,5 +108,6 @@ export default function Login() {
         )}
       </div>
     </div>
+    </>
   )
 }

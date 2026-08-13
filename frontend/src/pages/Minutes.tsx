@@ -6,6 +6,7 @@ import { useVault } from '../hooks/useVault'
 import { useT } from '../i18n/I18nContext'
 import { exportDirectionPDF, type DirectionPreview } from '../lib/pdfExport'
 import { encryptSection, sectionDigest, getSessionDEK } from '../lib/vault'
+import { generateReadCode, wrapDEKForSharing } from '../lib/shareLink'
 import {
   decryptSectionsForDisplay,
   prepareSectionsForSave,
@@ -78,6 +79,9 @@ export default function MinutesPage() {
   const [creating, setCreating] = useState(false)
   const [validating, setValidating] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const [sendingDp, setSendingDp] = useState(false)
+  const [shareResult, setShareResult] = useState<{ url: string; code: string; expires_at: string | null } | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
@@ -358,6 +362,55 @@ export default function MinutesPage() {
     }
   }
 
+  /**
+   * Partage sécurisé du PV avec la direction : lien /p/<token> + code de
+   * lecture. Le code est généré ici (navigateur) et n'est JAMAIS envoyé au
+   * serveur — il est affiché une seule fois pour transmission par un canal
+   * séparé. La DEK reste en mémoire, jamais transmise.
+   */
+  async function handleShareWithDirection() {
+    if (!minute) return
+    const dek = getSessionDEK()
+    if (!dek) { setErr(t('vault.minutes_locked_preview')); return }
+    setSharing(true); setErr(null)
+    try {
+      const code = generateReadCode()
+      const { envelope } = await wrapDEKForSharing(dek, code)
+      const r = await fetch(`/api/minutes/${minute.id}/share-links`, {
+        method: 'POST',
+        headers: { ...h, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ envelope, expires_days: 14 }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.detail || 'Erreur')
+      setShareResult({ url: data.share_url, code, expires_at: data.expires_at || null })
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  /** Envoi du PV validé à l'ensemble de la délégation (membres). */
+  async function handleSendToDp() {
+    if (!minute) return
+    setSendingDp(true); setErr(null)
+    try {
+      const r = await fetch(`/api/minutes/${minute.id}/send-to-dp`, {
+        method: 'POST',
+        headers: h,
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.detail || 'Erreur')
+      setMsg(`📣 PV envoyé à la délégation (${data.queued}/${data.members} messages)`)
+      setTimeout(() => setMsg(null), 5000)
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setSendingDp(false)
+    }
+  }
+
   const isCreator = minute && user?.id === minute.created_by_id
   const isBureau = minute && user?.delegue_role && BUREAU_ROLES.includes(user.delegue_role)
 
@@ -458,12 +511,20 @@ export default function MinutesPage() {
                     {t('minutes.close_preview')}
                   </button>
                   {previewSections.length > 0 && minute?.status === 'valide' && isBureau && (
-                    <button onClick={handleExportAndPublish} className="btn btn-primary"
-                      disabled={exporting || !!exportDisabledVault}
-                      title={exportDisabledVault ? t('vault.minutes_locked_preview') : undefined}
-                      style={{ flex: 1, background: '#2b6cb0', color: '#fff', border: 'none' }}>
-                      {exporting ? <div className="spinner" /> : t('minutes.export_and_publish')}
-                    </button>
+                    <>
+                      <button onClick={handleShareWithDirection} className="btn"
+                        disabled={sharing || vault.status !== 'unlocked'}
+                        title={vault.status !== 'unlocked' ? t('vault.minutes_locked_preview') : undefined}
+                        style={{ flex: 1 }}>
+                        {sharing ? <div className="spinner" /> : '📧 Partager avec la direction'}
+                      </button>
+                      <button onClick={handleExportAndPublish} className="btn btn-primary"
+                        disabled={exporting || !!exportDisabledVault}
+                        title={exportDisabledVault ? t('vault.minutes_locked_preview') : undefined}
+                        style={{ flex: 1, background: '#2b6cb0', color: '#fff', border: 'none' }}>
+                        {exporting ? <div className="spinner" /> : t('minutes.export_and_publish')}
+                      </button>
+                    </>
                   )}
                 </div>
                 {exportDisabledVault && previewSections.length > 0 && (
@@ -472,6 +533,42 @@ export default function MinutesPage() {
                   </p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {shareResult && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)', zIndex: 2100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }} onClick={() => setShareResult(null)}>
+            <div className="card" style={{ maxWidth: 560, width: '90%', background: '#fff' }}
+              onClick={e => e.stopPropagation()}>
+              <h2 style={{ marginBottom: 12 }}>📤 PV partagé avec la direction</h2>
+              <p style={{ fontSize: '.88rem', color: 'var(--gray-600)', marginBottom: 16 }}>
+                L'email avec le lien a été mis en file. Transmettez le <strong>code de lecture</strong>
+                {' '}à la direction par un canal séparé (téléphone, visio…) — il n'est affiché qu'une fois.
+              </p>
+              <div style={{ background: '#f7fafc', border: '1px solid var(--gray-300)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: '.8rem', color: 'var(--gray-500)', marginBottom: 4 }}>🔗 Lien de lecture</div>
+                <div style={{ wordBreak: 'break-all', fontFamily: 'monospace', fontSize: '.82rem' }}>{shareResult.url}</div>
+                <div style={{ fontSize: '.8rem', color: 'var(--gray-500)', margin: '12px 0 4px' }}>🔑 Code de lecture</div>
+                <div style={{
+                  fontFamily: 'monospace', fontSize: '1.6rem', fontWeight: 700, letterSpacing: 8,
+                  textAlign: 'center', padding: 8, background: '#fff', border: '2px dashed var(--blue)',
+                  borderRadius: 8, color: 'var(--blue)',
+                }}>{shareResult.code}</div>
+                {shareResult.expires_at && (
+                  <div style={{ fontSize: '.75rem', color: 'var(--gray-500)', marginTop: 10, textAlign: 'center' }}>
+                    Lien valable jusqu'au {new Date(shareResult.expires_at).toLocaleDateString('fr-LU')}
+                  </div>
+                )}
+              </div>
+              <button className="btn btn-primary" onClick={() => setShareResult(null)}
+                style={{ width: '100%' }}>
+                J'ai transmis le code ✅
+              </button>
             </div>
           </div>
         )}
@@ -508,9 +605,17 @@ export default function MinutesPage() {
                 </p>
               )}
             </div>
-            <button onClick={() => navigate('/meetings')} className="link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '.85rem' }}>
-              {t('minutes.back_to_meeting')}
-            </button>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              {minute && isBureau && (minute.status === 'valide' || minute.status === 'diffuse') && (
+                <button onClick={handleSendToDp} className="btn" disabled={sendingDp}
+                  style={{ fontSize: '.82rem', padding: '6px 12px' }}>
+                  {sendingDp ? <div className="spinner" /> : '📣 Envoyer à la délégation'}
+                </button>
+              )}
+              <button onClick={() => navigate('/meetings')} className="link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '.85rem' }}>
+                {t('minutes.back_to_meeting')}
+              </button>
+            </div>
           </div>
         </div>
 
