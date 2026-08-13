@@ -1,20 +1,25 @@
 import base64
 from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models import User, Organization
+from app.models.email import EmailConfig, EmailEventType, TransportMode
 from app.models.minute import Minute, MinuteSection, MinutePublication, MinuteStatus, SectionVisibility
 from app.models.meeting import Meeting
 from app.models.vault_key import VaultKey
+from app.routes.share import create_share_link, share_link_url
+from app.schemas.email import ShareLinkCreate, ShareLinkCreateResponse
 from app.schemas.minute import (
     MinuteResponse, MinuteDetailResponse, CreateMinuteRequest, UpdateSectionsRequest,
     SectionSchema, PreviewSectionSchema, DirectionPreviewResponse,
     PublishRequest, PublicationHistorySchema,
 )
+from app.services.email_service import queue_email, render_email, send_ready_smtp
 
 router = APIRouter(tags=["minutes"])
 
@@ -393,6 +398,111 @@ def direction_preview(
         "sections": preview_sections,
         "generated_at": datetime.now(timezone.utc),
     }
+
+
+# ── Partage sécurisé (direction) ──────────────────────────────────────
+
+
+@router.post("/api/minutes/{minute_id}/share-links", response_model=ShareLinkCreateResponse)
+def create_minute_share_link(
+    minute_id: int,
+    body: ShareLinkCreate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Crée un lien de lecture sécurisé + met en file l'email à la direction.
+
+    L'enveloppe (DEK chiffrée sous le code de lecture) vient du client ;
+    le serveur ne voit jamais le code ni le clair. Le lien est envoyé par
+    email à direction_email (config), le code est communiqué par l'envoyeur
+    par un canal séparé.
+    """
+    minute = (
+        db.query(Minute)
+        .filter(Minute.id == minute_id, Minute.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not minute:
+        raise HTTPException(status_code=404, detail="PV non trouvé")
+    if current_user.delegue_role.value not in BUREAU_ROLES:
+        raise HTTPException(status_code=403, detail="Seuls les membres du bureau peuvent partager un PV")
+    if minute.status not in (MinuteStatus.valide, MinuteStatus.diffuse):
+        raise HTTPException(status_code=409, detail="Le PV doit être validé avant d'être partagé avec la direction")
+
+    cfg = db.query(EmailConfig).filter(EmailConfig.organization_id == current_user.organization_id).first()
+    if cfg is None or not cfg.enabled or not cfg.direction_email:
+        raise HTTPException(status_code=409, detail="Notifications désactivées ou adresse de la direction non configurée (Mon organisation → Notifications)")
+
+    link = create_share_link(db, minute, current_user, body.envelope, body.expires_days)
+    base_url = str(request.base_url)
+    share_url = share_link_url(base_url, link.token)
+
+    ctx = {
+        "base_url": base_url,
+        "meeting_title": minute.meeting.title if minute.meeting else "",
+        "meeting_date": minute.meeting.date.strftime("%d/%m/%Y") if minute.meeting and minute.meeting.date else "",
+        "share_url": share_url,
+        "expires_at": link.expires_at.strftime("%d/%m/%Y") if link.expires_at else "",
+    }
+    queue_email(db, current_user.organization_id, EmailEventType.minutes_direction.value,
+                "Direction", cfg.direction_email, "fr", ctx)
+    if cfg.transport_mode == TransportMode.smtp:
+        background_tasks.add_task(send_ready_smtp, db, current_user.organization_id)
+
+    return ShareLinkCreateResponse(
+        token=link.token,
+        share_url=share_url,
+        expires_at=link.expires_at.isoformat() if link.expires_at else None,
+    )
+
+
+@router.post("/api/minutes/{minute_id}/send-to-dp")
+def send_minute_to_delegation(
+    minute_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Met en file un email à chaque membre de la délégation (langue du membre)."""
+    minute = (
+        db.query(Minute)
+        .filter(Minute.id == minute_id, Minute.organization_id == current_user.organization_id)
+        .first()
+    )
+    if not minute:
+        raise HTTPException(status_code=404, detail="PV non trouvé")
+    if current_user.delegue_role.value not in BUREAU_ROLES:
+        raise HTTPException(status_code=403, detail="Seuls les membres du bureau peuvent diffuser un PV")
+    if minute.status not in (MinuteStatus.valide, MinuteStatus.diffuse):
+        raise HTTPException(status_code=409, detail="Le PV doit être validé avant diffusion")
+
+    cfg = db.query(EmailConfig).filter(EmailConfig.organization_id == current_user.organization_id).first()
+    if cfg is None or not cfg.enabled:
+        raise HTTPException(status_code=409, detail="Notifications désactivées (Mon organisation → Notifications)")
+
+    members = db.query(User).filter(
+        User.organization_id == current_user.organization_id,
+        User.is_active == True,  # noqa: E712
+    ).all()
+    base_url = str(request.base_url)
+    queued = 0
+    for member in members:
+        ctx = {
+            "base_url": base_url,
+            "recipient_name": member.full_name or member.email,
+            "meeting_title": minute.meeting.title if minute.meeting else "",
+            "meeting_date": minute.meeting.date.strftime("%d/%m/%Y") if minute.meeting and minute.meeting.date else "",
+        }
+        msg = queue_email(db, current_user.organization_id, EmailEventType.minutes_dp.value,
+                          member.full_name, member.email, member.language or "fr", ctx)
+        if msg:
+            queued += 1
+    if cfg.transport_mode == TransportMode.smtp:
+        background_tasks.add_task(send_ready_smtp, db, current_user.organization_id)
+    return {"queued": queued, "members": len(members)}
 
 
 # ── POST /api/minutes/{id}/publish ─────────────────────────────────

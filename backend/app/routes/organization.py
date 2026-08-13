@@ -3,7 +3,7 @@ import base64
 import json
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -171,6 +171,8 @@ def join_organization(body: RegisterRequest, request: Request, db: Session = Dep
 @router.post("/invitations", response_model=CreateInvitationResponse, status_code=status.HTTP_201_CREATED)
 def create_invitation(
     body: CreateInvitationRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -229,9 +231,35 @@ def create_invitation(
     db.commit()
     db.refresh(invitation)
 
+    # ── Déclencheur : email d'invitation avec le code (une seule fois) ──
+    _queue_invite_email(db, request, background_tasks, invitation, plaintext_code)
+
     result = dict(_invitation_to_response(invitation))
     result["code"] = plaintext_code  # ONE-TIME only
     return result
+
+
+def _queue_invite_email(
+    db: Session, request: Request, background_tasks: BackgroundTasks,
+    invitation: Invitation, plaintext_code: str,
+) -> None:
+    """Email d'invitation avec le code — silencieux si notifications désactivées."""
+    from app.models.email import EmailConfig, EmailEventType, TransportMode
+    from app.services.email_service import queue_email, send_ready_smtp
+
+    cfg = db.query(EmailConfig).filter(EmailConfig.organization_id == invitation.organization_id).first()
+    if cfg is None or not cfg.enabled:
+        return
+    recipient_name = f"{invitation.first_name} {invitation.last_name}".strip()
+    ctx = {
+        "base_url": str(request.base_url),
+        "recipient_name": recipient_name,
+        "invite_code": plaintext_code,
+    }
+    queue_email(db, invitation.organization_id, EmailEventType.member_invite.value,
+                recipient_name, invitation.email, "fr", ctx)
+    if cfg.transport_mode == TransportMode.smtp:
+        background_tasks.add_task(send_ready_smtp, db, invitation.organization_id)
 
 
 @router.put("/organization", response_model=OrganizationResponse)
