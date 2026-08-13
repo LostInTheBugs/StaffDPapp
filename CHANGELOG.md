@@ -1,6 +1,11 @@
 # Changelog
 
-## [2026.08.007] — 2026-08-13 (test)
+## [2026.08.008] — 2026-08-13 (stable)
+
+Version stable validée par l'utilisateur — fonctionnalités identiques à la v2026.08.007
+(pré-release de test). Voir la section 2026.08.007 pour le détail complet.
+
+## [2026.08.007] — 2026-08-13 (pré-release de test)
 
 ### Ajouté — Notifications par email (configurables par l'administrateur de la délégation)
 - **3 modes d'acheminement**, interchangeables sans changer l'application :
