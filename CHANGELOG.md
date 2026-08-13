@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026.08.007] — 2026-08-13 (test)
+
+### Ajouté — Notifications par email (configurables par l'administrateur de la délégation)
+- **3 modes d'acheminement**, interchangeables sans changer l'application :
+  1. **Fichiers .eml** (aucun SMTP requis) : téléchargement individuel + export en lot — cas « serveur interne sans accès au SMTP »
+  2. **SMTP** : envoi direct (STARTTLS/SSL, authentifié ou non), retry automatique, email de test
+  3. **Standalone** : export JSON + CLI `email_sender.py` (Python stdlib) exécutable sur n'importe quelle machine ayant un accès SMTP
+- **File de sortie unique (outbox)** : statuts (prêt/envoyé/échec/annulé), réessai, annulation, marquage manuel (mode standalone)
+- **Déclencheurs** : convocation de réunion (membres + direction), rappel J-X avant réunion, invitation membre (avec le code), **PV validé → direction** (lien sécurisé), **PV validé → ensemble de la délégation**
+- **Partage sécurisé du PV avec la direction** : lien `/p/<token>` + code de lecture — le serveur ne voit jamais le clair (enveloppe DEK chiffrée sous le code, déchiffrement dans le navigateur du destinataire), expiration 14 jours, révocation possible, export PDF côté lecteur
+- Templates multilingues FR/EN/DE/PT (langue du destinataire)
+- **Bandeau « nouvelle version disponible »** (GitHub releases) — seul lien externe de l'application
+
+### Migration
+- Alembic `20260801_0005` (idempotente) : tables `email_configs`, `email_outbox`, `minute_share_links`
+
 ## [2026.08.006-c2] — 2026-08-13
 
 ### Corrigé
