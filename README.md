@@ -4,7 +4,7 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.009** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.010** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
