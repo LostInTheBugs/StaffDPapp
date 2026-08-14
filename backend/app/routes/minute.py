@@ -17,7 +17,7 @@ from app.schemas.email import ShareLinkCreate, ShareLinkCreateResponse
 from app.schemas.minute import (
     MinuteResponse, MinuteDetailResponse, CreateMinuteRequest, UpdateSectionsRequest,
     SectionSchema, PreviewSectionSchema, DirectionPreviewResponse,
-    PublishRequest, PublicationHistorySchema,
+    PublishRequest, PublicationHistorySchema, MinuteArchiveEntry,
 )
 from app.services.email_service import queue_email, render_email, send_ready_smtp
 
@@ -202,6 +202,35 @@ def get_meeting_minute(
 
 
 # ── GET /api/minutes/{id} ──────────────────────────────────────────
+
+
+@router.get("/api/minutes", response_model=list[MinuteArchiveEntry])
+def list_minutes_archive(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Archive : métadonnées de tous les PV de l'organisation (jamais le contenu)."""
+    rows = (
+        db.query(Minute)
+        .filter(Minute.organization_id == current_user.organization_id)
+        .order_by(Minute.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": m.id,
+            "meeting_id": m.meeting_id,
+            "meeting_title": m.meeting.title if m.meeting else None,
+            "meeting_date": m.meeting.date if m.meeting else None,
+            "status": m.status.value if m.status else "brouillon",
+            "is_encrypted": m.is_encrypted,
+            "created_by_name": m.created_by.full_name if m.created_by else None,
+            "validated_by_name": m.validated_by.full_name if m.validated_by else None,
+            "validated_at": m.validated_at,
+            "created_at": m.created_at,
+        }
+        for m in rows
+    ]
 
 
 @router.get("/api/minutes/{minute_id}", response_model=MinuteDetailResponse)

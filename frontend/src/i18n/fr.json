@@ -241,5 +241,18 @@
   "dashboard.widget_people": "salariés",
   "dashboard.widget_members": "Membres de la délégation",
   "dashboard.widget_titulaires": "titulaires",
-  "dashboard.widget_suppleants": "suppléants"
+  "dashboard.widget_suppleants": "suppléants",
+  "nav.archive": "📚 Archive",
+  "archive.title": "Archive des procès-verbaux",
+  "archive.subtitle": "Bibliothèque des PV de la délégation — le contenu reste chiffré (coffre) et ne s'affiche qu'après déverrouillage.",
+  "archive.search": "Rechercher par titre de réunion…",
+  "archive.all": "Tous les statuts",
+  "archive.draft": "Brouillon",
+  "archive.validated": "Validé",
+  "archive.date": "Date",
+  "archive.meeting": "Réunion",
+  "archive.status": "Statut",
+  "archive.written_by": "Rédigé par",
+  "archive.validated_by": "Validé par",
+  "archive.empty": "Aucun PV dans l'archive. Cliquez sur une réunion pour rédiger un PV."
 }

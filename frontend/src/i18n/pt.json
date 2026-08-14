@@ -241,5 +241,18 @@
   "dashboard.widget_people": "trabalhadores",
   "dashboard.widget_members": "Membros da delegação",
   "dashboard.widget_titulaires": "titulares",
-  "dashboard.widget_suppleants": "suplentes"
+  "dashboard.widget_suppleants": "suplentes",
+  "nav.archive": "📚 Arquivo",
+  "archive.title": "Arquivo de atas",
+  "archive.subtitle": "Biblioteca de atas da delegação — o conteúdo permanece criptografado (cofre) e só é exibido após desbloqueio.",
+  "archive.search": "Pesquisar por título da reunião…",
+  "archive.all": "Todos os status",
+  "archive.draft": "Rascunho",
+  "archive.validated": "Validado",
+  "archive.date": "Data",
+  "archive.meeting": "Reunião",
+  "archive.status": "Status",
+  "archive.written_by": "Redigido por",
+  "archive.validated_by": "Validado por",
+  "archive.empty": "Nenhuma ata no arquivo ainda. Clique numa reunião para redigir uma ata."
 }

@@ -10,6 +10,7 @@ import Organigramme from './pages/Organigramme'
 import Meetings from './pages/Meetings'
 import TimeTracking from './pages/TimeTracking'
 import MinutesPage from './pages/Minutes'
+import MinutesArchive from './pages/MinutesArchive'
 import Notifications from './pages/Notifications'
 import ShareView from './pages/ShareView'
 import Consultations from './pages/Consultations'
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
       <Route path="/hours" element={<ProtectedRoute><TimeTracking /></ProtectedRoute>} />
       <Route path="/meetings/:meetingId/minutes" element={<ProtectedRoute><MinutesPage /></ProtectedRoute>} />
+      <Route path="/archive" element={<ProtectedRoute><MinutesArchive /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="/consultations" element={<ProtectedRoute><Consultations /></ProtectedRoute>} />
       <Route path="/workforce-stats" element={<ProtectedRoute><WorkforceStats /></ProtectedRoute>} />

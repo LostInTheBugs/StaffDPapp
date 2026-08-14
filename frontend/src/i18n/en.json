@@ -241,5 +241,18 @@
   "dashboard.widget_people": "employees",
   "dashboard.widget_members": "Delegation members",
   "dashboard.widget_titulaires": "titular",
-  "dashboard.widget_suppleants": "deputies"
+  "dashboard.widget_suppleants": "deputies",
+  "nav.archive": "📚 Archive",
+  "archive.title": "Minutes archive",
+  "archive.subtitle": "Delegation minutes library — content stays encrypted (vault) and only displays after unlocking.",
+  "archive.search": "Search by meeting title…",
+  "archive.all": "All statuses",
+  "archive.draft": "Draft",
+  "archive.validated": "Validated",
+  "archive.date": "Date",
+  "archive.meeting": "Meeting",
+  "archive.status": "Status",
+  "archive.written_by": "Written by",
+  "archive.validated_by": "Validated by",
+  "archive.empty": "No minutes in the archive yet. Click a meeting to draft minutes."
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.08.018] — 2026-08-14 (test pre-release)
+
+### Added — minutes archive
+- **📚 Archive page** (`/archive`): metadata library of all delegation minutes — meeting title/date, status badge (draft/validated), author, validator + validation date, 🔒 marker for encrypted content (vault). Search by meeting title + status filter.
+- **`GET /api/minutes`**: archive endpoint returning metadata ONLY — never section content (even ciphertext stays out of the list).
+- Clicking a row opens the existing minutes detail page (content decrypts in-browser when the vault is unlocked).
+- Tests backend (metadata only, no content in payload, validated info) — 229 total. i18n FR/EN/DE/PT.
+
 ## [2026.08.017] — 2026-08-14 (stable)
 
 Stable release validated by the user — same features as v2026.08.016

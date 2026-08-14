@@ -241,5 +241,18 @@
   "dashboard.widget_people": "Beschäftigte",
   "dashboard.widget_members": "Delegationsmitglieder",
   "dashboard.widget_titulaires": "ordentliche",
-  "dashboard.widget_suppleants": "Stellvertreter"
+  "dashboard.widget_suppleants": "Stellvertreter",
+  "nav.archive": "📚 Archiv",
+  "archive.title": "Protokollarchiv",
+  "archive.subtitle": "Bibliothek der Delegationsprotokolle — der Inhalt bleibt verschlüsselt (Tresor) und wird erst nach dem Entsperren angezeigt.",
+  "archive.search": "Nach Sitzungstitel suchen…",
+  "archive.all": "Alle Status",
+  "archive.draft": "Entwurf",
+  "archive.validated": "Validiert",
+  "archive.date": "Datum",
+  "archive.meeting": "Sitzung",
+  "archive.status": "Status",
+  "archive.written_by": "Erstellt von",
+  "archive.validated_by": "Validiert von",
+  "archive.empty": "Noch keine Protokolle im Archiv. Klicken Sie auf eine Sitzung, um ein Protokoll zu erstellen."
 }

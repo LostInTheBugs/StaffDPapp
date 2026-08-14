@@ -81,3 +81,17 @@ class PublicationHistorySchema(BaseModel):
 
 class MinuteDetailResponse(MinuteResponse):
     publications: list[PublicationHistorySchema] = []
+
+
+class MinuteArchiveEntry(BaseModel):
+    """Entrée d'archive : métadonnées uniquement (jamais le contenu)."""
+    id: int
+    meeting_id: int
+    meeting_title: str | None = None
+    meeting_date: datetime | None = None
+    status: str
+    is_encrypted: bool = False
+    created_by_name: str | None = None
+    validated_by_name: str | None = None
+    validated_at: datetime | None = None
+    created_at: datetime | None = None
