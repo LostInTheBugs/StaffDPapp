@@ -15,8 +15,9 @@ const CATEGORIES = [
 ]
 
 export default function TimeTracking() {
-  const { token, organization } = useAuth()
+  const { token, organization, user } = useAuth()
   const weeklyPool = organization?.weekly_credit_hours
+  const isBureau = user?.delegue_role === 'president' || user?.delegue_role === 'vice_president' || user?.delegue_role === 'secretaire' || user?.role === 'admin'
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [summary, setSummary] = useState({ month: '', total_hours: 0, credit_hours: 20, remaining: 20 })
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), hours: '', description: '', category: 'reunion' })
@@ -59,6 +60,20 @@ export default function TimeTracking() {
     try { await fetch(`/api/time/${id}`, { method: 'DELETE', headers: h }); loadData() } catch { /* */ }
   }
 
+  async function exportCSV(mine: boolean) {
+    try {
+      const res = await fetch(`/api/time/export?month=${filterMonth}`, { headers: h })
+      if (!res.ok) throw new Error('Export impossible')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `hours_${filterMonth}_${mine ? 'mine' : 'delegation'}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) { setErr(e.message) }
+  }
+
   const formatDate = (d: string) => new Date(d).toLocaleDateString('fr-LU')
   const catLabel = (c: string) => CATEGORIES.find(x => x.value === c)?.label || c
 
@@ -97,10 +112,18 @@ export default function TimeTracking() {
         </div>
 
         <div className="card mb-24">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2>📋 Historique</h2>
-            <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-              style={{ padding: '6px 10px', border: '1.5px solid var(--gray-300)', borderRadius: 'var(--radius)' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+            <h2 style={{ margin: 0 }}>📋 Historique</h2>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
+                style={{ padding: '6px 10px', border: '1.5px solid var(--gray-300)', borderRadius: 'var(--radius)' }} />
+              <button className="btn" style={{ padding: '6px 12px', fontSize: '.85rem' }} onClick={() => exportCSV(true)}>⬇️ Exporter (moi)</button>
+              {isBureau && (
+                <button className="btn" style={{ padding: '6px 12px', fontSize: '.85rem', background: 'var(--blue)', color: '#fff', border: 'none' }} onClick={() => exportCSV(false)}>
+                  ⬇️ Exporter la délégation
+                </button>
+              )}
+            </div>
           </div>
           {entries.length === 0 ? (
             <p style={{ color: 'var(--gray-600)', textAlign: 'center', padding: 20 }}>Aucune entrée ce mois-ci.</p>

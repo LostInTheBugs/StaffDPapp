@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.08.014] — 2026-08-14 (test pre-release)
+
+### Added — hours CSV export
+- **`GET /api/time/export?month=YYYY-MM`**: CSV export (UTF-8 BOM, Excel-ready) — members export only their own entries; board/admin export the whole delegation with member name/email columns.
+- **Buttons on "My hours"**: ⬇️ Export (mine) for everyone, ⬇️ Export delegation (board only), respecting the month filter. Invalid month → 422.
+- Tests backend (member isolation, board global export, CSV validity, 422) — 226 total.
+
 ## [2026.08.013] — 2026-08-14 (test pre-release)
 
 ### Added — dashboard vitrine (overview widgets)
