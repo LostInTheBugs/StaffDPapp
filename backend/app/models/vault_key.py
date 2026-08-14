@@ -16,6 +16,13 @@ class VaultKey(Base):
     nonce = Column(LargeBinary, nullable=False)          # 12 octets
     kdf_salt = Column(LargeBinary, nullable=False)       # 16 octets
     kdf_params = Column(String(500), nullable=False)     # JSON: {"algo":"argon2id","m":65536,"t":3,"p":1}
+    # Enveloppe de récupération (optionnelle) : AES-GCM(KEK_recovery, DEK) —
+    # KEK_recovery dérivée de la clé de récupération via PBKDF2 côté client.
+    # Le serveur ne stocke JAMAIS la clé de récupération elle-même.
+    recovery_wrapped_dek = Column(LargeBinary, nullable=True)
+    recovery_nonce = Column(LargeBinary, nullable=True)
+    recovery_kdf_salt = Column(LargeBinary, nullable=True)
+    recovery_kdf_params = Column(String(500), nullable=True)
     dek_version = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

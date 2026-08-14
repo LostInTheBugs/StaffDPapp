@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.08.019] — 2026-08-14 (test pre-release)
+
+### Added — vault recovery key (coffre : clé de récupération)
+- **Recovery key**: a one-time-displayed key (`XXXX-XXXX-XXXX-XXXX`, 128-bit) generated at vault creation or on demand, unlocking the vault when the password is forgotten and letting the user set a new password — **zero data loss, zero security compromise**: the server only stores the opaque envelope (PBKDF2-SHA256 wrapped DEK), never the key itself.
+- **Unlock overlay**: "Forgot password? → Use my recovery key" link (only when configured), then a guided new-password step (DEK re-wrapped client-side).
+- **Organization settings**: manage section — generate / replace (invalidates the previous key) / revoke, with a clear one-time display + storage warning.
+- Migration `20260801_0008` (4 optional columns on vault_keys). Tests backend (PUT/DELETE, bureau-only, size guards, status reporting, replace semantics) — 238 total; frontend (format, wrap/unwrap roundtrip, wrong key, uniqueness) — 111 total. i18n FR/EN/DE/PT.
+
 ## [2026.08.018] — 2026-08-14 (test pre-release)
 
 ### Added — minutes archive

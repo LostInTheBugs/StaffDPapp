@@ -94,9 +94,19 @@ class VaultKeyResponse(BaseModel):
     kdf_salt: str      # base64
     kdf_params: str    # JSON
     dek_version: int
+    recovery_enabled: bool = False
 
 
 class VaultStatusResponse(BaseModel):
     enabled: bool
     has_key: bool
     dek_version: int | None
+    recovery_enabled: bool = False
+
+
+class RecoveryKeyRequest(BaseModel):
+    """Enveloppe de récupération — la clé elle-même ne quitte jamais le client."""
+    wrapped_dek: str  # base64 — AES-GCM(KEK_recovery, DEK)
+    nonce: str        # base64 — 12 octets
+    kdf_salt: str     # base64 — 16 octets
+    kdf_params: str   # JSON — {"algo":"pbkdf2","iterations":210000,"hash":"SHA-256"}

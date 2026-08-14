@@ -4,7 +4,7 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.018** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.019** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
@@ -14,7 +14,7 @@ Current version: **2026.08.018** — [See GitHub releases](https://github.com/Lo
 - ⏱️ **My hours**: mandate hours tracking with legal weekly credit (Art. L.415-5), **CSV export** (own hours or whole delegation for the board)
 - 🔐 **Authentication**: JWT, math CAPTCHA, TOTP MFA, multi-language (FR/EN/DE/PT)
 - 📝 **Minutes (PV)**: sectioned minutes (internal / shared-with-management), draft & validated statuses, direction preview, **archive library with search**
-- 🔐 **Vault (coffre)**: client-side AES-256-GCM encryption, Argon2id-wrapped DEK, auto-lock on inactivity — plaintext never leaves the browser
+- 🔐 **Vault (coffre)**: client-side AES-256-GCM encryption, Argon2id-wrapped DEK, auto-lock on inactivity — plaintext never leaves the browser, **recovery key** (one-time display, unlocks + resets password without data loss)
 - 👁️ **Direction preview + PDF**: management-only projection of shared sections, decrypted in-browser, PDF export
 - 📧 **Notifications**: convocations, validated-minutes alerts, member invitations, meeting reminders — configured by the delegation admin, no external infrastructure required:
   - **`.eml` files** (no SMTP access needed — download individually or as a batch)

@@ -265,6 +265,7 @@ interface VaultStatusResponse {
   enabled: boolean
   has_key: boolean
   dek_version: number | null
+  recovery_enabled?: boolean
 }
 
 interface VaultKeyResponse {
@@ -273,6 +274,19 @@ interface VaultKeyResponse {
   kdf_salt: string      // base64
   kdf_params: string    // JSON
   dek_version: number
+  recovery_enabled?: boolean
+  // Enveloppe de récupération (présente seulement si recovery_enabled)
+  recovery_wrapped_dek?: string
+  recovery_nonce?: string
+  recovery_kdf_salt?: string
+  recovery_kdf_params?: string
+}
+
+interface RecoveryEnvelope {
+  wrapped_dek: string   // base64
+  nonce: string         // base64
+  kdf_salt: string      // base64
+  kdf_params: string    // JSON
 }
 
 interface VaultEnvelope {
@@ -296,6 +310,14 @@ export function replaceVaultKey(envelope: VaultEnvelope): Promise<VaultKeyRespon
 
 export function getVaultStatus(): Promise<VaultStatusResponse> {
   return request('/vault/status')
+}
+
+export function setVaultRecoveryKey(envelope: RecoveryEnvelope): Promise<VaultKeyResponse> {
+  return request('/vault/recovery-key', { method: 'PUT', body: JSON.stringify(envelope) })
+}
+
+export function deleteVaultRecoveryKey(): Promise<VaultStatusResponse> {
+  return request('/vault/recovery-key', { method: 'DELETE' })
 }
 
 export function attachInvitationEnvelope(invitationId: number, envelope: VaultEnvelope): Promise<VaultKeyResponse> {

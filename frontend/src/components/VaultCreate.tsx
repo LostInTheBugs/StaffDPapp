@@ -10,12 +10,13 @@ import { useT } from "../i18n/I18nContext";
  */
 export default function VaultCreate() {
   const { t } = useT();
-  const { createVault } = useVault();
+  const { createVault, setRecoveryKey } = useVault();
   const [password, setPassword] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [recoveryKey, setRecoveryKeyState] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -25,6 +26,9 @@ export default function VaultCreate() {
     setLoading(true);
     try {
       await createVault(password);
+      // Génère immédiatement une clé de récupération (affichée une seule fois)
+      const key = await setRecoveryKey();
+      setRecoveryKeyState(key);
       setSuccess(true);
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -40,6 +44,43 @@ export default function VaultCreate() {
         <div className="success-msg">
           ✅ {t("org.vault_active")}
         </div>
+        {recoveryKey && (
+          <div
+            style={{
+              marginTop: 16,
+              background: "#fff3cd",
+              border: "1.5px dashed #b45309",
+              borderRadius: 10,
+              padding: 16,
+            }}
+          >
+            <p style={{ fontWeight: 700, marginBottom: 8 }}>
+              🗝️ {t("vault.recovery_created_title")}
+            </p>
+            <p style={{ fontSize: "0.9rem", color: "var(--gray-700)", marginBottom: 12 }}>
+              {t("vault.recovery_created_warning")}
+            </p>
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: "1.2rem",
+                letterSpacing: 2,
+                background: "#fff",
+                border: "1px solid var(--gray-300)",
+                borderRadius: 8,
+                padding: "12px 16px",
+                textAlign: "center",
+                userSelect: "all",
+                fontWeight: 700,
+              }}
+            >
+              {recoveryKey}
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--gray-600)", marginTop: 10 }}>
+              {t("vault.recovery_created_never_again")}
+            </p>
+          </div>
+        )}
       </div>
     );
   }

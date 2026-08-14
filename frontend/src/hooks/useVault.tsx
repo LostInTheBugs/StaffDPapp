@@ -14,6 +14,9 @@ import {
   wrapDEK,
   unwrapDEK,
   generateDEK,
+  generateRecoveryKey,
+  wrapDEKWithRecoveryKey,
+  unwrapDEKWithRecoveryKey,
   deriveKEKFromCode,
   setSessionDEK,
   getSessionDEK,
@@ -67,6 +70,25 @@ interface VaultContextType {
   ) => Promise<VaultEnvelope>;
   /** DEK version currently loaded (null if not unlocked). */
   dekVersion: number | null;
+  /** True when a recovery envelope is stored server-side. */
+  recoveryEnabled: boolean;
+  /**
+   * Unlock the vault with the recovery key (PBKDF2, no Argon2).
+   * Throws WrongPasswordError on wrong key.
+   */
+  unlockWithRecoveryKey: (recoveryKey: string) => Promise<void>;
+  /**
+   * Wrap the current DEK under a NEW recovery key, store the envelope
+   * server-side and return the key to display ONCE. Vault must be unlocked.
+   */
+  setRecoveryKey: () => Promise<string>;
+  /** Revoke the recovery key (deletes the envelope server-side). */
+  revokeRecoveryKey: () => Promise<void>;
+  /**
+   * Change the vault password: re-wraps the DEK under the new password
+   * (PUT /api/vault/key). Vault must be unlocked.
+   */
+  changePassword: (newPassword: string) => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextType | null>(null);
@@ -150,6 +172,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       const s = await api.getVaultStatus();
       setVaultEnabled(s.enabled);
       setHasOwnKey(s.has_key);
+      setRecoveryEnabled(Boolean(s.recovery_enabled));
       if (isVaultUnlocked()) {
         setDekVersion(s.dek_version);
       }
@@ -277,6 +300,66 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // ── recovery key ─────────────────────────────────────────────
+
+  const [recoveryEnabled, setRecoveryEnabled] = useState(false);
+
+  const unlockWithRecoveryKey = useCallback(async (recoveryKey: string) => {
+    const keyResp = await api.getVaultKey();
+    if (!keyResp.recovery_enabled || !keyResp.recovery_wrapped_dek || !keyResp.recovery_nonce || !keyResp.recovery_kdf_salt || !keyResp.recovery_kdf_params) {
+      throw new Error("Aucune clé de récupération n'est configurée pour ce coffre");
+    }
+    const wrapped = Uint8Array.from(atob(keyResp.recovery_wrapped_dek), (c) =>
+      c.charCodeAt(0),
+    );
+    const nonce = Uint8Array.from(atob(keyResp.recovery_nonce), (c) =>
+      c.charCodeAt(0),
+    );
+    const salt = Uint8Array.from(atob(keyResp.recovery_kdf_salt), (c) =>
+      c.charCodeAt(0),
+    );
+    const params = JSON.parse(keyResp.recovery_kdf_params);
+
+    const dek = await unwrapDEKWithRecoveryKey(wrapped, recoveryKey, salt, params, nonce);
+    setSessionDEK(dek);
+    markUnlocked();
+    setDekVersion(keyResp.dek_version);
+  }, []);
+
+  const setRecoveryKey = useCallback(async (): Promise<string> => {
+    const dek = getSessionDEK();
+    if (!dek) throw new Error("Le coffre doit être déverrouillé pour générer une clé de récupération");
+
+    const recoveryKey = generateRecoveryKey();
+    const env = await wrapDEKWithRecoveryKey(dek, recoveryKey);
+    await api.setVaultRecoveryKey({
+      wrapped_dek: btoa(String.fromCharCode(...env.wrapped)),
+      nonce: btoa(String.fromCharCode(...env.nonce)),
+      kdf_salt: btoa(String.fromCharCode(...env.salt)),
+      kdf_params: JSON.stringify(env.params),
+    });
+    setRecoveryEnabled(true);
+    return recoveryKey;
+  }, []);
+
+  const revokeRecoveryKey = useCallback(async () => {
+    await api.deleteVaultRecoveryKey();
+    setRecoveryEnabled(false);
+  }, []);
+
+  const changePassword = useCallback(async (newPassword: string) => {
+    const dek = getSessionDEK();
+    if (!dek) throw new Error("Le coffre doit être déverrouillé pour changer le mot de passe");
+    const envelope = await wrapDEK(dek, newPassword);
+    await api.replaceVaultKey({
+      wrapped_dek: btoa(String.fromCharCode(...envelope.wrapped)),
+      nonce: btoa(String.fromCharCode(...envelope.nonce)),
+      kdf_salt: btoa(String.fromCharCode(...envelope.kdfSalt)),
+      kdf_params: JSON.stringify(envelope.kdfParams),
+    });
+    setDekVersion(1);
+  }, []);
+
   // ── Context value ─────────────────────────────────────────────
 
   const value: VaultContextType = {
@@ -289,6 +372,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     wrapForCode,
     exchangeCodeForPassword,
     dekVersion,
+    recoveryEnabled,
+    unlockWithRecoveryKey,
+    setRecoveryKey,
+    revokeRecoveryKey,
+    changePassword,
   };
 
   return (

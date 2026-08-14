@@ -10,7 +10,7 @@ from app.models import User, Organization, Invitation
 from app.models.vault_key import VaultKey
 from app.schemas.vault import (
     CreateVaultRequest, ReplaceKeyRequest,
-    VaultKeyResponse, VaultStatusResponse,
+    VaultKeyResponse, VaultStatusResponse, RecoveryKeyRequest,
 )
 
 router = APIRouter(tags=["vault"])
@@ -25,6 +25,7 @@ def _vault_key_to_response(vk: VaultKey) -> VaultKeyResponse:
         kdf_salt=base64.b64encode(vk.kdf_salt).decode("ascii"),
         kdf_params=vk.kdf_params,
         dek_version=vk.dek_version,
+        recovery_enabled=vk.recovery_wrapped_dek is not None,
     )
 
 
@@ -346,6 +347,94 @@ def get_vault_status(
         enabled=bool(org.pv_vault_enabled),
         has_key=own_key is not None,
         dek_version=own_key.dek_version if own_key else None,
+        recovery_enabled=bool(own_key and own_key.recovery_wrapped_dek),
+    )
+
+
+# ── PUT /api/vault/recovery-key ────────────────────────────────────
+
+
+@router.put("/api/vault/recovery-key", response_model=VaultKeyResponse)
+def set_recovery_key(
+    body: RecoveryKeyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Store the recovery envelope (bureau only). The recovery key itself never
+    reaches the server — only the opaque envelope. Replacing the envelope
+    silently invalidates the previous recovery key."""
+    if current_user.delegue_role.value not in BUREAU_ROLES:
+        raise HTTPException(status_code=403, detail="Réservé au bureau de la délégation")
+
+    _reject_plaintext_secrets(body)
+
+    wrapped = base64.b64decode(body.wrapped_dek)
+    nonce = base64.b64decode(body.nonce)
+    salt = base64.b64decode(body.kdf_salt)
+
+    if len(nonce) != 12:
+        raise HTTPException(status_code=400, detail=f"nonce: expected 12 bytes, got {len(nonce)}")
+    if len(salt) != 16:
+        raise HTTPException(status_code=400, detail=f"kdf_salt: expected 16 bytes, got {len(salt)}")
+    if len(wrapped) < 48:
+        raise HTTPException(status_code=400, detail=f"wrapped_dek too short: {len(wrapped)} bytes")
+    try:
+        json.loads(body.kdf_params)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="kdf_params: invalid JSON")
+
+    # Le coffre principal = première ligne de l'organisation (le créateur)
+    vk = (
+        db.query(VaultKey)
+        .filter(VaultKey.organization_id == current_user.organization_id)
+        .order_by(VaultKey.id.asc())
+        .first()
+    )
+    if not vk:
+        raise HTTPException(status_code=404, detail="Aucun coffre pour cette organisation")
+
+    vk.recovery_wrapped_dek = wrapped
+    vk.recovery_nonce = nonce
+    vk.recovery_kdf_salt = salt
+    vk.recovery_kdf_params = body.kdf_params
+    db.commit()
+    db.refresh(vk)
+    return _vault_key_to_response(vk)
+
+
+# ── DELETE /api/vault/recovery-key ─────────────────────────────────
+
+
+@router.delete("/api/vault/recovery-key", response_model=VaultStatusResponse)
+def delete_recovery_key(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Revoke the recovery key (bureau only)."""
+    if current_user.delegue_role.value not in BUREAU_ROLES:
+        raise HTTPException(status_code=403, detail="Réservé au bureau de la délégation")
+
+    vk = (
+        db.query(VaultKey)
+        .filter(VaultKey.organization_id == current_user.organization_id)
+        .order_by(VaultKey.id.asc())
+        .first()
+    )
+    if not vk:
+        raise HTTPException(status_code=404, detail="Aucun coffre pour cette organisation")
+
+    vk.recovery_wrapped_dek = None
+    vk.recovery_nonce = None
+    vk.recovery_kdf_salt = None
+    vk.recovery_kdf_params = None
+    db.commit()
+
+    org = db.query(Organization).filter(Organization.id == current_user.organization_id).first()
+    return VaultStatusResponse(
+        enabled=bool(org.pv_vault_enabled) if org else False,
+        has_key=True,
+        dek_version=vk.dek_version,
+        recovery_enabled=False,
     )
 
 
