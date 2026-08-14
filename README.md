@@ -48,6 +48,8 @@ All passwords: `demo123456`
 
 **Vault (coffre) password**: `test123456` — the vault must be unlocked in the browser to read/write encrypted minutes (WebCrypto requires HTTPS or localhost; it does not work over plain HTTP).
 
+**Vault recovery key (démo)**: `0511-3A9D-243E-5749` — unlocks the vault and allows setting a new password if the vault password is forgotten (see "Mot de passe oublié ? → Utiliser ma clé de récupération" on the unlock screen).
+
 - 🎮 **Demo**: https://staffdpapp.cloudfr.net
 
 ## Installation and deployment
