@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.08.020] — 2026-08-14 (test pre-release)
+
+### Added — annual activity report (rapport d'activité annuel)
+- **`GET /api/stats/annual-report?year=YYYY`** (bureau/admin): one-year aggregation — workforce by sex (L.414-3), delegation hours by category and per member (L.415-5), meetings (total + with direction, L.415-6), consultations (total + answered, L.414-3), **designated delegates** (sécurité/santé L.414-14, égalité L.414-15): declared hours per delegate + legal credits (equality monthly credit by workforce bracket, safety training 40h/mandate).
+- **📄 "Rapport d'activité annuel" button** on the statistics page with a year selector: single A4 PDF (embedded Unicode font, purged metadata) covering the 5 sections.
+- No schema change (no migration). Tests: 6 new backend (bureau-only 403, year 422, aggregates, designated delegates, credit brackets) — 244 total; 4 new frontend (valid PDF, all sections present, empty year, metadata purge) — 115 total.
+
 ## [2026.08.019] — 2026-08-14 (test pre-release)
 
 ### Added — vault recovery key (coffre : clé de récupération)
