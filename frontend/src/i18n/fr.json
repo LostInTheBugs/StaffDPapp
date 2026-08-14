@@ -3,6 +3,8 @@
   "nav.dashboard": "📋 Mon tableau de bord",
   "nav.organigramme": "👥 Mon organigramme",
   "nav.meetings": "📅 Mes réunions",
+  "nav.consultations": "📋 Consultations",
+  "consultations.title": "Consultations (art. L.414-3)",
   "nav.organization": "🏢 Mon organisation",
   "nav.profile": "👤 Mon profil",
   "nav.logout": "Déconnexion",

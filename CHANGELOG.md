@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.08.009] — 2026-08-14 (test pre-release)
+
+### Added — L.414-3 consultations tracking
+- **Consultations page** (`/consultations`): track the delegation's consultations with the employer (Art. L.414-3 of the Labour Code) — opinions and proposals on working conditions, internal rules, working time, pension scheme, training plans, internal reassignment, plus prior information/consultation (collective redundancies, transfers, temporary agency workers).
+- **13 legal domains** (working conditions, internal rules, working time, pension, training, reassignment, collective redundancies, transfer, agency workers, social works, gender statistics, telework/disconnection, other).
+- **Legal rules enforced**: internal rules → employer's decision due within **2 months** (response deadline auto-set to +60 days); **motivated answer required** to close a consultation (L.414-1: consultation = exchange of views + motivated answer — 422 without it); overdue deadline flagged in the UI and in stats.
+- **Access control**: visible by all members; creation, answer recording, closing and deletion reserved to the board (president, vice-president, secretary) and admins.
+- **Notifications**: `consultation_created` email to the direction (via the existing outbox, direction email from config) + `consultation_reminder` when the response deadline is exceeded (max 1 reminder/day per consultation, scanned at startup). Templates FR/EN/DE/PT.
+- Stats badges: total / pending / **overdue ⚠️** / answers received / closed.
+
+### Migration
+- Alembic `20260801_0006` (idempotent): `consultations` table.
+
 ## [2026.08.008] — 2026-08-13 (stable)
 
 Stable release validated by the user — same features as v2026.08.007
