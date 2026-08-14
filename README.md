@@ -4,7 +4,7 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.012** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.013** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
@@ -22,6 +22,7 @@ Current version: **2026.08.012** — [See GitHub releases](https://github.com/Lo
   - **Standalone CLI** (`email_sender.py`, Python stdlib) — export JSON, run on any machine with SMTP access
 - 🔑 **Secure sharing with management**: link `/p/<token>` + one-time reading code — the server never sees plaintext (DEK wrapped under the code, decrypted in the recipient's browser), 14-day expiry, revocation, PDF export
 - 🚀 **Update banner**: notifies when a new version is released on GitHub (the app's only external link)
+- 🖥️ **Dashboard vitrine**: overview widgets — annual meetings vs. legal minimum, pending consultations with overdue badge, hours this month, workforce by sex, delegation members
 - 📋 **Consultations (Art. L.414-3)**: opinion/consultation tracking with the employer — 13 legal domains, 2-month decision deadline for internal rules, motivated answer required, direction emails + overdue reminders
 - 📊 **Semiannual statistics (Art. L.414-3)**: workforce by sex, per semester (S1/S2), ratio visualization, history managed by the board
 - 👤 **My profile**: photo, language, password change, MFA

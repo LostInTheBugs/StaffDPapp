@@ -228,5 +228,18 @@
   "stats.save": "Enregistrer",
   "stats.cancel": "Annuler",
   "stats.history": "Historique des rapports",
-  "stats.empty": "Aucun rapport publié pour l'instant."
+  "stats.empty": "Aucun rapport publié pour l'instant.",
+  "dashboard.widget_meetings": "Réunions",
+  "dashboard.widget_with_direction": "avec direction",
+  "dashboard.widget_consultations": "Consultations",
+  "dashboard.widget_overdue": "échéance dépassée",
+  "dashboard.widget_received": "réponses",
+  "dashboard.widget_closed": "clôturées",
+  "dashboard.widget_hours": "Heures du mois",
+  "dashboard.widget_credit": "crédit",
+  "dashboard.widget_workforce": "Effectif par sexe",
+  "dashboard.widget_people": "salariés",
+  "dashboard.widget_members": "Membres de la délégation",
+  "dashboard.widget_titulaires": "titulaires",
+  "dashboard.widget_suppleants": "suppléants"
 }

@@ -31,6 +31,35 @@ export default function Dashboard() {
   // Active invitations list
   const [invitations, setInvitations] = useState<InvitationResponse[]>([])
 
+  // ── Vitrine widgets ──
+  const [meetingStats, setMeetingStats] = useState<any>(null)
+  const [nextMeeting, setNextMeeting] = useState<any>(null)
+  const [consultStats, setConsultStats] = useState<any>(null)
+  const [timeSummary, setTimeSummary] = useState<any>(null)
+  const [workforce, setWorkforce] = useState<any>(null)
+  const [members, setMembers] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user) return
+    const h = { Authorization: 'Bearer ' + localStorage.getItem('token') }
+    const month = new Date().toISOString().slice(0, 7)
+    fetch('/api/meetings/stats', { headers: h }).then(r => r.json()).then(setMeetingStats).catch(() => {})
+    fetch('/api/consultations/stats', { headers: h }).then(r => r.json()).then(setConsultStats).catch(() => {})
+    fetch(`/api/time/summary?month=${month}`, { headers: h }).then(r => r.json()).then(setTimeSummary).catch(() => {})
+    fetch('/api/workforce-stats/latest', { headers: h }).then(r => r.json()).then(setWorkforce).catch(() => {})
+    fetch('/api/organization/members', { headers: h }).then(r => r.json()).then(setMembers).catch(() => {})
+    fetch('/api/meetings', { headers: h })
+      .then(r => r.json())
+      .then(list => {
+        const now = new Date().toISOString()
+        const upcoming = list
+          .filter((m: any) => m.date >= now && m.status !== 'cancelled')
+          .sort((a: any, b: any) => a.date.localeCompare(b.date))
+        setNextMeeting(upcoming[0] ?? null)
+      })
+      .catch(() => {})
+  }, [user])
+
   useEffect(() => { if (!user) fetchDashboard() }, [])
 
   // Load invitations
@@ -115,6 +144,96 @@ export default function Dashboard() {
     <>
       <NavBar />
       <div className="dashboard">
+        {/* ── Vitrine : vue d'ensemble ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 24 }}>
+          {/* Réunions */}
+          <div className="card" style={{ borderTop: '4px solid var(--blue)' }}>
+            <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>📅 {t('dashboard.widget_meetings')}</h3>
+            {meetingStats ? (
+              <>
+                <p style={{ margin: '6px 0', fontSize: '1.6rem', fontWeight: 700 }}>
+                  {meetingStats.total}<span style={{ fontSize: '.85rem', fontWeight: 400, color: 'var(--gray-600)' }}> / {meetingStats.min_required} / an</span>
+                </p>
+                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--gray-600)' }}>
+                  {t('dashboard.widget_with_direction')} : {meetingStats.with_direction} / {meetingStats.min_with_direction}
+                </p>
+              </>
+            ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
+            {nextMeeting && (
+              <p style={{ margin: '8px 0 0', fontSize: '.8rem', color: 'var(--gray-600)' }}>
+                📌 {nextMeeting.title} — {new Date(nextMeeting.date).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+
+          {/* Consultations */}
+          <div className="card" style={{ borderTop: '4px solid #b45309' }}>
+            <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>📋 {t('dashboard.widget_consultations')}</h3>
+            {consultStats ? (
+              <>
+                <p style={{ margin: '6px 0', fontSize: '1.6rem', fontWeight: 700 }}>
+                  {consultStats.pending}
+                  {consultStats.overdue > 0 && (
+                    <span style={{ marginLeft: 8, background: '#fee2e2', color: '#b91c1c', borderRadius: 999, padding: '2px 10px', fontSize: '.8rem', fontWeight: 600 }}>
+                      ⚠️ {consultStats.overdue} {t('dashboard.widget_overdue')}
+                    </span>
+                  )}
+                </p>
+                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--gray-600)' }}>
+                  {t('dashboard.widget_received')} : {consultStats.received} · {t('dashboard.widget_closed')} : {consultStats.closed}
+                </p>
+              </>
+            ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
+          </div>
+
+          {/* Heures */}
+          <div className="card" style={{ borderTop: '4px solid #047857' }}>
+            <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>⏱️ {t('dashboard.widget_hours')}</h3>
+            {timeSummary ? (
+              <>
+                <p style={{ margin: '6px 0', fontSize: '1.6rem', fontWeight: 700 }}>
+                  {timeSummary.total_hours}<span style={{ fontSize: '.85rem', fontWeight: 400, color: 'var(--gray-600)' }}> h</span>
+                </p>
+                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--gray-600)' }}>
+                  {t('dashboard.widget_credit')} : {timeSummary.credit_hours} h
+                </p>
+              </>
+            ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
+          </div>
+
+          {/* Effectif par sexe */}
+          <div className="card" style={{ borderTop: '4px solid #db2777' }}>
+            <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>👥 {t('dashboard.widget_workforce')}</h3>
+            {workforce ? (
+              <>
+                <p style={{ margin: '6px 0', fontSize: '1.6rem', fontWeight: 700 }}>
+                  {workforce.total}<span style={{ fontSize: '.85rem', fontWeight: 400, color: 'var(--gray-600)' }}> {t('dashboard.widget_people')}</span>
+                </p>
+                <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', background: '#e5e7eb', marginBottom: 4 }}>
+                  <div style={{ width: `${workforce.total ? (workforce.male_count / workforce.total) * 100 : 0}%`, background: '#2563eb' }} />
+                  <div style={{ width: `${workforce.total ? (workforce.female_count / workforce.total) * 100 : 0}%`, background: '#db2777' }} />
+                </div>
+                <p style={{ margin: 0, fontSize: '.75rem', color: 'var(--gray-600)' }}>
+                  👨 {workforce.male_count} · 👩 {workforce.female_count} <span style={{ opacity: .7 }}>({workforce.semester})</span>
+                </p>
+              </>
+            ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
+          </div>
+
+          {/* Membres */}
+          <div className="card" style={{ borderTop: '4px solid #6d28d9' }}>
+            <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>🧑‍🤝‍🧑 {t('dashboard.widget_members')}</h3>
+            {members.length > 0 ? (
+              <>
+                <p style={{ margin: '6px 0', fontSize: '1.6rem', fontWeight: 700 }}>{members.length}</p>
+                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--gray-600)' }}>
+                  {t('dashboard.widget_titulaires')} : {members.filter((m: any) => m.delegue_status === 'titulaire').length} · {t('dashboard.widget_suppleants')} : {members.filter((m: any) => m.delegue_status === 'suppleant').length}
+                </p>
+              </>
+            ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
+          </div>
+        </div>
+
         <div className="card mb-24">
           <h2>{t('dashboard.org')}</h2>
           <p><strong>{organization.name}</strong></p>
