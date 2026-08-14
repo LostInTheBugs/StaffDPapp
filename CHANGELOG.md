@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026.08.015] — 2026-08-14 (stable)
+
+Stable release validated by the user — same features as v2026.08.014
+(test pre-release). See the 2026.08.014 section for full details.
+
 ## [2026.08.014] — 2026-08-14 (test pre-release)
 
 ### Added — hours CSV export
