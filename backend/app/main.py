@@ -2,12 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import init_db
-from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share
+from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share, consultation
 
 app = FastAPI(
     title="Staff Delegation",
     description="Outil de gestion pour les délégations du personnel au Luxembourg",
-    version="2026.08.008",
+    version="2026.08.009",
 )
 
 # CORS — allow frontend dev server
@@ -28,6 +28,7 @@ app.include_router(minute.router)
 app.include_router(vault.router)
 app.include_router(email.router)
 app.include_router(share.router)
+app.include_router(consultation.router)
 
 
 @app.on_event("startup")
@@ -47,6 +48,20 @@ def on_startup():
             db.close()
     except Exception as e:  # noqa: BLE001
         print(f"[email] scan rappels ignoré : {e}")
+    # Rappels de consultation L.414-3 dus (idempotent — au plus 1/jour par consultation)
+    try:
+        import os
+        from app.core.database import SessionLocal
+        from app.services.email_service import scan_consultation_reminders
+        db = SessionLocal()
+        try:
+            n = scan_consultation_reminders(db, base_url=os.environ.get("SD_BASE_URL", ""))
+            if n:
+                print(f"[email] {n} rappel(s) de consultation mis en file")
+        finally:
+            db.close()
+    except Exception as e:  # noqa: BLE001
+        print(f"[email] scan consultations ignoré : {e}")
 
 
 @app.get("/api/health")

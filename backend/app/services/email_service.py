@@ -81,9 +81,26 @@ _T = {
 <p>{signature}</p>""",
         },
         "test": {
-            "subject": "Test de notification — {org_name}",
+            "subject": "Test des notifications — {org_name}",
             "body": """<p>Ceci est un email de test de configuration.</p>
 <p>Si vous le recevez, les notifications de <strong>{org_name}</strong> sont opérationnelles.</p>
+<p>{signature}</p>""",
+        },
+        "consultation_created": {
+            "subject": "Consultation — {title} ({org_name})",
+            "body": """<p>Bonjour,</p>
+<p>La délégation du personnel de <strong>{org_name}</strong> vous soumet une consultation (art. L.414-3 du Code du travail) :</p>
+<p><strong>{title}</strong><br>
+Domaine : {category}<br>
+{description_block}</p>
+<p>Merci de fournir une réponse motivée dans les meilleurs délais{response_due_block}.</p>
+<p>{signature}</p>""",
+        },
+        "consultation_reminder": {
+            "subject": "Rappel : réponse attendue — {title} ({org_name})",
+            "body": """<p>Bonjour,</p>
+<p>La consultation suivante, soumise par la délégation du personnel de <strong>{org_name}</strong> (art. L.414-3), attend toujours votre réponse motivée :</p>
+<p><strong>{title}</strong>{response_due_block}</p>
 <p>{signature}</p>""",
         },
     },
@@ -136,6 +153,23 @@ _T = {
 <p>If you receive it, notifications for <strong>{org_name}</strong> are operational.</p>
 <p>{signature}</p>""",
         },
+        "consultation_created": {
+            "subject": "Consultation — {title} ({org_name})",
+            "body": """<p>Dear Sir/Madam,</p>
+<p>The staff delegation of <strong>{org_name}</strong> submits the following consultation to you (Art. L.414-3 of the Labour Code):</p>
+<p><strong>{title}</strong><br>
+Topic: {category}<br>
+{description_block}</p>
+<p>Please provide a reasoned answer as soon as possible{response_due_block}.</p>
+<p>{signature}</p>""",
+        },
+        "consultation_reminder": {
+            "subject": "Reminder: answer expected — {title} ({org_name})",
+            "body": """<p>Dear Sir/Madam,</p>
+<p>The following consultation, submitted by the staff delegation of <strong>{org_name}</strong> (Art. L.414-3), still awaits your reasoned answer:</p>
+<p><strong>{title}</strong>{response_due_block}</p>
+<p>{signature}</p>""",
+        },
     },
     "de": {
         "meeting_invite": {
@@ -184,6 +218,23 @@ _T = {
             "subject": "Test-Benachrichtigung — {org_name}",
             "body": """<p>Dies ist eine Test-E-Mail der Konfiguration.</p>
 <p>Wenn Sie diese erhalten, sind die Benachrichtigungen von <strong>{org_name}</strong> betriebsbereit.</p>
+<p>{signature}</p>""",
+        },
+        "consultation_created": {
+            "subject": "Konsultation — {title} ({org_name})",
+            "body": """<p>Sehr geehrte Damen und Herren,</p>
+<p>Die Personaldelegation von <strong>{org_name}</strong> legt Ihnen folgende Konsultation vor (Art. L.414-3 des Arbeitsgesetzbuchs):</p>
+<p><strong>{title}</strong><br>
+Bereich: {category}<br>
+{description_block}</p>
+<p>Bitte antworten Sie so bald wie möglich{response_due_block}.</p>
+<p>{signature}</p>""",
+        },
+        "consultation_reminder": {
+            "subject": "Erinnerung: Antwort erwartet — {title} ({org_name})",
+            "body": """<p>Sehr geehrte Damen und Herren,</p>
+<p>Die folgende Konsultation der Personaldelegation von <strong>{org_name}</strong> (Art. L.414-3) wartet weiterhin auf Ihre begründete Antwort:</p>
+<p><strong>{title}</strong>{response_due_block}</p>
 <p>{signature}</p>""",
         },
     },
@@ -236,6 +287,23 @@ _T = {
 <p>Se o receber, as notificações de <strong>{org_name}</strong> estão operacionais.</p>
 <p>{signature}</p>""",
         },
+        "consultation_created": {
+            "subject": "Consulta — {title} ({org_name})",
+            "body": """<p>Caro(a) senhor(a),</p>
+<p>A delegação do pessoal de <strong>{org_name}</strong> submete-lhe a seguinte consulta (art. L.414-3 do Código do Trabalho):</p>
+<p><strong>{title}</strong><br>
+Domínio: {category}<br>
+{description_block}</p>
+<p>Queira fornecer uma resposta fundamentada o mais rapidamente possível{response_due_block}.</p>
+<p>{signature}</p>""",
+        },
+        "consultation_reminder": {
+            "subject": "Lembrete: resposta aguardada — {title} ({org_name})",
+            "body": """<p>Caro(a) senhor(a),</p>
+<p>A seguinte consulta, apresentada pela delegação do pessoal de <strong>{org_name}</strong> (art. L.414-3), aguarda ainda a sua resposta fundamentada:</p>
+<p><strong>{title}</strong>{response_due_block}</p>
+<p>{signature}</p>""",
+        },
     },
 }
 
@@ -268,8 +336,30 @@ def render_email(config: EmailConfig, org: Organization, event_type: str, ctx: d
     values.setdefault("org_name", org.name)
     values.setdefault("signature", config.signature or "")
     values.setdefault("base_url", ctx.get("base_url", ""))
-    # Échapper les valeurs utilisateur dans le HTML
-    esc = {k: str(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") for k, v in values.items()}
+    # Blocs localisés : description de la consultation + échéance de réponse
+    lang_code = lang if lang in _T else "fr"
+    if "description_block" not in values:
+        desc = values.get("description")
+        safe = (str(desc).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                if desc else "")
+        values["description_block"] = f"<br>{safe}" if safe else ""
+    if "response_due_block" not in values:
+        due = values.get("response_due")
+        if due:
+            prefix = {
+                "fr": " avant le ",
+                "en": " before ",
+                "de": " vor dem ",
+                "pt": " antes de ",
+            }.get(lang_code, " avant le ")
+            values["response_due_block"] = f"{prefix}{due}"
+        else:
+            values["response_due_block"] = ""
+    # Échapper les valeurs utilisateur dans le HTML (les blocs construits
+    # ci-dessus sont déjà échappés/sûrs — ne pas les ré-échapper)
+    esc = {k: str(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+           for k, v in values.items() if k not in ("description_block", "response_due_block")}
+    esc.update({k: values[k] for k in ("description_block", "response_due_block") if k in values})
     subject = tpl["subject"].format(**values)
     body_html = tpl["body"].format(**esc)
     return subject, body_html, _strip_html(body_html)
@@ -442,5 +532,69 @@ def scan_due_reminders(db: Session, base_url: str = "") -> int:
                 if queue_email(db, config.organization_id, EmailEventType.meeting_reminder.value,
                                user.full_name, user.email, user.language or "fr", ctx):
                     queued += 1
+    db.commit()
+    return queued
+
+
+# Libellés lisibles des catégories de consultation (email direction, FR par défaut)
+CATEGORY_LABELS_FR: dict[str, str] = {
+    "conditions_travail": "Conditions de travail",
+    "reglement_interieur": "Règlement intérieur",
+    "temps_travail": "Temps de travail",
+    "pension": "Régime de pension",
+    "formation": "Plan de formation continue",
+    "reclassement": "Reclassement interne",
+    "licenciements_collectifs": "Licenciements collectifs",
+    "transfert": "Transfert d'entreprise",
+    "interimaire": "Recours à l'intérim",
+    "oeuvres_sociales": "Œuvres sociales",
+    "statistiques_sexe": "Statistiques ventilées par sexe",
+    "teletravail": "Télétravail / droit à la déconnexion",
+    "autre": "Autre",
+}
+
+
+def scan_consultation_reminders(db: Session, base_url: str = "") -> int:
+    """File un rappel à la direction pour chaque consultation en attente dont
+    l'échéance de réponse est dépassée (art. L.414-3).
+
+    Idempotent : au plus 1 rappel par consultation par jour (last_reminded_at).
+    Appelé au démarrage du backend, comme scan_due_reminders.
+    """
+    from app.models.consultation import Consultation, ConsultationStatus
+
+    now = datetime.utcnow()
+    queued = 0
+    rows = db.query(Consultation).filter(
+        Consultation.status == ConsultationStatus.requested,
+        Consultation.response_due.isnot(None),
+        Consultation.response_due < now,
+    ).all()
+    for c in rows:
+        org = c.organization
+        if org is None:
+            continue
+        config = db.query(EmailConfig).filter(
+            EmailConfig.organization_id == c.organization_id, EmailConfig.enabled == True  # noqa: E712
+        ).first()
+        if config is None or not config.direction_email:
+            continue
+        # Au plus un rappel par jour
+        if c.last_reminded_at is not None and (now - c.last_reminded_at).total_seconds() < 86400:
+            continue
+        queued_msg = queue_email(
+            db, c.organization_id, "consultation_reminder",
+            "Direction", config.direction_email, "fr",
+            {
+                "base_url": base_url,
+                "consultation_id": c.id,
+                "title": c.title,
+                "category": CATEGORY_LABELS_FR.get(c.category.value, c.category.value),
+                "response_due": c.response_due.isoformat() if c.response_due else None,
+            },
+        )
+        if queued_msg:
+            c.last_reminded_at = now
+            queued += 1
     db.commit()
     return queued

@@ -306,6 +306,57 @@ export function getJoinVaultEnvelope(code: string, email: string): Promise<Vault
   return request('/join/vault-envelope', { method: 'POST', body: JSON.stringify({ code, email }) })
 }
 
+// ── Consultations L.414-3 ──────────────────────────────────────────────
+
+export interface Consultation {
+  id: number
+  title: string
+  category: string
+  description: string | null
+  status: string
+  requested_at: string | null
+  response_due: string | null
+  direction_responded_at: string | null
+  direction_response: string | null
+  created_by_name: string | null
+}
+
+export interface ConsultationStats {
+  total: number
+  pending: number
+  overdue: number
+  received: number
+  closed: number
+}
+
+export function listConsultations(): Promise<Consultation[]> {
+  return request('/consultations')
+}
+
+export function getConsultationStats(): Promise<ConsultationStats> {
+  return request('/consultations/stats')
+}
+
+export function createConsultation(data: {
+  title: string
+  category: string
+  description?: string
+  response_due?: string
+}): Promise<Consultation> {
+  return request('/consultations', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateConsultation(
+  id: number,
+  data: { status?: string; direction_response?: string; description?: string; response_due?: string },
+): Promise<Consultation> {
+  return request(`/consultations/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export function deleteConsultation(id: number): Promise<void> {
+  return request(`/consultations/${id}`, { method: 'DELETE' })
+}
+
 export type { VaultStatusResponse, VaultKeyResponse, VaultEnvelope }
 
 export { b64Encode, b64Decode }

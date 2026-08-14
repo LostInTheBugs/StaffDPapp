@@ -12,6 +12,7 @@ import TimeTracking from './pages/TimeTracking'
 import MinutesPage from './pages/Minutes'
 import Notifications from './pages/Notifications'
 import ShareView from './pages/ShareView'
+import Consultations from './pages/Consultations'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/hours" element={<ProtectedRoute><TimeTracking /></ProtectedRoute>} />
       <Route path="/meetings/:meetingId/minutes" element={<ProtectedRoute><MinutesPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+      <Route path="/consultations" element={<ProtectedRoute><Consultations /></ProtectedRoute>} />
       <Route path="/p/:token" element={<ShareView />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
