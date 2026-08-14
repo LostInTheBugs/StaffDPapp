@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026.08.016] — 2026-08-14 (test pre-release)
+
+### Added — workforce statistics PDF report
+- **🖨️ Report PDF button** on the statistics page: A4 document with the organisation name, the semiannual table (semester, men, women, total, %), a cumulative total row and the legal L.414-3 quote in the footer.
+- Generated client-side (pdf-lib + embedded Unicode font), metadata purged like the minutes PDF. Tests: PDF validity, text content, metadata purge, empty history — 105 frontend tests total.
+
 ## [2026.08.015] — 2026-08-14 (stable)
 
 Stable release validated by the user — same features as v2026.08.014
