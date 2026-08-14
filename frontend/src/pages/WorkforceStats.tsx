@@ -5,10 +5,11 @@ import NavBar from '../components/NavBar'
 import Footer from '../components/Footer'
 import * as api from '../api/client'
 import { semesterLabel } from '../lib/semester'
+import { exportWorkforceStatsPDF } from '../lib/workforceStatsPdf'
 
 export default function WorkforceStats() {
   const { t } = useT()
-  const { user, token } = useAuth()
+  const { user, token, organization } = useAuth()
   const [rows, setRows] = useState<api.WorkforceStat[]>([])
   const [latest, setLatest] = useState<api.WorkforceStat | null>(null)
   const [loading, setLoading] = useState(true)
@@ -22,6 +23,7 @@ export default function WorkforceStats() {
   const [editId, setEditId] = useState<number | null>(null)
   const [editMale, setEditMale] = useState('')
   const [editFemale, setEditFemale] = useState('')
+  const [pdfBusy, setPdfBusy] = useState(false)
 
   const isBureau = user?.delegue_role === 'president' || user?.delegue_role === 'vice_president' || user?.delegue_role === 'secretaire' || user?.role === 'admin'
 
@@ -85,6 +87,25 @@ export default function WorkforceStats() {
     }
   }
 
+  async function downloadPDF() {
+    setErr(null)
+    setPdfBusy(true)
+    try {
+      const bytes = await exportWorkforceStatsPDF(rows, organization?.name ?? 'Délégation du personnel')
+      const blob = new Blob([bytes], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `statistiques_effectif_${rows[0]?.semester ?? 'historique'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+
   const total = latest ? latest.total : 0
   const malePct = total > 0 ? Math.round((latest!.male_count / total) * 100) : 0
   const femalePct = total > 0 ? Math.round((latest!.female_count / total) * 100) : 0
@@ -93,7 +114,18 @@ export default function WorkforceStats() {
     <>
       <NavBar />
       <div className="container">
-        <h2>📊 {t('stats.title')}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <h2>📊 {t('stats.title')}</h2>
+          <button
+            className="btn"
+            style={{ padding: '6px 12px', fontSize: '.85rem', background: 'var(--blue)', color: '#fff', border: 'none' }}
+            onClick={downloadPDF}
+            disabled={pdfBusy || rows.length === 0}
+            title={rows.length === 0 ? t('stats.empty') : undefined}
+          >
+            {pdfBusy ? '…' : '🖨️ Rapport PDF'}
+          </button>
+        </div>
         <p style={{ color: 'var(--gray-600)', marginBottom: 16 }}>
           {t('stats.subtitle')}
         </p>
