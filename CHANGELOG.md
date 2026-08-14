@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026.08.010] — 2026-08-14 (stable)
+
+Stable release validated by the user — same features as v2026.08.009
+(test pre-release). See the 2026.08.009 section for full details.
+
 ## [2026.08.009] — 2026-08-14 (test pre-release)
 
 ### Added — L.414-3 consultations tracking
