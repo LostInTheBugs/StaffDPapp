@@ -4,14 +4,14 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.013** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.014** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
 - 🏛️ **Delegation creation**: name, company, headcount → automatic computation of the number of members/deputies
 - 👥 **Organisation chart**: board (president, vice-president, secretary) + members + deputies + special designations
 - 📅 **Meetings**: calendar, invitations, agenda items, management invitation (J+5 minimum), stats 6 meetings/year including 3 with management
-- ⏱️ **My hours**: mandate hours tracking with legal weekly credit (Art. L.415-5)
+- ⏱️ **My hours**: mandate hours tracking with legal weekly credit (Art. L.415-5), **CSV export** (own hours or whole delegation for the board)
 - 🔐 **Authentication**: JWT, math CAPTCHA, TOTP MFA, multi-language (FR/EN/DE/PT)
 - 📝 **Minutes (PV)**: sectioned minutes (internal / shared-with-management), draft & validated statuses, direction preview
 - 🔐 **Vault (coffre)**: client-side AES-256-GCM encryption, Argon2id-wrapped DEK, auto-lock on inactivity — plaintext never leaves the browser

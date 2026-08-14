@@ -1,5 +1,8 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import csv
+import io
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -10,6 +13,14 @@ from app.models.time_entry import TimeEntry
 from sqlalchemy.sql import func
 
 router = APIRouter(prefix="/api/time", tags=["time"])
+
+BUREAU_ROLES = {"president", "vice_president", "secretaire"}
+
+
+def _is_bureau(user: User) -> bool:
+    return user.role.value == "admin" or (
+        user.delegue_role is not None and user.delegue_role.value in BUREAU_ROLES
+    )
 
 
 class CreateTimeEntryRequest(BaseModel):
@@ -68,6 +79,61 @@ def list_entries(
             pass
     entries = q.all()
     return [_entry_to_response(e) for e in entries]
+
+
+@router.get("/export")
+def export_csv(
+    month: str | None = Query(None, description="YYYY-MM"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Export CSV des heures — membre : ses heures ; bureau/admin : toute la délégation."""
+    q = db.query(TimeEntry).order_by(TimeEntry.date.asc())
+    if _is_bureau(current_user):
+        q = q.filter(TimeEntry.user_id.in_(
+            db.query(User.id).filter(User.organization_id == current_user.organization_id)
+        ))
+    else:
+        q = q.filter(TimeEntry.user_id == current_user.id)
+
+    if month:
+        try:
+            y, m = month.split("-")
+            start = datetime(int(y), int(m), 1)
+            end = datetime(int(y) + 1, 1, 1) if int(m) == 12 else datetime(int(y), int(m) + 1, 1)
+            q = q.filter(TimeEntry.date >= start, TimeEntry.date < end)
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=422, detail="Format de mois attendu : YYYY-MM")
+
+    entries = q.all()
+    is_global = _is_bureau(current_user)
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    if is_global:
+        writer.writerow(["Member", "Email", "Date", "Hours", "Category", "Description"])
+        for e in entries:
+            name = f"{e.user.first_name} {e.user.last_name}" if e.user else ""
+            email = e.user.email if e.user else ""
+            writer.writerow([
+                name, email,
+                e.date.date().isoformat() if e.date else "",
+                e.hours, e.category, e.description or "",
+            ])
+    else:
+        writer.writerow(["Date", "Hours", "Category", "Description"])
+        for e in entries:
+            writer.writerow([
+                e.date.date().isoformat() if e.date else "",
+                e.hours, e.category, e.description or "",
+            ])
+
+    filename = f"hours_{month or 'all'}_{'delegation' if is_global else 'mine'}.csv"
+    return Response(
+        content="\ufeff" + buf.getvalue(),  # BOM UTF-8 pour Excel
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("", response_model=TimeEntryResponse, status_code=status.HTTP_201_CREATED)
