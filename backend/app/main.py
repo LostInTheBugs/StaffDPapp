@@ -7,7 +7,7 @@ from app.routes import auth, organization, meeting, time_entry, minute, vault, e
 app = FastAPI(
     title="Staff Delegation",
     description="Outil de gestion pour les délégations du personnel au Luxembourg",
-    version="2026.08.017",
+    version="2026.08.018",
 )
 
 # CORS — allow frontend dev server
