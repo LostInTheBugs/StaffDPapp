@@ -4,6 +4,7 @@
   "nav.organigramme": "👥 Meu Organograma",
   "nav.meetings": "📅 Minhas Reuniões",
   "nav.consultations": "📋 Consultas",
+  "nav.stats": "📊 Estatísticas",
   "consultations.title": "Consultas (art. L.414-3)",
   "nav.organization": "🏢 Minha Organização",
   "nav.profile": "👤 Meu Perfil",
@@ -213,5 +214,19 @@
   "vault.section_plaintext": "📝 Seção em texto claro",
   "vault.title_hint": "Use títulos neutros para proteger informações sensíveis (ex: 'Seção 1 – Constatações'). Os títulos permanecem visíveis em texto claro.",
   "vault.minutes_locked": "O cofre está bloqueado. Desbloqueie-o para visualizar e editar o conteúdo cifrado das atas.",
-  "vault.minutes_locked_preview": "O cofre está bloqueado. Desbloqueie-o antes de gerar o PDF — os dados cifrados não são legíveis sem a chave."
+  "vault.minutes_locked_preview": "O cofre está bloqueado. Desbloqueie-o antes de gerar o PDF — os dados cifrados não são legíveis sem a chave.",
+  "stats.title": "Estatísticas semestrais (art. L.414-3)",
+  "stats.subtitle": "O empregador elabora, em cada semestre, as estatísticas do efetivo repartidas por sexo e comunica-as à delegação do pessoal.",
+  "stats.latest_card": "Efetivo por sexo — último semestre publicado",
+  "stats.total": "Total",
+  "stats.add": "Adicionar relatório",
+  "stats.add_title": "Novo relatório semestral",
+  "stats.year": "Ano",
+  "stats.half": "Semestre",
+  "stats.male": "Homens",
+  "stats.female": "Mulheres",
+  "stats.save": "Guardar",
+  "stats.cancel": "Cancelar",
+  "stats.history": "Histórico de relatórios",
+  "stats.empty": "Ainda não há relatórios publicados."
 }

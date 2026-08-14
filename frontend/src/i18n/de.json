@@ -4,6 +4,7 @@
   "nav.organigramme": "👥 Mein Organigramm",
   "nav.meetings": "📅 Meine Sitzungen",
   "nav.consultations": "📋 Konsultationen",
+  "nav.stats": "📊 Statistiken",
   "consultations.title": "Konsultationen (Art. L.414-3)",
   "nav.organization": "🏢 Meine Organisation",
   "nav.profile": "👤 Mein Profil",
@@ -213,5 +214,19 @@
   "vault.section_plaintext": "📝 Klartext-Abschnitt",
   "vault.title_hint": "Verwenden Sie neutrale Titel zum Schutz sensibler Informationen (z.B. 'Abschnitt 1 – Feststellungen'). Titel bleiben im Klartext sichtbar.",
   "vault.minutes_locked": "Der Tresor ist gesperrt. Entsperren Sie ihn, um verschlüsselte Protokollinhalte anzuzeigen und zu bearbeiten.",
-  "vault.minutes_locked_preview": "Der Tresor ist gesperrt. Entsperren Sie ihn vor dem PDF-Export — verschlüsselte Daten sind ohne den Schlüssel nicht lesbar."
+  "vault.minutes_locked_preview": "Der Tresor ist gesperrt. Entsperren Sie ihn vor dem PDF-Export — verschlüsselte Daten sind ohne den Schlüssel nicht lesbar.",
+  "stats.title": "Halbjährliche Statistiken (Art. L.414-3)",
+  "stats.subtitle": "Der Arbeitgeber erstellt jedes Halbjahr die nach Geschlecht aufgeschlüsselten Personalstatistiken und übermittelt sie der Personaldelegation.",
+  "stats.latest_card": "Personal nach Geschlecht — letztes veröffentlichtes Halbjahr",
+  "stats.total": "Gesamt",
+  "stats.add": "Bericht hinzufügen",
+  "stats.add_title": "Neuer Halbjahresbericht",
+  "stats.year": "Jahr",
+  "stats.half": "Halbjahr",
+  "stats.male": "Männer",
+  "stats.female": "Frauen",
+  "stats.save": "Speichern",
+  "stats.cancel": "Abbrechen",
+  "stats.history": "Berichtsverlauf",
+  "stats.empty": "Noch kein Bericht veröffentlicht."
 }

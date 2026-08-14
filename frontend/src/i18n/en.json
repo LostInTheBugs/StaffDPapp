@@ -4,6 +4,7 @@
   "nav.organigramme": "👥 My Org Chart",
   "nav.meetings": "📅 My Meetings",
   "nav.consultations": "📋 Consultations",
+  "nav.stats": "📊 Statistics",
   "consultations.title": "Consultations (Art. L.414-3)",
   "nav.organization": "🏢 My Organization",
   "nav.profile": "👤 My Profile",
@@ -213,5 +214,19 @@
   "vault.section_plaintext": "📝 Plaintext section",
   "vault.title_hint": "Use neutral titles to protect sensitive information (e.g. 'Section 1 – Findings'). Titles remain visible in cleartext.",
   "vault.minutes_locked": "The vault is locked. Unlock it to view and edit encrypted minute content.",
-  "vault.minutes_locked_preview": "The vault is locked. Unlock it before generating the PDF export — encrypted data is not readable without the key."
+  "vault.minutes_locked_preview": "The vault is locked. Unlock it before generating the PDF export — encrypted data is not readable without the key.",
+  "stats.title": "Semiannual statistics (Art. L.414-3)",
+  "stats.subtitle": "Every half-year, the employer compiles the workforce statistics broken down by sex and communicates them to the staff delegation.",
+  "stats.latest_card": "Workforce by sex — latest published semester",
+  "stats.total": "Total",
+  "stats.add": "Add a report",
+  "stats.add_title": "New semiannual report",
+  "stats.year": "Year",
+  "stats.half": "Semester",
+  "stats.male": "Men",
+  "stats.female": "Women",
+  "stats.save": "Save",
+  "stats.cancel": "Cancel",
+  "stats.history": "Report history",
+  "stats.empty": "No report published yet."
 }
