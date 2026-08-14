@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.08.011] — 2026-08-14 (test pre-release)
+
+### Added — semiannual workforce statistics (L.414-3)
+- **Statistics page** (`/workforce-stats`): the semiannual workforce statistics broken down by sex that the employer must compile and communicate to the staff delegation (Art. L.414-3).
+- **Latest semester card**: men / women / total with a visual ratio bar (percentages).
+- **Report history**: table of all published semesters (S1/S2), board can add, edit and delete reports (one entry per semester — 409 on duplicates, validated format `YYYY-1`/`YYYY-2`).
+- **Access control**: visible by all members; creation, edition and deletion reserved to the board (president, vice-president, secretary) and admins.
+- i18n FR/EN/DE/PT + nav link, tests backend (CRUD, permissions, IDOR, validation) and frontend.
+
+### Migration
+- Alembic `20260801_0007` (idempotent): `workforce_stats` table.
+
 ## [2026.08.010] — 2026-08-14 (stable)
 
 Stable release validated by the user — same features as v2026.08.009

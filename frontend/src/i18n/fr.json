@@ -4,6 +4,7 @@
   "nav.organigramme": "👥 Mon organigramme",
   "nav.meetings": "📅 Mes réunions",
   "nav.consultations": "📋 Consultations",
+  "nav.stats": "📊 Statistiques",
   "consultations.title": "Consultations (art. L.414-3)",
   "nav.organization": "🏢 Mon organisation",
   "nav.profile": "👤 Mon profil",
@@ -213,5 +214,19 @@
   "vault.section_plaintext": "📝 Section en clair",
   "vault.title_hint": "Pour protéger les informations sensibles, utilisez des titres neutres (ex: « Section 1 – Constats »). Les titres restent visibles en clair.",
   "vault.minutes_locked": "Le coffre est verrouillé. Déverrouillez-le pour afficher et modifier le contenu chiffré des PV.",
-  "vault.minutes_locked_preview": "Le coffre est verrouillé. Déverrouillez-le avant de générer l'export PDF — les données chiffrées ne sont pas lisibles sans la clé."
+  "vault.minutes_locked_preview": "Le coffre est verrouillé. Déverrouillez-le avant de générer l'export PDF — les données chiffrées ne sont pas lisibles sans la clé.",
+  "stats.title": "Statistiques semestrielles (art. L.414-3)",
+  "stats.subtitle": "L'employeur établit, chaque semestre, les statistiques de l'effectif ventilées par sexe et les communique à la délégation du personnel.",
+  "stats.latest_card": "Effectif par sexe — dernier semestre publié",
+  "stats.total": "Total",
+  "stats.add": "Ajouter un rapport",
+  "stats.add_title": "Nouveau rapport semestriel",
+  "stats.year": "Année",
+  "stats.half": "Semestre",
+  "stats.male": "Hommes",
+  "stats.female": "Femmes",
+  "stats.save": "Enregistrer",
+  "stats.cancel": "Annuler",
+  "stats.history": "Historique des rapports",
+  "stats.empty": "Aucun rapport publié pour l'instant."
 }

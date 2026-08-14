@@ -357,6 +357,45 @@ export function deleteConsultation(id: number): Promise<void> {
   return request(`/consultations/${id}`, { method: 'DELETE' })
 }
 
+// ── Workforce statistics L.414-3 ───────────────────────────────────────
+
+export interface WorkforceStat {
+  id: number
+  organization_id: number
+  semester: string
+  male_count: number
+  female_count: number
+  total: number
+  created_at: string | null
+}
+
+export function listWorkforceStats(): Promise<WorkforceStat[]> {
+  return request('/workforce-stats')
+}
+
+export function getLatestWorkforceStat(): Promise<WorkforceStat | null> {
+  return request('/workforce-stats/latest')
+}
+
+export function createWorkforceStat(data: {
+  semester: string
+  male_count: number
+  female_count: number
+}): Promise<WorkforceStat> {
+  return request('/workforce-stats', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateWorkforceStat(
+  id: number,
+  data: { male_count?: number; female_count?: number },
+): Promise<WorkforceStat> {
+  return request(`/workforce-stats/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deleteWorkforceStat(id: number): Promise<void> {
+  return request(`/workforce-stats/${id}`, { method: 'DELETE' })
+}
+
 export type { VaultStatusResponse, VaultKeyResponse, VaultEnvelope }
 
 export { b64Encode, b64Decode }

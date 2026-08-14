@@ -13,6 +13,7 @@ import MinutesPage from './pages/Minutes'
 import Notifications from './pages/Notifications'
 import ShareView from './pages/ShareView'
 import Consultations from './pages/Consultations'
+import WorkforceStats from './pages/WorkforceStats'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/meetings/:meetingId/minutes" element={<ProtectedRoute><MinutesPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="/consultations" element={<ProtectedRoute><Consultations /></ProtectedRoute>} />
+      <Route path="/workforce-stats" element={<ProtectedRoute><WorkforceStats /></ProtectedRoute>} />
       <Route path="/p/:token" element={<ShareView />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
