@@ -46,6 +46,8 @@ Current version: **2026.08.013** — [See GitHub releases](https://github.com/Lo
 
 All passwords: `demo123456`
 
+**Vault (coffre) password**: `test123456` — the vault must be unlocked in the browser to read/write encrypted minutes (WebCrypto requires HTTPS or localhost; it does not work over plain HTTP).
+
 - 🎮 **Demo**: https://staffdpapp.cloudfr.net
 
 ## Installation and deployment
