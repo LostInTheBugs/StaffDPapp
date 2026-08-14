@@ -2,12 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import init_db
-from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share, consultation, workforce_stat, annual_report
+from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share, consultation, workforce_stat, annual_report, delegate_activity
 
 app = FastAPI(
     title="Staff Delegation",
     description="Outil de gestion pour les délégations du personnel au Luxembourg",
-    version="2026.08.020",
+    version="2026.08.021",
 )
 
 # CORS — allow frontend dev server
@@ -31,6 +31,7 @@ app.include_router(share.router)
 app.include_router(consultation.router)
 app.include_router(workforce_stat.router)
 app.include_router(annual_report.router)
+app.include_router(delegate_activity.router)
 
 
 @app.on_event("startup")

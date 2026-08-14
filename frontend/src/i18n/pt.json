@@ -279,5 +279,18 @@
   "vault.recovery_revoke_confirm": "Revogar a chave de recuperação? Os membros não poderão mais usá-la para desbloquear o cofre.",
   "vault.recovery_created": "Chave de recuperação criada",
   "vault.recovery_replaced": "Chave de recuperação substituída (a antiga não funciona mais)",
-  "vault.recovery_revoked": "Chave de recuperação revogada"
+  "vault.recovery_revoked": "Chave de recuperação revogada",
+  "nav.delegate_activities": "🛡️ Atividades delegados",
+  "delegate_activities.title": "Atividades dos delegados designados",
+  "delegate_activities.subtitle": "Rondas de controlo, investigações, formações, ações e sensibilizações registadas pelos delegados de segurança e saúde (L.414-14) e de igualdade (L.414-15).",
+  "delegate_activities.add_title": "Registar atividade",
+  "delegate_activities.delegate": "Delegado",
+  "delegate_activities.domain": "Domínio",
+  "delegate_activities.category": "Tipo",
+  "delegate_activities.date": "Data",
+  "delegate_activities.description": "Descrição",
+  "delegate_activities.description_placeholder": "Ex.: visita à oficina de produção, reunião com a direção sobre igualdade salarial…",
+  "delegate_activities.add_btn": "Registar",
+  "delegate_activities.empty": "Nenhuma atividade registada para este ano.",
+  "delegate_activities.delete_confirm": "Eliminar esta atividade?"
 }

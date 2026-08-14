@@ -279,5 +279,18 @@
   "vault.recovery_revoke_confirm": "Revoke the recovery key? Members will no longer be able to use it to unlock the vault.",
   "vault.recovery_created": "Recovery key created",
   "vault.recovery_replaced": "Recovery key replaced (the old one no longer works)",
-  "vault.recovery_revoked": "Recovery key revoked"
+  "vault.recovery_revoked": "Recovery key revoked",
+  "nav.delegate_activities": "🛡️ Delegate activities",
+  "delegate_activities.title": "Designated delegates' activities",
+  "delegate_activities.subtitle": "Control tours, enquiries, trainings, actions and awareness sessions logged by the safety & health (L.414-14) and equality (L.414-15) delegates.",
+  "delegate_activities.add_title": "Log an activity",
+  "delegate_activities.delegate": "Delegate",
+  "delegate_activities.domain": "Domain",
+  "delegate_activities.category": "Type",
+  "delegate_activities.date": "Date",
+  "delegate_activities.description": "Description",
+  "delegate_activities.description_placeholder": "e.g. production workshop visit, meeting with management about pay equality…",
+  "delegate_activities.add_btn": "Log",
+  "delegate_activities.empty": "No activities logged for this year.",
+  "delegate_activities.delete_confirm": "Delete this activity?"
 }

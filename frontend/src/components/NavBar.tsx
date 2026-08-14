@@ -55,6 +55,7 @@ export default function NavBar() {
         <Link to="/consultations" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.consultations')}</Link>
         <Link to="/workforce-stats" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.stats')}</Link>
         <Link to="/archive" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.archive')}</Link>
+        <Link to="/delegate-activities" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.delegate_activities')}</Link>
         <Link to="/hours" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>⏱️ Mes heures</Link>
         {user?.role === 'admin' && <Link to="/organization" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>{t('nav.organization')}</Link>}
         {user?.role === 'admin' && <Link to="/notifications" style={{ color:'var(--blue)', fontWeight:600, textDecoration:'none', fontSize:'.9rem' }}>📧 Notifications</Link>}

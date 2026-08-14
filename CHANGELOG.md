@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.08.021] — 2026-08-14 (test pre-release)
+
+### Added — designated delegates activities module (activités des délégués désignés)
+- **🛡️ New "Activités délégués" page** (`/delegate-activities`): control tours, enquiries, trainings, reports (sécurité/santé L.414-14) and actions, awareness sessions, trainings, reports (égalité L.414-15) — dated, described, archived per year with category/domain filters.
+- **Access rules**: every member reads; the designated delegate logs their own activities; bureau members log for any designated delegate; only the author or bureau deletes. Category/domain coherence validated (422), target must be currently designated (400).
+- **Annual report integration**: designated-delegate rows now show the yearly activity count + breakdown by category (PDF table gains an "Activités" column).
+- Migration `20260801_0009` (delegate_activities). Tests: 7 new backend (read/write rules, self-only for non-bureau delegates, bureau for any, non-designated rejected, category/domain 422, delete rules, year filter) — 251 total; frontend 115 total. i18n FR/EN/DE/PT.
+
 ## [2026.08.020] — 2026-08-14 (test pre-release)
 
 ### Added — annual activity report (rapport d'activité annuel)

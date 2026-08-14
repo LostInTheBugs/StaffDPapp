@@ -218,8 +218,9 @@ export async function exportAnnualReportPDF(
       d.name,
       d.roles.map((r) => ROLE_LABELS[r] || r).join(' + '),
       String(d.total_hours),
+      String(d.activities_count),
     ])
-    table(['Membre', 'Désignation', 'Heures déclarées'], rows, [170, 240, 100])
+    table(['Membre', 'Désignation', 'Heures déclarées', 'Activités'], rows, [160, 220, 100, 80])
     footnote(`Crédit mensuel délégué égalité : ${org.equality_monthly_credit} h (effectif ${org.employee_count} salariés) · Congé-formation sécurité/santé : 40 h/mandat (+10 h premier mandat).`)
   }
 
