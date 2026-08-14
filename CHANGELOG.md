@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026.08.012] — 2026-08-14 (stable)
+
+Stable release validated by the user — same features as v2026.08.011
+(test pre-release). See the 2026.08.011 section for full details.
+
 ## [2026.08.011] — 2026-08-14 (test pre-release)
 
 ### Added — semiannual workforce statistics (L.414-3)
