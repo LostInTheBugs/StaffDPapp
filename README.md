@@ -4,7 +4,7 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.019** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.020** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
@@ -25,6 +25,7 @@ Current version: **2026.08.019** — [See GitHub releases](https://github.com/Lo
 - 🖥️ **Dashboard vitrine**: overview widgets — annual meetings vs. legal minimum, pending consultations with overdue badge, hours this month, workforce by sex, delegation members
 - 📋 **Consultations (Art. L.414-3)**: opinion/consultation tracking with the employer — 13 legal domains, 2-month decision deadline for internal rules, motivated answer required, direction emails + overdue reminders
 - 📊 **Semiannual statistics (Art. L.414-3)**: workforce by sex, per semester (S1/S2), ratio visualization, history managed by the board, **PDF report export**
+- 📄 **Annual activity report**: one A4 PDF per year — workforce by sex, delegation hours (L.415-5), meetings (L.415-6), consultations (L.414-3), **designated delegates** (sécurité/santé L.414-14, égalité L.414-15) with declared hours + legal credits
 - 👤 **My profile**: photo, language, password change, MFA
 
 ## Demo

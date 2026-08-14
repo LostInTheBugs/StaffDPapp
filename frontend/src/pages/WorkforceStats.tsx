@@ -6,6 +6,7 @@ import Footer from '../components/Footer'
 import * as api from '../api/client'
 import { semesterLabel } from '../lib/semester'
 import { exportWorkforceStatsPDF } from '../lib/workforceStatsPdf'
+import { exportAnnualReportPDF } from '../lib/annualReportPdf'
 
 export default function WorkforceStats() {
   const { t } = useT()
@@ -106,6 +107,30 @@ export default function WorkforceStats() {
     }
   }
 
+  // ── Rapport d'activité annuel ────────────────────────────────────
+  const [reportYear, setReportYear] = useState(String(new Date().getFullYear()))
+  const [reportBusy, setReportBusy] = useState(false)
+
+  async function downloadAnnualReport() {
+    setErr(null)
+    setReportBusy(true)
+    try {
+      const data = await api.getAnnualReport(parseInt(reportYear, 10))
+      const bytes = await exportAnnualReportPDF(data)
+      const blob = new Blob([bytes], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `rapport_activite_${reportYear}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
   const total = latest ? latest.total : 0
   const malePct = total > 0 ? Math.round((latest!.male_count / total) * 100) : 0
   const femalePct = total > 0 ? Math.round((latest!.female_count / total) * 100) : 0
@@ -116,15 +141,35 @@ export default function WorkforceStats() {
       <div className="container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <h2>📊 {t('stats.title')}</h2>
-          <button
-            className="btn"
-            style={{ padding: '6px 12px', fontSize: '.85rem', background: 'var(--blue)', color: '#fff', border: 'none' }}
-            onClick={downloadPDF}
-            disabled={pdfBusy || rows.length === 0}
-            title={rows.length === 0 ? t('stats.empty') : undefined}
-          >
-            {pdfBusy ? '…' : '🖨️ Rapport PDF'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={reportYear}
+              onChange={(e) => setReportYear(e.target.value)}
+              style={{ padding: '6px 8px', fontSize: '.85rem', borderRadius: 6, border: '1px solid var(--gray-300)' }}
+              aria-label="Année du rapport"
+            >
+              {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i)).map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <button
+              className="btn"
+              style={{ padding: '6px 12px', fontSize: '.85rem', background: 'var(--green)', color: '#fff', border: 'none' }}
+              onClick={downloadAnnualReport}
+              disabled={reportBusy}
+            >
+              {reportBusy ? '…' : '📄 Rapport d\'activité annuel'}
+            </button>
+            <button
+              className="btn"
+              style={{ padding: '6px 12px', fontSize: '.85rem', background: 'var(--blue)', color: '#fff', border: 'none' }}
+              onClick={downloadPDF}
+              disabled={pdfBusy || rows.length === 0}
+              title={rows.length === 0 ? t('stats.empty') : undefined}
+            >
+              {pdfBusy ? '…' : '🖨️ Rapport PDF'}
+            </button>
+          </div>
         </div>
         <p style={{ color: 'var(--gray-600)', marginBottom: 16 }}>
           {t('stats.subtitle')}

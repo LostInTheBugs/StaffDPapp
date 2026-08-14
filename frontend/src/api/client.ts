@@ -329,7 +329,6 @@ export function getJoinVaultEnvelope(code: string, email: string): Promise<Vault
 }
 
 // ── Consultations L.414-3 ──────────────────────────────────────────────
-
 export interface Consultation {
   id: number
   title: string
@@ -416,6 +415,42 @@ export function updateWorkforceStat(
 
 export function deleteWorkforceStat(id: number): Promise<void> {
   return request(`/workforce-stats/${id}`, { method: 'DELETE' })
+}
+
+// ── Rapport d'activité annuel ───────────────────────────────────────────
+
+export interface AnnualReportDesignate {
+  user_id: number
+  name: string
+  email: string
+  delegue_status: string
+  roles: string[]
+  total_hours: number
+  hours_by_category: Record<string, number>
+}
+
+export interface AnnualReportData {
+  year: number
+  organization: {
+    name: string
+    company: string | null
+    employee_count: number
+    weekly_credit_hours: number | null
+    equality_monthly_credit: number
+  }
+  workforce: Array<{ semester: string; male_count: number; female_count: number; total: number }>
+  hours: {
+    total: number
+    by_category: Record<string, number>
+    by_user: Array<{ user_id: number; name: string; email: string; delegue_status: string; total_hours: number }>
+  }
+  meetings: { total: number; with_direction: number }
+  consultations: { total: number; answered: number }
+  designates: AnnualReportDesignate[]
+}
+
+export function getAnnualReport(year: number): Promise<AnnualReportData> {
+  return request(`/stats/annual-report?year=${year}`)
 }
 
 export type { VaultStatusResponse, VaultKeyResponse, VaultEnvelope }
