@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026.08.013] — 2026-08-14 (test pre-release)
+
+### Added — dashboard vitrine (overview widgets)
+- **Overview cards** on the dashboard: annual meetings (count vs. the 6/year legal minimum, management-invited count vs. 3, next upcoming meeting), consultations (pending, overdue badge ⚠️, received/closed), hours logged this month vs. credit, latest workforce-by-sex with ratio bar, delegation members (titular/deputies).
+- i18n FR/EN/DE/PT. No backend change (reuses existing endpoints).
+
 ## [2026.08.012] — 2026-08-14 (stable)
 
 Stable release validated by the user — same features as v2026.08.011

@@ -228,5 +228,18 @@
   "stats.save": "Speichern",
   "stats.cancel": "Abbrechen",
   "stats.history": "Berichtsverlauf",
-  "stats.empty": "Noch kein Bericht veröffentlicht."
+  "stats.empty": "Noch kein Bericht veröffentlicht.",
+  "dashboard.widget_meetings": "Sitzungen",
+  "dashboard.widget_with_direction": "mit Leitung",
+  "dashboard.widget_consultations": "Konsultationen",
+  "dashboard.widget_overdue": "überfällig",
+  "dashboard.widget_received": "Antworten",
+  "dashboard.widget_closed": "abgeschlossen",
+  "dashboard.widget_hours": "Stunden diesen Monat",
+  "dashboard.widget_credit": "Guthaben",
+  "dashboard.widget_workforce": "Personal nach Geschlecht",
+  "dashboard.widget_people": "Beschäftigte",
+  "dashboard.widget_members": "Delegationsmitglieder",
+  "dashboard.widget_titulaires": "ordentliche",
+  "dashboard.widget_suppleants": "Stellvertreter"
 }

@@ -228,5 +228,18 @@
   "stats.save": "Save",
   "stats.cancel": "Cancel",
   "stats.history": "Report history",
-  "stats.empty": "No report published yet."
+  "stats.empty": "No report published yet.",
+  "dashboard.widget_meetings": "Meetings",
+  "dashboard.widget_with_direction": "with management",
+  "dashboard.widget_consultations": "Consultations",
+  "dashboard.widget_overdue": "overdue",
+  "dashboard.widget_received": "answers",
+  "dashboard.widget_closed": "closed",
+  "dashboard.widget_hours": "Hours this month",
+  "dashboard.widget_credit": "credit",
+  "dashboard.widget_workforce": "Workforce by sex",
+  "dashboard.widget_people": "employees",
+  "dashboard.widget_members": "Delegation members",
+  "dashboard.widget_titulaires": "titular",
+  "dashboard.widget_suppleants": "deputies"
 }
