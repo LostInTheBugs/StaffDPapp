@@ -218,6 +218,76 @@ export async function deriveKEKFromCode(
   return deriveKEK(code, salt, params);
 }
 
+// ── Recovery key (clé de récupération) ─────────────────────────────
+
+export const RECOVERY_KEY_PARAMS = {
+  algo: "pbkdf2",
+  iterations: 210_000,
+  hash: "SHA-256",
+} as const;
+
+/** Format lisible d'une clé de récupération : XXXX-XXXX-XXXX-XXXX (hex). */
+export function formatRecoveryKey(key: string): string {
+  const hex = key.replace(/[^0-9a-fA-F]/g, "").toUpperCase().slice(0, 16);
+  return hex.replace(/(.{4})(?=.)/g, "$1-");
+}
+
+/** Génère une clé de récupération aléatoire (128 bits, hex formaté). */
+export function generateRecoveryKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return formatRecoveryKey(Array.from(bytes, b => b.toString(16).padStart(2, "0")).join(""));
+}
+
+/**
+ * Déchiffre la DEK avec la clé de récupération (PBKDF2-SHA256 natif WebCrypto
+ * — pas besoin d'Argon2 : la clé est aléatoire, pas un mot de passe humain).
+ */
+export async function unwrapDEKWithRecoveryKey(
+  wrapped: Uint8Array,
+  recoveryKey: string,
+  salt: Uint8Array,
+  params: { iterations: number; hash?: string },
+  nonce: Uint8Array,
+): Promise<Uint8Array> {
+  const normalized = recoveryKey.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+  const raw = await crypto.subtle.importKey("raw", new TextEncoder().encode(normalized), "PBKDF2", false, ["deriveKey"]);
+  const kek = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: params.iterations, hash: params.hash || "SHA-256" },
+    raw,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+  try {
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, kek, wrapped);
+    return new Uint8Array(plain);
+  } catch {
+    throw new WrongPasswordError();
+  }
+}
+
+/**
+ * Enveloppe la DEK sous la clé de récupération. Produit un salt + nonce frais.
+ */
+export async function wrapDEKWithRecoveryKey(
+  dek: Uint8Array,
+  recoveryKey: string,
+): Promise<{ wrapped: Uint8Array; nonce: Uint8Array; salt: Uint8Array; params: typeof RECOVERY_KEY_PARAMS }> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const normalized = recoveryKey.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+  const raw = await crypto.subtle.importKey("raw", new TextEncoder().encode(normalized), "PBKDF2", false, ["deriveKey"]);
+  const kek = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: RECOVERY_KEY_PARAMS.iterations, hash: RECOVERY_KEY_PARAMS.hash },
+    raw,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"],
+  );
+  const wrapped = await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, kek, dek);
+  return { wrapped: new Uint8Array(wrapped), nonce, salt, params: RECOVERY_KEY_PARAMS };
+}
+
 // ── Errors ─────────────────────────────────────────────────────────
 
 export class WrongPasswordError extends Error {

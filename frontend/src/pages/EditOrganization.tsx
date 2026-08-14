@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import NavBar from '../components/NavBar'
 import VaultCreate from '../components/VaultCreate'
+import RecoveryKeyManager from '../components/RecoveryKeyManager'
 import * as api from '../api/client'
 
 interface Member {
@@ -95,6 +96,7 @@ export default function EditOrganization() {
               {status === 'unlocked' ? '✅ Le coffre est actif et déverrouillé. Les PV sont chiffrés de bout en bout.' :
                '🔒 Le coffre est actif. Déverrouillez-le pour accéder aux PV chiffrés.'}
             </div>
+            {status === 'unlocked' && <RecoveryKeyManager />}
           </div>
         )}
 
