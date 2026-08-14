@@ -97,6 +97,14 @@ class TestAnnualReport:
         _add_entry(client, t["marc_token"], "2026-02-01", 2.5, "tournee", "Tournée de contrôle")
         _add_entry(client, t["tom_token"], "2026-02-02", 4.0, "reunion", "Réunion égalité")
 
+        # Activité du délégué sécurité/santé (déclarée par lui-même)
+        r = client.post("/api/delegate-activities",
+                        headers={"Authorization": f"Bearer {t['marc_token']}"},
+                        json={"user_id": marc.id, "domain": "securite_sante",
+                              "category": "visite", "description": "Visite atelier",
+                              "date": "2026-02-03T09:00:00"})
+        assert r.status_code == 201, r.json()
+
         data = client.get("/api/stats/annual-report?year=2026", headers=h).json()
         assert len(data["designates"]) == 2
 
@@ -106,6 +114,8 @@ class TestAnnualReport:
         assert marc_entry["roles"] == ["securite_sante"]
         assert marc_entry["total_hours"] == 2.5
         assert marc_entry["hours_by_category"]["tournee"] == 2.5
+        assert marc_entry["activities_count"] == 1
+        assert marc_entry["activities_by_category"]["visite"] == 1
 
         tom_entry = by_name.get("Tom Wagner")
         assert tom_entry is not None

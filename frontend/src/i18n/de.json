@@ -279,5 +279,18 @@
   "vault.recovery_revoke_confirm": "Wiederherstellungsschlüssel widerrufen? Mitglieder können ihn dann nicht mehr zum Entsperren verwenden.",
   "vault.recovery_created": "Wiederherstellungsschlüssel erstellt",
   "vault.recovery_replaced": "Wiederherstellungsschlüssel ersetzt (der alte funktioniert nicht mehr)",
-  "vault.recovery_revoked": "Wiederherstellungsschlüssel widerrufen"
+  "vault.recovery_revoked": "Wiederherstellungsschlüssel widerrufen",
+  "nav.delegate_activities": "🛡️ Delegiertenaktivitäten",
+  "delegate_activities.title": "Aktivitäten der benannten Delegierten",
+  "delegate_activities.subtitle": "Kontrollrundgänge, Untersuchungen, Schulungen, Aktionen und Sensibilisierungen der Sicherheits- und Gesundheitsdelegierten (L.414-14) und Gleichstellungsdelegierten (L.414-15).",
+  "delegate_activities.add_title": "Aktivität erfassen",
+  "delegate_activities.delegate": "Delegierter",
+  "delegate_activities.domain": "Bereich",
+  "delegate_activities.category": "Typ",
+  "delegate_activities.date": "Datum",
+  "delegate_activities.description": "Beschreibung",
+  "delegate_activities.description_placeholder": "z. B. Werkstattbesichtigung, Gespräch mit der Geschäftsleitung zur Lohngleichheit…",
+  "delegate_activities.add_btn": "Erfassen",
+  "delegate_activities.empty": "Keine Aktivitäten für dieses Jahr erfasst.",
+  "delegate_activities.delete_confirm": "Diese Aktivität löschen?"
 }

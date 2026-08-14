@@ -6,6 +6,7 @@ from app.models.vault_key import VaultKey
 from app.models.email import EmailConfig, EmailOutbox, MinuteShareLink, TransportMode, EmailEventType, EmailStatus
 from app.models.consultation import Consultation, ConsultationStatus, ConsultationCategory
 from app.models.workforce_stat import WorkforceStat
+from app.models.delegate_activity import DelegateActivity
 
 __all__ = [
     "User", "UserRole", "DelegueStatus", "DelegueRole", "Organization", "Invitation",
@@ -14,4 +15,5 @@ __all__ = [
     "EmailConfig", "EmailOutbox", "MinuteShareLink", "TransportMode", "EmailEventType", "EmailStatus",
     "Consultation", "ConsultationStatus", "ConsultationCategory",
     "WorkforceStat",
+    "DelegateActivity",
 ]

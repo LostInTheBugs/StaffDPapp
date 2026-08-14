@@ -279,5 +279,18 @@
   "vault.recovery_revoke_confirm": "Révoguer la clé de récupération ? Les membres ne pourront plus l'utiliser pour déverrouiller le coffre.",
   "vault.recovery_created": "Clé de récupération créée",
   "vault.recovery_replaced": "Clé de récupération remplacée (l'ancienne ne fonctionne plus)",
-  "vault.recovery_revoked": "Clé de récupération révoquée"
+  "vault.recovery_revoked": "Clé de récupération révoquée",
+  "nav.delegate_activities": "🛡️ Activités délégués",
+  "delegate_activities.title": "Activités des délégués désignés",
+  "delegate_activities.subtitle": "Visites de contrôle, enquêtes, formations, actions et sensibilisations déclarées par les délégués sécurité/santé (L.414-14) et égalité (L.414-15).",
+  "delegate_activities.add_title": "Déclarer une activité",
+  "delegate_activities.delegate": "Délégué",
+  "delegate_activities.domain": "Domaine",
+  "delegate_activities.category": "Type",
+  "delegate_activities.date": "Date",
+  "delegate_activities.description": "Description",
+  "delegate_activities.description_placeholder": "Ex. : visite de l'atelier de production, entretien avec la direction sur l'égalité salariale…",
+  "delegate_activities.add_btn": "Déclarer",
+  "delegate_activities.empty": "Aucune activité déclarée pour cette année.",
+  "delegate_activities.delete_confirm": "Supprimer cette activité ?"
 }

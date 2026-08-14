@@ -22,6 +22,7 @@ from app.models.organization import Organization
 from app.models.user import User
 from app.models.time_entry import TimeEntry
 from app.models.workforce_stat import WorkforceStat
+from app.models.delegate_activity import DelegateActivity
 from app.models.meeting import Meeting
 from app.models.consultation import Consultation
 
@@ -148,6 +149,22 @@ def annual_report(
         User.organization_id == org.id,
         (User.is_delegue_securite_sante == True) | (User.is_delegue_egalite == True),  # noqa: E712
     ).all()
+    delegate_ids = [d.id for d in delegates]
+    # Comptage d'activités par délégué et par type (année)
+    activity_counts: dict[int, dict[str, int]] = {uid: {} for uid in delegate_ids}
+    if delegate_ids:
+        rows = db.query(
+            DelegateActivity.user_id,
+            DelegateActivity.category,
+            func.count(DelegateActivity.id),
+        ).filter(
+            DelegateActivity.organization_id == org.id,
+            DelegateActivity.user_id.in_(delegate_ids),
+            DelegateActivity.activity_date >= start,
+            DelegateActivity.activity_date < end,
+        ).group_by(DelegateActivity.user_id, DelegateActivity.category).all()
+        for uid, cat, n in rows:
+            activity_counts[uid][cat] = int(n)
     for d in delegates:
         hours = db.query(func.coalesce(func.sum(TimeEntry.hours), 0.0)).filter(
             TimeEntry.user_id == d.id,
@@ -173,6 +190,8 @@ def annual_report(
             "roles": roles,
             "total_hours": round(float(hours), 2),
             "hours_by_category": {k: round(float(v), 2) for k, v in by_cat.items()},
+            "activities_count": sum(activity_counts.get(d.id, {}).values()),
+            "activities_by_category": activity_counts.get(d.id, {}),
         })
 
     weekly_credit = org.weekly_credit_hours

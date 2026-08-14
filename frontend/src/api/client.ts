@@ -427,6 +427,8 @@ export interface AnnualReportDesignate {
   roles: string[]
   total_hours: number
   hours_by_category: Record<string, number>
+  activities_count: number
+  activities_by_category: Record<string, number>
 }
 
 export interface AnnualReportData {

@@ -35,10 +35,12 @@ const DATA: AnnualReportData = {
     {
       user_id: 2, name: 'Marc Weber', email: 'marc@demo.lu', delegue_status: 'titulaire',
       roles: ['securite_sante'], total_hours: 12.5, hours_by_category: { tournee: 12.5 },
+      activities_count: 3, activities_by_category: { visite: 2, enquete: 1 },
     },
     {
       user_id: 3, name: 'Tom Wagner', email: 'tom@demo.lu', delegue_status: 'titulaire',
       roles: ['egalite'], total_hours: 8, hours_by_category: { reunion: 8 },
+      activities_count: 1, activities_by_category: { sensibilisation: 1 },
     },
   ],
 }
