@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026.08.017] — 2026-08-14 (stable)
+
+Stable release validated by the user — same features as v2026.08.016
+(test pre-release). See the 2026.08.016 section for full details.
+
 ## [2026.08.016] — 2026-08-14 (test pre-release)
 
 ### Added — workforce statistics PDF report
