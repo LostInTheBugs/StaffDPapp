@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 
-export type Lang = 'fr' | 'en' | 'de' | 'pt'
+export type Lang = 'fr' | 'en' | 'de' | 'pt' | 'lb'
 
 const LANGS: { code: Lang; label: string }[] = [
   { code: 'fr', label: '🇫🇷 Français' },
   { code: 'en', label: '🇬🇧 English' },
   { code: 'de', label: '🇩🇪 Deutsch' },
   { code: 'pt', label: '🇵🇹 Português' },
+  { code: 'lb', label: '🇱🇺 Lëtzebuergesch' },
 ]
 
 // Chargement paresseux des traductions
@@ -15,6 +16,7 @@ const translations: Record<Lang, () => Promise<Record<string, string>>> = {
   en: () => import('../i18n/en.json').then(m => m.default),
   de: () => import('../i18n/de.json').then(m => m.default),
   pt: () => import('../i18n/pt.json').then(m => m.default),
+  lb: () => import('../i18n/lb.json').then(m => m.default),
 }
 
 interface I18nContextType {

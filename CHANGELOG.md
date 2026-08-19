@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.08.027] — 2026-08-19 (test pre-release)
+
+### Added — Lëtzebuergesch (Luxembourgish) interface language
+- **🇱🇺 New language: Lëtzebuergesch** — full UI translation (384 keys, parity with FR/EN/DE/PT verified programmatically), selectable in the language picker (Profile + login screen) and persisted per user (backend accepts `lb`).
+- Legal terms follow official Luxembourgish usage (*Personalvertriedung*, *Plenierversammlung*, *Recuperatiounsschlëssel*, *Walbarkeet*, *Schwarzt Brëtt*…); article numbers stay in French (L.414-16…).
+- No schema change (no migration). Tests: backend auth language validation extended to `lb` — 284 total.
+
 ## [2026.08.025] — 2026-08-19 (test pre-release)
 
 ### Added — virtual notice board, compliance cockpit, elections module (tableau d'affichage, conformité, élections)
