@@ -142,6 +142,145 @@ export function removeMember(userId: number): Promise<{ id: number; removed: boo
   return request(`/organization/members/${userId}`, { method: 'DELETE' })
 }
 
+export interface NoticePost {
+  id: number
+  title: string
+  body: string
+  pinned: boolean
+  created_by_id: number
+  created_by_name: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export function listNotices(): Promise<NoticePost[]> {
+  return request('/notices')
+}
+
+export function createNotice(data: { title: string; body: string; pinned?: boolean }): Promise<NoticePost> {
+  return request('/notices', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateNotice(id: number, data: { title?: string; body?: string; pinned?: boolean }): Promise<NoticePost> {
+  return request(`/notices/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deleteNotice(id: number): Promise<void> {
+  return request(`/notices/${id}`, { method: 'DELETE' })
+}
+
+export interface ComplianceItem {
+  key: string
+  title: string
+  legal_ref: string
+  status: 'ok' | 'warn' | 'due' | 'na' | 'info'
+  detail: string
+}
+
+export interface ComplianceEvent {
+  id: number
+  event_type: string
+  event_date: string | null
+  notes: string | null
+  created_by_name: string | null
+  created_at: string | null
+}
+
+export interface ComplianceOverview {
+  items: ComplianceItem[]
+  events: ComplianceEvent[]
+  generated_at: string
+}
+
+export function getComplianceOverview(): Promise<ComplianceOverview> {
+  return request('/compliance/overview')
+}
+
+export function createComplianceEvent(data: { event_type: string; event_date?: string; notes?: string }): Promise<ComplianceEvent> {
+  return request('/compliance/events', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function deleteComplianceEvent(id: number): Promise<void> {
+  return request(`/compliance/events/${id}`, { method: 'DELETE' })
+}
+
+export interface ElectionCandidate {
+  id: number
+  user_id: number | null
+  full_name: string
+  list_label: string
+  eligible: boolean
+  eligibility_reason: string | null
+}
+
+export interface Election {
+  id: number
+  title: string
+  election_date: string | null
+  candidate_deadline: string | null
+  status: 'announced' | 'voting' | 'closed'
+  notes: string | null
+  candidates: ElectionCandidate[]
+  votes_count: number
+  has_voted: boolean
+  can_manage: boolean
+  created_by_name: string | null
+}
+
+export interface ElectionResultList {
+  list_label: string
+  votes: number
+  seats_titulaires: number
+  seats_suppleants: number
+  elected: string[]
+  suppleants: string[]
+}
+
+export interface ElectionResults {
+  election_id: number
+  status: string
+  total_votes: number
+  voters_count: number
+  seats: number
+  proportional: boolean
+  lists: ElectionResultList[]
+}
+
+export function listElections(): Promise<Election[]> {
+  return request('/elections')
+}
+
+export function createElection(data: { title: string; election_date: string; candidate_deadline?: string; notes?: string }): Promise<Election> {
+  return request('/elections', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function addCandidate(electionId: number, data: {
+  user_id?: number | null; full_name: string; list_label: string;
+  birth_date?: string; hire_date?: string; declared_not_excluded?: boolean;
+}): Promise<ElectionCandidate> {
+  return request(`/elections/${electionId}/candidates`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function removeCandidate(electionId: number, candidateId: number): Promise<void> {
+  return request(`/elections/${electionId}/candidates/${candidateId}`, { method: 'DELETE' })
+}
+
+export function openElection(electionId: number): Promise<Election> {
+  return request(`/elections/${electionId}/open`, { method: 'POST' })
+}
+
+export function castVote(electionId: number, candidateId: number): Promise<{ ok: boolean }> {
+  return request(`/elections/${electionId}/vote`, { method: 'POST', body: JSON.stringify({ candidate_id: candidateId }) })
+}
+
+export function closeElection(electionId: number): Promise<ElectionResults> {
+  return request(`/elections/${electionId}/close`, { method: 'POST' })
+}
+
+export function getElectionResults(electionId: number): Promise<ElectionResults> {
+  return request(`/elections/${electionId}/results`)
+}
+
 export function updateOrganization(data: {
   name?: string; company_name?: string; employee_count?: number; mandate_end_date?: string
 }): Promise<OrganizationResponse> {

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.08.025] — 2026-08-19 (test pre-release)
+
+### Added — virtual notice board, compliance cockpit, elections module (tableau d'affichage, conformité, élections)
+- **📌 Virtual notice board** (`/notices`, Art. L.414-16 — verified on Legilux 2026-08-19: posting on supports accessible to staff, *including electronic ones*): the delegation, the safety/health delegate and the equality delegate may post (admin, bureau, `is_delegue_securite_sante`, `is_delegue_egalite`); **all staff including plain employees read the board** (no write access); title + body + pin; edit/delete by author or bureau; org isolation. Migration `20260801_0010`.
+- **⚖️ Compliance cockpit** (`/compliance`): live status of 10 legal obligations aggregated from real app data — annual meetings L.415-6 (6/year, 3 with direction), plenary assembly L.415-7 (1/year, logged), semester workforce stats L.414-3, consultations with overdue tracking L.414-3, validated minutes L.416-5, designated delegates L.414-14/15, bureau names communicated to the head of company L.416-1 (3-day rule, logged), election renewal window L.413-2 (Feb 1–Mar 31), eco-financial reports L.414-5 (≥150 employees, 2/year, logged), notice board activity L.414-16. Bureau/admin log events (plenary, eco report, names communication) with history. Migration `20260801_0011`.
+- **🗳️ Elections module** (`/elections`, L.413-1 to L.413-6): full cycle — announcement poster (PDF, L.413-2), candidacies with **automatic eligibility check** (L.413-4: 18yo, 12-month seniority, honor declaration on exclusions), **anonymous secret ballot by construction** (identity in `election_ballots`, choice in `election_votes` — no join possible, verified by test), d'Hondt proportional tally (≥100 employees) or relative majority (<100), titulaires + suppléants per list, constitutive meeting reminder (L.416-1). Bureau/admin manage, all members vote once. Migration `20260801_0012`.
+- Tests: 15 new (notices + compliance) + 6 new (elections) — **293 total**. Frontend i18n FR/EN/DE/PT for all three modules.
+
 ## [2026.08.023] — 2026-08-19 (test pre-release)
 
 ### Added — mass invitations + member lifecycle (invitation en masse, gestion des membres)

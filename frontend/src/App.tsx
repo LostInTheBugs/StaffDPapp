@@ -12,6 +12,9 @@ import TimeTracking from './pages/TimeTracking'
 import MinutesPage from './pages/Minutes'
 import MinutesArchive from './pages/MinutesArchive'
 import DelegateActivities from './pages/DelegateActivities'
+import NoticeBoard from './pages/NoticeBoard'
+import ComplianceBoard from './pages/ComplianceBoard'
+import Elections from './pages/Elections'
 import Notifications from './pages/Notifications'
 import ShareView from './pages/ShareView'
 import Consultations from './pages/Consultations'
@@ -34,6 +37,9 @@ export default function App() {
       <Route path="/meetings/:meetingId/minutes" element={<ProtectedRoute><MinutesPage /></ProtectedRoute>} />
       <Route path="/archive" element={<ProtectedRoute><MinutesArchive /></ProtectedRoute>} />
       <Route path="/delegate-activities" element={<ProtectedRoute><DelegateActivities /></ProtectedRoute>} />
+      <Route path="/notices" element={<ProtectedRoute><NoticeBoard /></ProtectedRoute>} />
+      <Route path="/compliance" element={<ProtectedRoute><ComplianceBoard /></ProtectedRoute>} />
+      <Route path="/elections" element={<ProtectedRoute><Elections /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="/consultations" element={<ProtectedRoute><Consultations /></ProtectedRoute>} />
       <Route path="/workforce-stats" element={<ProtectedRoute><WorkforceStats /></ProtectedRoute>} />
