@@ -7,6 +7,9 @@ from app.models.email import EmailConfig, EmailOutbox, MinuteShareLink, Transpor
 from app.models.consultation import Consultation, ConsultationStatus, ConsultationCategory
 from app.models.workforce_stat import WorkforceStat
 from app.models.delegate_activity import DelegateActivity
+from app.models.notice import NoticePost
+from app.models.compliance import ComplianceEvent
+from app.models.election import Election, ElectionStatus, ElectionCandidate, ElectionBallot, ElectionVote
 
 __all__ = [
     "User", "UserRole", "DelegueStatus", "DelegueRole", "Organization", "Invitation",
@@ -16,4 +19,7 @@ __all__ = [
     "Consultation", "ConsultationStatus", "ConsultationCategory",
     "WorkforceStat",
     "DelegateActivity",
+    "NoticePost",
+    "ComplianceEvent",
+    "Election", "ElectionStatus", "ElectionCandidate", "ElectionBallot", "ElectionVote",
 ]

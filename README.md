@@ -4,7 +4,7 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.023** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.025** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
@@ -29,6 +29,9 @@ Current version: **2026.08.023** — [See GitHub releases](https://github.com/Lo
 - 🛡️ **Delegate activities**: designated delegates log their control tours, enquiries, trainings, actions and awareness sessions (L.414-14 / L.414-15) — visible to the whole delegation, counted in the annual report
 - 👥 **Mass invitations**: paste an employee list (`email;first;last`, one per line) → one invitation code per person, per-line results (created / duplicate / invalid), codes shown once with copy button — mass-invited users get plain employee accounts
 - 🗑️ **Member lifecycle**: remove former members in one click (Mon organisation) — account deactivated, login blocked, history preserved; guards prevent removing yourself or the last administrator
+- 📌 **Virtual notice board (Art. L.414-16)**: the delegation and the designated safety/health & equality delegates post communications visible to **all staff including plain employees** (read-only for them) — electronic display is explicitly legal
+- ⚖️ **Compliance cockpit**: live status of 10 legal obligations (meetings L.415-6, plenary L.415-7, workforce stats L.414-3, consultations, validated PVs L.416-5, designations L.414-14/15, bureau names L.416-1, renewal window L.413-2, eco-financial reports L.414-5, notice board) with event logging and history
+- 🗳️ **Elections (L.413-1 to L.413-6)**: full cycle — announcement poster PDF, candidacies with automatic eligibility check (L.413-4), anonymous secret ballot (identity and choice stored separately — unlinkable by design), d'Hondt proportional tally (≥100 employees) or relative majority, titulaires + suppléants, constitutive meeting reminder
 - 👤 **My profile**: photo, language, password change, MFA
 
 ## Demo
