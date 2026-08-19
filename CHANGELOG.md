@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026.08.023] — 2026-08-19 (test pre-release)
+
+### Added — mass invitations + member lifecycle (invitation en masse, gestion des membres)
+- **👥 Mass invitations** (admin dashboard): paste one `email;first;last` per line (semicolon or comma separated) → one unique invitation code per person, shown once with a per-line copy button. Per-line results never fail the whole batch: ✅ created / ⚠️ duplicate (existing account, pending invitation, or same batch) / ❌ invalid line. Batch capped at 200.
+- **Mass-invited users are plain employees** (`delegue_status=employe`, role member) — the rule forcing every non-elected employee to be a sécurité/santé designated delegate is relaxed (égalité → elected and non-elected → no bureau function rules are kept). This unblocks real employee accounts (e.g. for anonymous surveys).
+- **🗑️ Remove member** (`DELETE /api/organization/members/{id}`, admin): soft-delete (`is_active=False`) — login and API blocked, member disappears from lists, history (minutes, hours, meetings) stays intact. Guards: cannot remove yourself, cannot remove the last admin, cross-org targets → 404.
+- **Batch invitation codes** use a lighter Argon2id (16 MiB, time_cost 1 — codes carry ~130 bits of entropy so brute force stays infeasible; parameters are embedded in the hash, so the standard verifier accepts them). 200 invitations now take seconds instead of minutes.
+- No schema change (no migration). Tests: 12 new backend (admin-only, employee creation, duplicates, partial invalid lines, batch cap, relaxed rule, remove member flow/guards) — 263 total. Frontend i18n FR/EN/DE/PT.
+
 ## [2026.08.021] — 2026-08-14 (test pre-release)
 
 ### Added — designated delegates activities module (activités des délégués désignés)

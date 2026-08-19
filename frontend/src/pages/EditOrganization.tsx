@@ -58,11 +58,22 @@ export default function EditOrganization() {
     try {
       await fetch(`/api/organization/members/${member.id}/role`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify({ role: newRole }),
       })
       setMembers(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m))
-    } catch { /* */ }
+    } catch (e: any) { setErr(e.message) }
+  }
+
+  async function removeMember(member: Member) {
+    if (!isAdmin) return
+    if (!confirm(`Retirer ${member.full_name} de l'organisation ?\n\nSon compte sera désactivé (connexion bloquée), mais l'historique (PV, heures, réunions) sera conservé.`)) return
+    setErr(null)
+    try {
+      await api.removeMember(member.id)
+      setMsg(`✅ ${member.full_name} a été retiré(e) de l'organisation`)
+      loadMembers()
+    } catch (e: any) { setErr(e.message) }
   }
 
   return (
@@ -130,10 +141,19 @@ export default function EditOrganization() {
                     <button onClick={() => toggleRole(m)}
                       style={{
                         background: m.role === 'admin' ? 'var(--red)' : 'var(--blue)',
-                        color: '#fff', border: 'none', padding: '4px 12px', borderRadius: 4, cursor: 'pointer', fontSize: '.75rem'
+                        color: '#fff', border: 'none', padding: '4px 12px', borderRadius: 4, cursor: 'pointer', fontSize: '.75rem', marginRight: 6
                       }}>
                       {m.role === 'admin' ? 'Rétrograder' : 'Promouvoir admin'}
                     </button>
+                    {m.id !== user?.id && (
+                      <button onClick={() => removeMember(m)}
+                        style={{
+                          background: 'var(--gray-300)', color: 'var(--red)', border: 'none',
+                          padding: '4px 12px', borderRadius: 4, cursor: 'pointer', fontSize: '.75rem'
+                        }}>
+                        🗑️ Retirer
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

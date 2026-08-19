@@ -4,6 +4,7 @@ import json
 import re
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -11,7 +12,8 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.security import (
     hash_password, create_access_token,
-    generate_invitation_code, hash_invitation_code, verify_invitation_code,
+    generate_invitation_code, hash_invitation_code, hash_invitation_code_batch,
+    verify_invitation_code,
     normalize_invitation_code, normalize_email,
 )
 from app.core.captcha import validate_captcha
@@ -29,6 +31,9 @@ from app.schemas.auth import (
     CreateInvitationResponse,
     OrganizationResponse,
     UserResponse,
+    BatchInviteItem,
+    BatchInviteRequest,
+    BatchInviteResponse,
 )
 
 router = APIRouter(prefix="/api", tags=["organization"])
@@ -179,45 +184,15 @@ def create_invitation(
     if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
 
-    valid_statuses = [s.value for s in DelegueStatus]
-    if body.delegue_status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Statut invalide : {', '.join(valid_statuses)}")
+    _validate_invitation_fields(body.delegue_status, body.delegue_role,
+                                body.is_delegue_securite_sante, body.is_delegue_egalite)
 
-    valid_roles = [r.value for r in DelegueRole]
-    if body.delegue_role not in valid_roles:
-        raise HTTPException(status_code=400, detail=f"Rôle invalide : {', '.join(valid_roles)}")
-
-    # Règle : égalité → doit être un élu (titulaire ou suppléant)
-    if body.is_delegue_egalite and body.delegue_status == DelegueStatus.employe.value:
-        raise HTTPException(status_code=400, detail="Le délégué à l'égalité doit être titulaire ou suppléant")
-
-    # Règle : employé (non-élu) → obligatoirement délégué sécurité/santé
-    if body.delegue_status == DelegueStatus.employe.value and not body.is_delegue_securite_sante:
-        raise HTTPException(status_code=400, detail="Un salarié non-élu doit être désigné délégué à la sécurité et à la santé")
-
-    # Règle : employé (non-élu) → pas de fonction au bureau
-    if body.delegue_status == DelegueStatus.employe.value and body.delegue_role != DelegueRole.membre.value:
-        raise HTTPException(status_code=400, detail="Un salarié non-élu n'a pas de fonction au bureau")
-
-    # Generate a 26-char Crockford code, hash it with Argon2id.
-    # The plaintext code is returned ONLY in this response — never stored.
-    plaintext_code = generate_invitation_code()
-    code_hash = hash_invitation_code(plaintext_code)
-
-    invitation = Invitation(
-        code_hash=code_hash,
-        email=normalize_email(body.email),
-        first_name=body.first_name,
-        last_name=body.last_name,
-        delegue_status=DelegueStatus(body.delegue_status),
-        delegue_role=DelegueRole(body.delegue_role),
-        is_delegue_securite_sante=body.is_delegue_securite_sante,
-        is_delegue_egalite=body.is_delegue_egalite,
-        created_by_id=current_user.id,
-        organization_id=current_user.organization_id,
-        expires_at=datetime.now() + timedelta(days=30),
+    invitation, plaintext_code = _build_invitation(
+        db, current_user, body.email, body.first_name, body.last_name,
+        body.delegue_status, body.delegue_role,
+        body.is_delegue_securite_sante, body.is_delegue_egalite,
+        hash_fn=hash_invitation_code,
     )
-    db.add(invitation)
     db.flush()  # get invitation.id
 
     # Vault invitation envelope: if the org has a vault and the inviter
@@ -237,6 +212,197 @@ def create_invitation(
     result = dict(_invitation_to_response(invitation))
     result["code"] = plaintext_code  # ONE-TIME only
     return result
+
+
+def _validate_invitation_fields(
+    delegue_status: str, delegue_role: str,
+    is_delegue_securite_sante: bool, is_delegue_egalite: bool,
+) -> None:
+    """Règles légales communes (invitation simple ET invitation en masse).
+
+    Depuis le chantier « invitation en masse » (2026-08-19), un salarié
+    non-élu (delegue_status=employe) PEUT être invité sans désignation
+    sécurité/santé : ce sont les comptes « employés » (répondre aux enquêtes,
+    consulter les informations de la délégation). Les règles conservées :
+    égalité → élu ; non-élu → pas de fonction au bureau.
+    """
+    valid_statuses = [s.value for s in DelegueStatus]
+    if delegue_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Statut invalide : {', '.join(valid_statuses)}")
+
+    valid_roles = [r.value for r in DelegueRole]
+    if delegue_role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f"Rôle invalide : {', '.join(valid_roles)}")
+
+    # Règle : égalité → doit être un élu (titulaire ou suppléant)
+    if is_delegue_egalite and delegue_status == DelegueStatus.employe.value:
+        raise HTTPException(status_code=400, detail="Le délégué à l'égalité doit être titulaire ou suppléant")
+
+    # Règle : employé (non-élu) → pas de fonction au bureau
+    if delegue_status == DelegueStatus.employe.value and delegue_role != DelegueRole.membre.value:
+        raise HTTPException(status_code=400, detail="Un salarié non-élu n'a pas de fonction au bureau")
+
+
+def _build_invitation(
+    db: Session, current_user: User,
+    email: str, first_name: str, last_name: str,
+    delegue_status: str, delegue_role: str,
+    is_delegue_securite_sante: bool, is_delegue_egalite: bool,
+    hash_fn=hash_invitation_code,
+) -> tuple[Invitation, str]:
+    """Create the Invitation row + plaintext code (shown once).
+
+    `hash_fn` lets the batch endpoint use the lighter Argon2id params —
+    the code entropy (~130 bits) makes brute force infeasible either way.
+    """
+    plaintext_code = generate_invitation_code()
+    code_hash = hash_fn(plaintext_code)
+
+    invitation = Invitation(
+        code_hash=code_hash,
+        email=normalize_email(email),
+        first_name=first_name,
+        last_name=last_name,
+        delegue_status=DelegueStatus(delegue_status),
+        delegue_role=DelegueRole(delegue_role),
+        is_delegue_securite_sante=is_delegue_securite_sante,
+        is_delegue_egalite=is_delegue_egalite,
+        created_by_id=current_user.id,
+        organization_id=current_user.organization_id,
+        expires_at=datetime.now() + timedelta(days=30),
+    )
+    db.add(invitation)
+    return invitation, plaintext_code
+
+
+@router.post("/invitations/batch", response_model=BatchInviteResponse)
+def create_invitations_batch(
+    body: BatchInviteRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Invitation en masse (admin) : chaque ligne est validée séparément —
+    une ligne invalide ne fait jamais échouer le lot. Les invités en masse
+    sont des salariés non-élus (delegue_status=employe, rôle membre) —
+    ils pourront rejoindre avec leur code et répondre aux enquêtes.
+
+    Les enveloppes de coffre (vault) ne sont PAS attachées : l'accès au
+    coffre des PV reste réservé aux invitations individuelles (bureau).
+    """
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+
+    results: list[dict] = []
+    created = skipped = failed = 0
+    seen_emails: set[str] = set()
+    now = datetime.now()
+
+    for raw in body.invitations:
+        try:
+            item = BatchInviteItem.model_validate(raw)
+        except ValidationError:
+            email_raw = str(raw.get("email", "")).strip() if isinstance(raw, dict) else ""
+            results.append({
+                "email": email_raw or "(ligne invalide)",
+                "status": "invalid",
+                "message": "Format invalide : il faut email, prénom et nom (une ligne par personne, séparés par des points-virgules)",
+            })
+            failed += 1
+            continue
+
+        email = normalize_email(item.email)
+        first_name = item.first_name.strip()
+        last_name = item.last_name.strip()
+
+        # Doublon dans le même lot
+        if email in seen_emails:
+            results.append({"email": email, "status": "duplicate", "message": "Doublon dans le lot"})
+            skipped += 1
+            continue
+        seen_emails.add(email)
+
+        # Compte existant (email unique globalement — déjà membre d'une org)
+        if db.query(User).filter(User.email == email).first() is not None:
+            results.append({"email": email, "status": "duplicate", "message": "Un compte existe déjà avec cet email"})
+            skipped += 1
+            continue
+
+        # Invitation en attente pour ce même email (même org)
+        pending = db.query(Invitation).filter(
+            Invitation.organization_id == current_user.organization_id,
+            Invitation.email == email,
+            Invitation.is_used == False,  # noqa: E712
+        ).first()
+        if pending is not None and (pending.expires_at is None or pending.expires_at > now):
+            results.append({"email": email, "status": "duplicate", "message": "Invitation déjà envoyée pour cet email"})
+            skipped += 1
+            continue
+
+        invitation, plaintext_code = _build_invitation(
+            db, current_user, email, first_name, last_name,
+            DelegueStatus.employe.value, DelegueRole.membre.value,
+            False, False,
+            hash_fn=hash_invitation_code_batch,
+        )
+        db.flush()  # get invitation.id
+        _queue_invite_email(db, request, background_tasks, invitation, plaintext_code)
+
+        inv_dict = dict(_invitation_to_response(invitation))
+        inv_dict["code"] = plaintext_code  # ONE-TIME only
+        results.append({
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "status": "created",
+            "invitation": inv_dict,
+        })
+        created += 1
+
+    db.commit()
+    return {"results": results, "created": created, "skipped": skipped, "failed": failed}
+
+
+@router.delete("/organization/members/{user_id}")
+def remove_member(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Retirer un membre (admin) — suppression DOUCE : is_active=False.
+
+    Le compte reste en base (les références historiques — PV, heures,
+    réunions — restent valides), mais le login et l'API sont bloqués et le
+    membre disparaît des listes. C'est le pattern is_active déjà en place.
+    """
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+
+    target = db.query(User).filter(
+        User.id == user_id,
+        User.organization_id == current_user.organization_id,
+    ).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+    if target.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Impossible de retirer votre propre compte")
+    if not target.is_active:
+        return {"id": target.id, "removed": False}
+
+    # Garde défensive : ne jamais laisser l'org sans administrateur
+    if target.role == UserRole.admin:
+        admin_count = db.query(User).filter(
+            User.organization_id == current_user.organization_id,
+            User.role == UserRole.admin,
+            User.is_active == True,  # noqa: E712
+        ).count()
+        if admin_count <= 1:
+            raise HTTPException(status_code=400, detail="Impossible de retirer le dernier administrateur de l'organisation")
+
+    target.is_active = False
+    db.commit()
+    return {"id": target.id, "removed": True}
 
 
 def _queue_invite_email(

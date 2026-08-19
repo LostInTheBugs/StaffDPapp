@@ -116,6 +116,32 @@ export function listInvitations(): Promise<InvitationResponse[]> {
   return request('/invitations')
 }
 
+export interface BatchInviteResultItem {
+  email: string
+  first_name?: string | null
+  last_name?: string | null
+  status: 'created' | 'duplicate' | 'invalid'
+  message?: string | null
+  invitation?: (CreateInvitationResponse) | null
+}
+
+export interface BatchInviteResponse {
+  results: BatchInviteResultItem[]
+  created: number
+  skipped: number
+  failed: number
+}
+
+export function createInvitationsBatch(
+  invitations: { email: string; first_name: string; last_name: string }[],
+): Promise<BatchInviteResponse> {
+  return request('/invitations/batch', { method: 'POST', body: JSON.stringify({ invitations }) })
+}
+
+export function removeMember(userId: number): Promise<{ id: number; removed: boolean }> {
+  return request(`/organization/members/${userId}`, { method: 'DELETE' })
+}
+
 export function updateOrganization(data: {
   name?: string; company_name?: string; employee_count?: number; mandate_end_date?: string
 }): Promise<OrganizationResponse> {

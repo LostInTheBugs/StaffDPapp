@@ -21,6 +21,19 @@ _ph = PasswordHasher(
     type=Type.ID,          # Argon2id
 )
 
+# Argon2id allégé pour les invitations EN MASSE uniquement. Les codes font
+# 26 caractères Crockford (~130 bits d'entropie) : le brute force est
+# infaisable quel que soit le coût du KDF, un KDF plus léger est donc sûr.
+# Les paramètres sont stockés DANS le hash (format argon2 standard), donc
+# verify_invitation_code (hasher par défaut) valide ces hash sans souci.
+_ph_batch = PasswordHasher(
+    time_cost=1,
+    memory_cost=16384,  # 16 MiB (vs 64 MiB)
+    parallelism=1,
+    hash_len=32,
+    type=Type.ID,
+)
+
 # ── Crockford base32 alphabet (no I, L, O, U) ──────────────────────
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _CROCKFORD_NORMALIZE = str.maketrans({
@@ -79,6 +92,16 @@ def hash_invitation_code(code: str) -> str:
     """Hash an invitation code with Argon2id for server-side storage."""
     normalized = normalize_invitation_code(code)
     return _ph.hash(normalized)
+
+
+def hash_invitation_code_batch(code: str) -> str:
+    """Hash an invitation code with the lighter Argon2id (batch import only).
+
+    The resulting hash is verifiable with verify_invitation_code (params are
+    embedded in the argon2 string). Only used by the mass-invitation endpoint
+    to keep ~200 codes generatable in a few seconds instead of minutes.
+    """
+    return _ph_batch.hash(normalize_invitation_code(code))
 
 
 def verify_invitation_code(plain: str, hashed: str) -> bool:

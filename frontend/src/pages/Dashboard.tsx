@@ -31,6 +31,13 @@ export default function Dashboard() {
   // Active invitations list
   const [invitations, setInvitations] = useState<InvitationResponse[]>([])
 
+  // ── Invitation en masse ──
+  const [batchText, setBatchText] = useState('')
+  const [batchLoading, setBatchLoading] = useState(false)
+  const [batchResult, setBatchResult] = useState<api.BatchInviteResponse | null>(null)
+  const [batchError, setBatchError] = useState<string | null>(null)
+  const [batchCopied, setBatchCopied] = useState<string | null>(null)
+
   // ── Vitrine widgets ──
   const [meetingStats, setMeetingStats] = useState<any>(null)
   const [nextMeeting, setNextMeeting] = useState<any>(null)
@@ -136,6 +143,42 @@ export default function Dashboard() {
 
   function updateInvite(field: string, value: any) {
     setInviteForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  // ── Invitation en masse ──
+  function parseBatchLines(text: string): { email: string; first_name: string; last_name: string }[] {
+    return text.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .map(line => {
+        const sep = line.includes(';') ? ';' : ','
+        const parts = line.split(sep).map(p => p.trim())
+        return { email: parts[0] || '', first_name: parts[1] || '', last_name: parts[2] || '' }
+      })
+  }
+
+  async function handleBatchInvite() {
+    setBatchError(null)
+    setBatchResult(null)
+    const items = parseBatchLines(batchText)
+    if (items.length === 0) { setBatchError(t('dashboard.batch_empty')); return }
+    setBatchLoading(true)
+    try {
+      const res = await api.createInvitationsBatch(items)
+      setBatchResult(res)
+      const list = await api.listInvitations()
+      setInvitations(list)
+    } catch (e: any) {
+      setBatchError(e.message)
+    } finally {
+      setBatchLoading(false)
+    }
+  }
+
+  async function copyBatchCode(code: string) {
+    await navigator.clipboard.writeText(code.replace(/-/g, ''))
+    setBatchCopied(code)
+    setTimeout(() => setBatchCopied(null), 2000)
   }
 
   if (!user || !organization) return <div className="dashboard"><div className="spinner" /></div>
@@ -351,6 +394,71 @@ export default function Dashboard() {
                       {t('vault.envelope_sent')}
                     </p>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Invitation en masse ── */}
+            <div className="card mb-24">
+              <h2>{t('dashboard.batch_title')}</h2>
+              <p className="subtitle">{t('dashboard.batch_subtitle')}</p>
+              <textarea
+                value={batchText}
+                onChange={e => setBatchText(e.target.value)}
+                rows={6}
+                placeholder={t('dashboard.batch_placeholder')}
+                style={{ width: '100%', fontFamily: 'monospace', fontSize: '.85rem', padding: 10, borderRadius: 6, border: '1px solid var(--gray-300)', marginBottom: 8 }}
+              />
+              <p style={{ fontSize: '.8rem', color: 'var(--gray-600)', marginBottom: 8 }}>
+                {t('dashboard.batch_vault_note')}
+              </p>
+              {batchError && <div className="error-msg">{batchError}</div>}
+              <button className="btn btn-primary" onClick={handleBatchInvite} disabled={batchLoading}>
+                {batchLoading ? <div className="spinner" /> : t('dashboard.batch_generate')}
+              </button>
+
+              {batchResult && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: '.9rem', fontWeight: 600 }}>
+                    ✅ {batchResult.created} {t('dashboard.batch_count_created')}
+                    {batchResult.skipped > 0 && <> · ⚠️ {batchResult.skipped} {t('dashboard.batch_count_skipped')}</>}
+                    {batchResult.failed > 0 && <> · ❌ {batchResult.failed} {t('dashboard.batch_count_failed')}</>}
+                  </p>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8rem', marginTop: 8 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid var(--gray-300)' }}>
+                        <th style={{ padding: 6, textAlign: 'left' }}>{t('join.email')}</th>
+                        <th style={{ padding: 6, textAlign: 'left' }}>{t('dashboard.batch_result')}</th>
+                        <th style={{ padding: 6, textAlign: 'left' }}>{t('dashboard.invite_code')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchResult.results.map((r, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--gray-300)' }}>
+                          <td style={{ padding: 6 }}>{r.email}</td>
+                          <td style={{ padding: 6 }}>
+                            {r.status === 'created' && <span style={{ color: 'var(--green)' }}>✅ {t('dashboard.batch_created')}</span>}
+                            {r.status === 'duplicate' && <span style={{ color: '#b45309' }}>⚠️ {r.message}</span>}
+                            {r.status === 'invalid' && <span style={{ color: 'var(--red)' }}>❌ {r.message}</span>}
+                          </td>
+                          <td style={{ padding: 6 }}>
+                            {r.invitation?.code && (
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '.75rem' }}>
+                                {groupCode(r.invitation.code)}
+                                <button
+                                  className="btn"
+                                  onClick={() => copyBatchCode(r.invitation!.code!)}
+                                  style={{ marginLeft: 8, padding: '2px 10px', fontSize: '.72rem', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                                >
+                                  {batchCopied === r.invitation.code ? t('dashboard.invite_code_copied') : t('dashboard.invite_code_copy')}
+                                </button>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
