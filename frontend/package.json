@@ -1,7 +1,7 @@
 {
   "name": "staff-delegation-frontend",
   "private": true,
-  "version": "2026.08.021",
+  "version": "2026.08.023",
   "type": "module",
   "scripts": {
     "dev": "vite",

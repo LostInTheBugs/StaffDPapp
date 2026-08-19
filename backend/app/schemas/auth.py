@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # ── CAPTCHA ───────────────────────────────────────────────────────
@@ -167,3 +167,43 @@ class CreateInvitationResponse(InvitationResponse):
     The code MUST be displayed immediately and never available again.
     """
     code: str  # plaintext, 26 characters (Crockford base32)
+
+
+# ── Batch invitations ──────────────────────────────────────────────
+
+class BatchInviteItem(BaseModel):
+    """One line of a mass invitation import (plain employee by default)."""
+    email: EmailStr
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+
+
+class BatchInviteRequest(BaseModel):
+    """Raw dicts on purpose — each line is validated individually in the
+    route so one malformed line never kills the whole batch (per-line
+    results instead of a global 422)."""
+    invitations: list[dict]
+
+    @field_validator("invitations")
+    @classmethod
+    def _cap_batch_size(cls, v: list[dict]) -> list[dict]:
+        if len(v) > 200:
+            raise ValueError("Maximum 200 invitations par lot")
+        return v
+
+
+class BatchInviteResult(BaseModel):
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    status: str  # created | duplicate | invalid
+    message: str | None = None
+    # Present ONLY for created invitations (includes the one-time code)
+    invitation: CreateInvitationResponse | None = None
+
+
+class BatchInviteResponse(BaseModel):
+    results: list[BatchInviteResult]
+    created: int
+    skipped: int
+    failed: int
