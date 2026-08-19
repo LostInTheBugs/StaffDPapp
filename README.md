@@ -12,7 +12,7 @@ Current version: **2026.08.025** — [See GitHub releases](https://github.com/Lo
 - 👥 **Organisation chart**: board (president, vice-president, secretary) + members + deputies + special designations
 - 📅 **Meetings**: calendar, invitations, agenda items, management invitation (J+5 minimum), stats 6 meetings/year including 3 with management
 - ⏱️ **My hours**: mandate hours tracking with legal weekly credit (Art. L.415-5), **CSV export** (own hours or whole delegation for the board)
-- 🔐 **Authentication**: JWT, math CAPTCHA, TOTP MFA, multi-language (FR/EN/DE/PT)
+- 🔐 **Authentication**: JWT, math CAPTCHA, TOTP MFA, multi-language (FR/EN/DE/PT/**LB 🇱🇺**)
 - 📝 **Minutes (PV)**: sectioned minutes (internal / shared-with-management), draft & validated statuses, direction preview, **archive library with search**
 - 🔐 **Vault (coffre)**: client-side AES-256-GCM encryption, Argon2id-wrapped DEK, auto-lock on inactivity — plaintext never leaves the browser, **recovery key** (one-time display, unlocks + resets password without data loss)
 - 👁️ **Direction preview + PDF**: management-only projection of shared sections, decrypted in-browser, PDF export

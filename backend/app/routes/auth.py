@@ -200,7 +200,7 @@ def update_profile(
         current_user.email = normalize_email(body["email"])
     if "avatar_url" in body:
         current_user.avatar_url = body["avatar_url"]
-    if "language" in body and body["language"] in ("fr", "en", "de", "pt"):
+    if "language" in body and body["language"] in ("fr", "en", "de", "pt", "lb"):
         current_user.language = body["language"]
     db.commit()
     db.refresh(current_user)
