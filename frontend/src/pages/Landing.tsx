@@ -1,15 +1,32 @@
 import { Link } from 'react-router-dom'
-import { useT } from '../i18n/I18nContext'
+import { useT, LANGS } from '../i18n/I18nContext'
 import Footer from '../components/Footer'
 
 export default function Landing() {
-  const { t } = useT()
+  const { t, lang, setLang } = useT()
   return (
     <div className="container">
       <div className="logo-area">
         <div className="logo-icon">🏢</div>
         <h1>{t('landing.title')}</h1>
         <p className="subtitle">{t('landing.subtitle')}</p>
+        {/* Sélecteur de langue — langue choisie ici appliquée au compte après login */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+          {LANGS.map(l => (
+            <button
+              key={l.code}
+              onClick={() => setLang(l.code)}
+              style={{
+                background: lang === l.code ? 'var(--blue)' : '#fff',
+                color: lang === l.code ? '#fff' : 'var(--gray-600)',
+                border: lang === l.code ? '1px solid var(--blue)' : '1px solid var(--gray-300)',
+                borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: '.8rem', fontWeight: 600,
+              }}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="card">
         <div className="btn-group">

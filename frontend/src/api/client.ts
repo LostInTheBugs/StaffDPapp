@@ -7,6 +7,7 @@ interface UserResponse {
   last_name: string
   full_name: string
   avatar_url: string | null
+  language: string
   delegue_status: string
   delegue_role: string
   role: string
