@@ -293,9 +293,9 @@ export default function Dashboard() {
           <h2>{t('dashboard.org')}</h2>
           <p><strong>{organization.name}</strong></p>
           {organization.company_name && <p style={{ color: 'var(--gray-600)' }}>{organization.company_name}</p>}
-          <p style={{ color: 'var(--gray-600)' }}>{t('dashboard.employees')} : <strong>{organization.employee_count}</strong> salariés</p>
+          <p style={{ color: 'var(--gray-600)' }}>{t('dashboard.employees')} : <strong>{organization.employee_count}</strong> {t('dashboard.employees_suffix', 'salariés')}</p>
           <p style={{ color: 'var(--gray-600)' }}>
-            {t('dashboard.delegates')} : <strong>{organization.required_titulaires} titulaires</strong> + {organization.required_titulaires} suppléants
+            {t('dashboard.delegates')} : <strong>{organization.required_titulaires} {t('dashboard.delegates_titulaires', 'titulaires')}</strong> + {organization.required_titulaires} {t('dashboard.delegates_suppleants', 'suppléants')}
           </p>
           <p style={{ color: 'var(--gray-600)', fontSize: '.8rem' }}>Art. L.412-1 — Luxembourg 🇱🇺</p>
         </div>
