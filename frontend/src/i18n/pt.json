@@ -463,5 +463,8 @@
   "contact.role_president": "Presidente",
   "contact.role_vice_president": "Vice-presidente",
   "contact.role_secretaire": "Secretário(a)",
-  "contact.role_membre": "Membro da direção"
+  "contact.role_membre": "Membro da direção",
+  "dashboard.employees_suffix": "funcionários",
+  "dashboard.delegates_titulaires": "titulares",
+  "dashboard.delegates_suppleants": "suplentes"
 }
