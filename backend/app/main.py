@@ -2,12 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import init_db
-from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share, consultation, workforce_stat, annual_report, delegate_activity, notice, compliance, election
+from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share, consultation, workforce_stat, annual_report, delegate_activity, notice, compliance, election, legal
 
 app = FastAPI(
     title="Staff Delegation",
     description="Outil de gestion pour les délégations du personnel au Luxembourg",
-    version="2026.08.027",
+    version="2026.08.029",
 )
 
 # CORS — allow frontend dev server
@@ -35,6 +35,7 @@ app.include_router(delegate_activity.router)
 app.include_router(notice.router)
 app.include_router(compliance.router)
 app.include_router(election.router)
+app.include_router(legal.router)
 
 
 @app.on_event("startup")
@@ -68,6 +69,39 @@ def on_startup():
             db.close()
     except Exception as e:  # noqa: BLE001
         print(f"[email] scan consultations ignoré : {e}")
+
+    # Rappels légaux (chantier D) — scan au démarrage + thread quotidien (1er/15 du mois)
+    try:
+        import os
+        import threading
+        import time
+        from app.core.database import SessionLocal
+        from app.services.email_service import scan_compliance_reminders
+
+        def _run_compliance_scan() -> int:
+            db = SessionLocal()
+            try:
+                return scan_compliance_reminders(db, base_url=os.environ.get("SD_BASE_URL", ""))
+            finally:
+                db.close()
+
+        n = _run_compliance_scan()
+        if n:
+            print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
+
+        def _daily_compliance_loop() -> None:
+            while True:
+                time.sleep(24 * 3600)
+                try:
+                    n = _run_compliance_scan()
+                    if n:
+                        print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
+                except Exception as e:  # noqa: BLE001
+                    print(f"[compliance-scan] échec : {e}")
+
+        threading.Thread(target=_daily_compliance_loop, daemon=True, name="compliance-scan").start()
+    except Exception as e:  # noqa: BLE001
+        print(f"[compliance-scan] démarrage ignoré : {e}")
 
 
 @app.get("/api/health")

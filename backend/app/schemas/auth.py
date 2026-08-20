@@ -92,6 +92,9 @@ class UpdateOrganizationRequest(BaseModel):
     company_name: str | None = None
     employee_count: int | None = None
     mandate_end_date: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    contact_hours: str | None = None
 
 
 # ── Response schemas ──────────────────────────────────────────────
@@ -131,8 +134,20 @@ class OrganizationResponse(BaseModel):
     mandate_end_date: str | None = None
     required_titulaires: int
     weekly_credit_hours: float | None = None
+    enabled_modules: list[str] = Field(default_factory=list)
+    logo_data: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    contact_hours: str | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("enabled_modules", mode="before")
+    @classmethod
+    def _resolve_modules(cls, v):
+        from app.core.modules import enabled_modules_of, ALL_MODULES
+        active = enabled_modules_of(v)
+        return [m for m in ALL_MODULES if m in active]
 
 
 class DashboardResponse(BaseModel):

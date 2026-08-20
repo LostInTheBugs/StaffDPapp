@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026.08.029] — 2026-08-20 (test pre-release)
+
+### Added — organization customization: feature modules, company logo, contact page + demo reset (personnalisation, logo, contact, reset démo)
+- **🧩 Optional feature modules** (admin toggles in My organisation → "Fonctionnalités activées"): elections, time tracking (Mes heures), notice board, compliance cockpit, consultations, workforce stats + annual report, delegate activities, legal pages (formation/register/protection), contact page. Disabled module → nav links hidden, direct URL access redirected, **backend 403 on every route of the module** (new `require_module()` dependency on 9 routers). Default: all enabled (no behaviour change for existing orgs). Migration `20260801_0014` (part 1: `enabled_modules`).
+- **🏷️ Company logo**: admin uploads an image (PNG/JPG/SVG, data URL ≤ 512 KB) shown in the app header on every page AND on the login screen before authentication — the login form takes the organisation identifier (slug, remembered in localStorage) and displays the logo + company name via a new public endpoint `GET /api/organizations/{slug}/public`. `PUT/DELETE /api/organization/logo` (admin).
+- **📇 Staff delegation contact page** (`/contact`, link visible to all members): contact email, phone and office hours — editable by the admin in My organisation — plus the bureau table (president, vice-president, secretary, admins).
+- **🔄 Demo auto-reset** (`backend/scripts/reset_demo.py`, cron 06:30 UTC on the demo host): every morning all demo accounts' passwords return to `demo123456`, TOTP is disabled, and the vault envelope is restored to the originally captured one — the vault re-locks to its demo password **without losing encrypted minutes** (same DEK, envelope swap only; the server never sees passwords — `reset_envelope` stores the encrypted envelope). Migration `20260801_0015`.
+- **📚 Demo seed data** (`backend/scripts/seed_demo_data.py`, idempotent): 7 sample meetings (6 in 2026, 3 with direction — compliance green), 2 consultations (1 pending, 1 closed with answer), designated delegates (Marc 🛡️, Laura ⚖️) + 3 activities, semester workforce stats S1 2026, pinned notice, compliance events (plenary, bureau names), current-month hours, and an announced election with 2 eligible candidates.
+- **🧹 Bug fixes**: `queue_email` idempotence contract restored (returned the existing outbox row instead of `None`, inflating reminder counters); compliance-reminder scan fixed (`WorkforceStat` has no `year` column — filter by `semester`; `recipient_name` must be in the template context); migration `20260801_0013` made idempotent (missing guards would crash fresh deployments).
+- Tests: 7 new backend (modules, logo, contact) — **303 total**; frontend 115 total. i18n FR/EN/DE/PT/LB (parity: 465 keys).
+
 ## [2026.08.027] — 2026-08-19 (test pre-release)
 
 ### Added — Lëtzebuergesch (Luxembourgish) interface language

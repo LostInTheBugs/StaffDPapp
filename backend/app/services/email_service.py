@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -103,6 +103,14 @@ Domaine : {category}<br>
 <p><strong>{title}</strong>{response_due_block}</p>
 <p>{signature}</p>""",
         },
+        "compliance_reminder": {
+            "subject": "⚠️ Rappel légal — {label} ({org_name})",
+            "body": """<p>Bonjour {recipient_name},</p>
+<p>⚠️ <strong>Rappel légal — {label}</strong></p>
+<p>{details}</p>
+<p>Consultez le tableau de conformité de l'application : <a href="{base_url}">{base_url}</a></p>
+<p>{signature}</p>""",
+        },
     },
     "en": {
         "meeting_invite": {
@@ -168,6 +176,14 @@ Topic: {category}<br>
             "body": """<p>Dear Sir/Madam,</p>
 <p>The following consultation, submitted by the staff delegation of <strong>{org_name}</strong> (Art. L.414-3), still awaits your reasoned answer:</p>
 <p><strong>{title}</strong>{response_due_block}</p>
+<p>{signature}</p>""",
+        },
+        "compliance_reminder": {
+            "subject": "⚠️ Legal reminder — {label} ({org_name})",
+            "body": """<p>Hello {recipient_name},</p>
+<p>⚠️ <strong>Legal reminder — {label}</strong></p>
+<p>{details}</p>
+<p>Check the compliance dashboard in the app: <a href="{base_url}">{base_url}</a></p>
 <p>{signature}</p>""",
         },
     },
@@ -237,6 +253,14 @@ Bereich: {category}<br>
 <p><strong>{title}</strong>{response_due_block}</p>
 <p>{signature}</p>""",
         },
+        "compliance_reminder": {
+            "subject": "⚠️ Rechtliche Erinnerung — {label} ({org_name})",
+            "body": """<p>Guten Tag {recipient_name},</p>
+<p>⚠️ <strong>Rechtliche Erinnerung — {label}</strong></p>
+<p>{details}</p>
+<p>Prüfen Sie das Konformitäts-Dashboard in der App: <a href="{base_url}">{base_url}</a></p>
+<p>{signature}</p>""",
+        },
     },
     "pt": {
         "meeting_invite": {
@@ -302,6 +326,14 @@ Domínio: {category}<br>
             "body": """<p>Caro(a) senhor(a),</p>
 <p>A seguinte consulta, apresentada pela delegação do pessoal de <strong>{org_name}</strong> (art. L.414-3), aguarda ainda a sua resposta fundamentada:</p>
 <p><strong>{title}</strong>{response_due_block}</p>
+<p>{signature}</p>""",
+        },
+        "compliance_reminder": {
+            "subject": "⚠️ Lembrete legal — {label} ({org_name})",
+            "body": """<p>Olá {recipient_name},</p>
+<p>⚠️ <strong>Lembrete legal — {label}</strong></p>
+<p>{details}</p>
+<p>Consulte o painel de conformidade na aplicação: <a href="{base_url}">{base_url}</a></p>
 <p>{signature}</p>""",
         },
     },
@@ -382,7 +414,7 @@ def queue_email(db: Session, org_id: int, event_type: str, recipient_name: str, 
         EmailOutbox.payload == ctx,
     ).first()
     if existing:
-        return existing
+        return None  # déjà en file (idempotence) — contrat : None = rien de nouveau
 
     msg = EmailOutbox(
         organization_id=org_id,
@@ -531,6 +563,133 @@ def scan_due_reminders(db: Session, base_url: str = "") -> int:
                            **{"meeting_id": meeting.id, "remind_days": config.remind_days_before})
                 if queue_email(db, config.organization_id, EmailEventType.meeting_reminder.value,
                                user.full_name, user.email, user.language or "fr", ctx):
+                    queued += 1
+    db.commit()
+    return queued
+
+
+def scan_compliance_reminders(db: Session, base_url: str = "", today: date | None = None) -> int:
+    """File un rappel légal au bureau (1er et 15 du mois) quand une obligation
+    annuelle est en retard ou dans sa fenêtre légale.
+
+    Règles : réunions L.415-6 (si <6 en octobre-décembre), assemblée plénière
+    L.415-7 (aucune depuis 12 mois en octobre-décembre), statistiques L.414-3
+    (S1/S2 non publiés après mi-janvier / mi-juillet), rapports éco-financiers
+    L.414-5 (≥150 salariés, <2 en novembre-décembre), renouvellement L.413-2
+    (fenêtre 1er février-31 mars de la 5e année, sans élection enregistrée).
+
+    Idempotent : queue_email déduplique (org, type, destinataire, payload —
+    le payload contient le jour, donc au plus 1 email par type et par jour).
+    """
+    from app.models.compliance import ComplianceEvent
+    from app.models.workforce_stat import WorkforceStat
+    from app.models.election import Election, ElectionStatus
+    from app.models.meeting import Meeting
+
+    today = today or datetime.utcnow().date()
+    # 2 passages par mois suffisent : 1er et 15
+    if today.day not in (1, 15):
+        return 0
+    y = today.year
+    queued = 0
+    configs = db.query(EmailConfig).filter(EmailConfig.enabled == True).all()  # noqa: E712
+    for config in configs:
+        org = config.organization
+        if not org:
+            continue
+        reminders: list[tuple[str, str]] = []
+
+        # 1. Réunions annuelles (L.415-6)
+        if today.month >= 10:
+            n_meetings = db.query(Meeting).filter(
+                Meeting.organization_id == org.id,
+                Meeting.date >= datetime(y, 1, 1),
+                Meeting.date <= datetime(y, 12, 31, 23, 59, 59),
+            ).count()
+            if n_meetings < 6:
+                reminders.append((
+                    "Réunions annuelles (L.415-6)",
+                    f"{n_meetings}/6 réunions tenues cette année — fin d'année proche, organisez les réunions restantes.",
+                ))
+
+        # 2. Assemblée plénière annuelle (L.415-7)
+        if today.month >= 10:
+            last = db.query(ComplianceEvent).filter(
+                ComplianceEvent.organization_id == org.id,
+                ComplianceEvent.event_type == "plenary_assembly",
+            ).order_by(ComplianceEvent.event_date.desc()).first()
+            if last is None or last.event_date < today - timedelta(days=365):
+                reminders.append((
+                    "Assemblée plénière annuelle (L.415-7)",
+                    "Aucune assemblée plénière enregistrée depuis 12 mois — convoquez l'assemblée annuelle du personnel.",
+                ))
+
+        # 3. Statistiques semestrielles (L.414-3)
+        def _has_stat(period_year: int, semester: int) -> bool:
+            s = db.query(WorkforceStat).filter(
+                WorkforceStat.organization_id == org.id,
+                WorkforceStat.semester == f"{period_year}-{semester}",
+            ).first()
+            return s is not None
+
+        if today >= date(y, 1, 15) and not _has_stat(y - 1, 2):
+            reminders.append((
+                "Statistiques semestrielles (L.414-3)",
+                f"S2 {y-1} : les statistiques par sexe n'ont pas encore été communiquées par l'employeur.",
+            ))
+        if today >= date(y, 7, 15) and not _has_stat(y, 1):
+            reminders.append((
+                "Statistiques semestrielles (L.414-3)",
+                f"S1 {y} : les statistiques par sexe n'ont pas encore été communiquées par l'employeur.",
+            ))
+
+        # 4. Rapports éco-financiers (L.414-5, ≥150 salariés)
+        if (org.employee_count or 0) >= 150 and today.month >= 11:
+            n_eco = db.query(ComplianceEvent).filter(
+                ComplianceEvent.organization_id == org.id,
+                ComplianceEvent.event_type == "eco_financial_report",
+                ComplianceEvent.event_date >= date(y, 1, 1),
+                ComplianceEvent.event_date <= date(y, 12, 31),
+            ).count()
+            if n_eco < 2:
+                reminders.append((
+                    "Rapports éco-financiers (L.414-5)",
+                    f"{n_eco}/2 rapports écrits reçus cette année — l'employeur doit communiquer le rapport au moins 2 fois par an.",
+                ))
+
+        # 5. Fenêtre de renouvellement des élections (L.413-2)
+        if org.mandate_end_date:
+            end = org.mandate_end_date
+            end_date = end.date() if isinstance(end, datetime) else end
+            if end_date.year == y and date(y, 2, 1) <= today <= date(y, 3, 31):
+                has_election = db.query(Election).filter(
+                    Election.organization_id == org.id,
+                    Election.status == ElectionStatus.closed.value,
+                ).first()
+                if not has_election:
+                    reminders.append((
+                        "Renouvellement des élections (L.413-2)",
+                        "Fenêtre légale ouverte (1er février – 31 mars) — aucune élection clôturée enregistrée.",
+                    ))
+
+        if not reminders:
+            continue
+        # Destinataires : bureau + admin
+        from app.models.user import User
+        from app.models.user import DelegueRole
+        bureau = db.query(User).filter(
+            User.organization_id == org.id,
+            User.is_active == True,  # noqa: E712
+            (User.role == "admin") | (User.delegue_role.in_([DelegueRole.president, DelegueRole.vice_president, DelegueRole.secretaire])),
+        ).all()
+        for label, details in reminders:
+            for u in bureau:
+                if not u.email:
+                    continue
+                ctx = {"day": today.isoformat(), "label": label, "details": details,
+                       "base_url": base_url, "recipient_name": u.full_name or u.email}
+                if queue_email(db, org.id, EmailEventType.compliance_reminder.value,
+                               u.full_name, u.email, u.language or "fr", ctx):
                     queued += 1
     db.commit()
     return queued

@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_module
 from app.models import User
 from app.models.email import EmailConfig
 from app.models.consultation import (
@@ -15,7 +15,7 @@ from app.schemas.consultation import (
 )
 from app.services.email_service import queue_email, CATEGORY_LABELS_FR
 
-router = APIRouter(prefix="/api/consultations", tags=["consultations"])
+router = APIRouter(prefix="/api/consultations", tags=["consultations"], dependencies=[Depends(require_module("consultations"))])
 
 BUREAU_ROLES = {"president", "vice_president", "secretaire"}
 

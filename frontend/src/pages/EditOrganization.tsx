@@ -6,6 +6,7 @@ import NavBar from '../components/NavBar'
 import VaultCreate from '../components/VaultCreate'
 import RecoveryKeyManager from '../components/RecoveryKeyManager'
 import * as api from '../api/client'
+import { useT } from '../i18n/I18nContext'
 
 interface Member {
   id: number; full_name: string; role: string; delegue_status: string; delegue_role: string
@@ -14,6 +15,7 @@ interface Member {
 export default function EditOrganization() {
   const { user, organization, setAuth, token } = useAuth()
   const { status } = useVault()
+  const { t } = useT()
   const navigate = useNavigate()
   const isAdmin = user?.role === 'admin'
   const isBureau = user?.delegue_role === 'president' || user?.delegue_role === 'vice_president' || user?.delegue_role === 'secretaire'
@@ -23,14 +25,23 @@ export default function EditOrganization() {
     company_name: organization?.company_name || '',
     employee_count: organization?.employee_count || 15,
     mandate_end_date: organization?.mandate_end_date || '',
+    contact_email: organization?.contact_email || '',
+    contact_phone: organization?.contact_phone || '',
+    contact_hours: organization?.contact_hours || '',
   })
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [members, setMembers] = useState<Member[]>([])
+  const [modules, setModules] = useState<string[]>(organization?.enabled_modules || [])
+  const [logoData, setLogoData] = useState<string | null>(organization?.logo_data || null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
 
   useEffect(() => {
     if (!isAdmin) { navigate('/dashboard'); return }
     loadMembers()
+    if (organization?.enabled_modules?.length) setModules(organization.enabled_modules)
+    if (organization?.logo_data) setLogoData(organization.logo_data)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function loadMembers() {
@@ -76,6 +87,68 @@ export default function EditOrganization() {
     } catch (e: any) { setErr(e.message) }
   }
 
+  async function saveContact() {
+    setErr(null)
+    try {
+      const updated = await api.updateOrganization({
+        contact_email: form.contact_email,
+        contact_phone: form.contact_phone,
+        contact_hours: form.contact_hours,
+      })
+      setAuth(token!, user!, updated)
+      setMsg(t('org.contact_saved'))
+    } catch (e: any) { setErr(e.message) }
+  }
+
+  async function saveModules() {
+    setErr(null)
+    try {
+      const updated = await api.updateModules(modules)
+      setAuth(token!, user!, updated)
+      setMsg('Modules mis à jour ✅')
+    } catch (e: any) { setErr(e.message) }
+  }
+
+  function toggleModule(m: string) {
+    setModules(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+  }
+
+  function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 512 * 1024) { setErr('Logo trop volumineux (max 512 Ko)'); return }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      if (!dataUrl.startsWith('data:image/')) { setErr('Format invalide : choisissez une image (PNG, JPG, SVG…)'); return }
+      setLogoData(dataUrl)
+      setLogoFile(file)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function saveLogo() {
+    if (!logoData) return
+    setErr(null)
+    try {
+      const updated = await api.updateLogo(logoData)
+      setAuth(token!, user!, updated)
+      setLogoFile(null)
+      setMsg('Logo enregistré ✅')
+    } catch (e: any) { setErr(e.message) }
+  }
+
+  async function removeLogo() {
+    setErr(null)
+    try {
+      const updated = await api.deleteLogo()
+      setAuth(token!, user!, updated)
+      setLogoData(null)
+      setLogoFile(null)
+      setMsg('Logo supprimé')
+    } catch (e: any) { setErr(e.message) }
+  }
+
   return (
     <>
       <NavBar />
@@ -92,8 +165,57 @@ export default function EditOrganization() {
               <div className="form-group"><label>Effectif *</label><input type="number" min={15} value={form.employee_count} onChange={e => setForm(p => ({ ...p, employee_count: parseInt(e.target.value) || 15 }))} required /></div>
               <div className="form-group"><label>Date de fin de mandat</label><input type="date" value={form.mandate_end_date} onChange={e => setForm(p => ({ ...p, mandate_end_date: e.target.value }))} /></div>
             </div>
+            <div style={{ marginTop: 8, fontSize: '.85rem', color: 'var(--gray-600)' }}>
+              Identifiant de l'organisation (pour le logo sur l'écran de connexion) : <code>{organization?.slug}</code>
+            </div>
             <button type="submit" className="btn btn-primary">Enregistrer</button>
           </form>
+        </div>
+
+        {/* Logo de l'entreprise */}
+        <div className="card mb-24">
+          <h2>🏷️ {t('org.logo_title')}</h2>
+          <p style={{ color: 'var(--gray-600)', marginBottom: 12 }}>{t('org.logo_hint')}</p>
+          {logoData && (
+            <div style={{ marginBottom: 12, padding: 12, border: '1px solid var(--gray-300)', borderRadius: 8, background: '#fff', display: 'inline-block' }}>
+              <img src={logoData} alt="logo" style={{ maxHeight: 80, maxWidth: 240, objectFit: 'contain' }} />
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input type="file" accept="image/*" onChange={onLogoFile} style={{ fontSize: '.85rem' }} />
+            <button className="btn btn-primary" onClick={saveLogo} disabled={!logoFile}>{t('org.logo_save')}</button>
+            {logoData && <button className="btn" onClick={removeLogo} style={{ color: 'var(--red)' }}>{t('org.logo_remove')}</button>}
+          </div>
+        </div>
+
+        {/* Modules activables/désactivables */}
+        <div className="card mb-24">
+          <h2>🧩 {t('org.modules_title')}</h2>
+          <p style={{ color: 'var(--gray-600)', marginBottom: 12 }}>{t('org.modules_hint')}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8, marginBottom: 12 }}>
+            {api.ALL_MODULES.map(m => (
+              <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: '1px solid var(--gray-300)', borderRadius: 6, cursor: 'pointer', fontSize: '.9rem', background: modules.includes(m) ? '#ebf8ff' : '#fff' }}>
+                <input type="checkbox" checked={modules.includes(m)} onChange={() => toggleModule(m)} />
+                {t(`modules.${m}`)}
+              </label>
+            ))}
+          </div>
+          <button className="btn btn-primary" onClick={saveModules}>{t('org.modules_save')}</button>
+        </div>
+
+        {/* Coordonnées de contact DP */}
+        <div className="card mb-24">
+          <h2>📇 {t('org.contact_title')}</h2>
+          <p style={{ color: 'var(--gray-600)', marginBottom: 12 }}>{t('org.contact_hint')}</p>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div className="form-group"><label>{t('org.contact_email')}</label>
+              <input type="email" value={form.contact_email} onChange={e => setForm(p => ({ ...p, contact_email: e.target.value }))} placeholder="dp@entreprise.lu" /></div>
+            <div className="form-group"><label>{t('org.contact_phone')}</label>
+              <input value={form.contact_phone} onChange={e => setForm(p => ({ ...p, contact_phone: e.target.value }))} placeholder="+352 00 00 00" /></div>
+            <div className="form-group"><label>{t('org.contact_hours')}</label>
+              <textarea rows={3} value={form.contact_hours} onChange={e => setForm(p => ({ ...p, contact_hours: e.target.value }))} placeholder={t('org.contact_hours_ph')} /></div>
+            <div><button className="btn btn-primary" onClick={saveContact}>{t('org.contact_save')}</button></div>
+          </div>
         </div>
 
         {/* Vault section — visible to bureau when vault is disabled */}

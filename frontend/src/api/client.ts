@@ -25,6 +25,11 @@ interface OrganizationResponse {
   mandate_end_date: string | null
   required_titulaires: number
   weekly_credit_hours: number | null
+  enabled_modules: string[]
+  logo_data: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  contact_hours: string | null
 }
 
 interface DashboardResponse {
@@ -281,11 +286,109 @@ export function getElectionResults(electionId: number): Promise<ElectionResults>
   return request(`/elections/${electionId}/results`)
 }
 
+export interface FormationMember {
+  user_id: number
+  full_name: string
+  delegue_status: string
+  is_first_mandate: boolean
+  entitlement_hours: number
+  used_hours: number
+  remaining_hours: number
+}
+
+export interface FormationOverview {
+  year: number
+  members: FormationMember[]
+}
+
+export function getFormationOverview(): Promise<FormationOverview> {
+  return request('/formation/overview')
+}
+
+export function setFirstMandate(userId: number, isFirstMandate: boolean): Promise<{ is_first_mandate: boolean }> {
+  return request(`/formation/primo/${userId}`, { method: 'PUT', body: JSON.stringify({ is_first_mandate: isFirstMandate }) })
+}
+
+export interface SafetyRegisterEntry {
+  id: number
+  entry_date: string
+  location: string
+  description: string
+  status: 'pending' | 'countersigned'
+  chef_service_name: string
+  countersigned_at: string | null
+  delegate_name: string
+  created_by_name: string
+  can_countersign: boolean
+  can_delete: boolean
+}
+
+export function listSafetyRegister(): Promise<SafetyRegisterEntry[]> {
+  return request('/safety-register')
+}
+
+export function createSafetyRegisterEntry(data: { entry_date: string; location: string; description: string }): Promise<{ id: number }> {
+  return request('/safety-register', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function countersignEntry(entryId: number, chefServiceName: string): Promise<{ status: string }> {
+  return request(`/safety-register/${entryId}/countersign`, { method: 'POST', body: JSON.stringify({ chef_service_name: chefServiceName }) })
+}
+
+export function deleteSafetyRegisterEntry(entryId: number): Promise<void> {
+  return request(`/safety-register/${entryId}`, { method: 'DELETE' })
+}
+
+export interface ProtectionPerson {
+  kind: 'member' | 'candidate'
+  name: string
+  role: string
+  election?: string
+  protected_until: string | null
+  days_left: number | null
+  status: 'protected' | 'expired' | 'unknown'
+}
+
+export function getProtection(): Promise<{ today: string; people: ProtectionPerson[] }> {
+  return request('/protection')
+}
+
 export function updateOrganization(data: {
   name?: string; company_name?: string; employee_count?: number; mandate_end_date?: string
+  contact_email?: string; contact_phone?: string; contact_hours?: string
 }): Promise<OrganizationResponse> {
   return request('/organization', { method: 'PUT', body: JSON.stringify(data) })
 }
+
+export function updateModules(modules: string[]): Promise<OrganizationResponse> {
+  return request('/organization/modules', { method: 'PUT', body: JSON.stringify({ modules }) })
+}
+
+export function updateLogo(logo_data: string): Promise<OrganizationResponse> {
+  return request('/organization/logo', { method: 'PUT', body: JSON.stringify({ logo_data }) })
+}
+
+export function deleteLogo(): Promise<OrganizationResponse> {
+  return request('/organization/logo', { method: 'DELETE' })
+}
+
+export function getPublicOrg(slug: string): Promise<{ name: string; company_name: string | null; logo_data: string | null }> {
+  return request(`/organizations/${encodeURIComponent(slug)}/public`)
+}
+
+export const ALL_MODULES = [
+  'elections',
+  'time_tracking',
+  'notices',
+  'compliance',
+  'consultations',
+  'workforce_stats',
+  'delegate_activities',
+  'legal',
+  'contact',
+] as const
+
+export type ModuleName = typeof ALL_MODULES[number]
 
 export const DELEGUE_STATUS = [
   { value: 'titulaire', label: 'Titulaire' },

@@ -4,7 +4,7 @@ import json
 import re
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -455,6 +455,13 @@ def update_organization(
     if body.mandate_end_date is not None:
         from datetime import datetime
         org.mandate_end_date = datetime.fromisoformat(body.mandate_end_date.replace("Z", "+00:00"))
+    # Coordonnées de contact DP (page contact) — vides = champ effacé
+    if body.contact_email is not None:
+        org.contact_email = body.contact_email.strip() or None
+    if body.contact_phone is not None:
+        org.contact_phone = body.contact_phone.strip() or None
+    if body.contact_hours is not None:
+        org.contact_hours = body.contact_hours.strip() or None
 
     db.commit()
     db.refresh(org)
@@ -467,6 +474,102 @@ def get_dashboard(current_user: User = Depends(get_current_user)):
         user=UserResponse.model_validate(current_user),
         organization=OrganizationResponse.model_validate(current_user.organization),
     )
+
+
+# ── Modules activables / désactivables (personnalisation) ────────────
+
+class ModulesUpdate(BaseModel):
+    modules: list[str] = []
+
+
+@router.get("/organization/modules")
+def get_modules(current_user: User = Depends(get_current_user)):
+    """Liste des modules actifs pour l'organisation (tout membre)."""
+    from app.core.modules import enabled_modules_of, ALL_MODULES
+    active = enabled_modules_of(current_user.organization.enabled_modules)
+    return {"modules": [m for m in ALL_MODULES if m in active]}
+
+
+@router.put("/organization/modules", response_model=OrganizationResponse)
+def update_modules(
+    body: ModulesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Active/désactive les modules (admin). Modules inconnus → 422."""
+    from app.core.modules import ALL_MODULES
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    unknown = [m for m in body.modules if m not in ALL_MODULES]
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Modules inconnus : {', '.join(unknown)}")
+    org = current_user.organization
+    org.enabled_modules = json.dumps(body.modules)
+    db.commit()
+    db.refresh(org)
+    return OrganizationResponse.model_validate(org)
+
+
+# ── Logo de l'entreprise (login + pages) ─────────────────────────────
+
+MAX_LOGO_BYTES = 512 * 1024  # 512 Ko (data URL base64)
+
+
+class LogoUpdate(BaseModel):
+    logo_data: str  # data URL : "data:image/png;base64,..."
+
+
+@router.put("/organization/logo", response_model=OrganizationResponse)
+def update_logo(
+    body: LogoUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Enregistre le logo de l'entreprise (admin). Data URL ≤ 512 Ko."""
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    data = body.logo_data.strip()
+    if not data.startswith("data:image/"):
+        raise HTTPException(status_code=422, detail="Format invalide : data URL d'image attendue (data:image/png;base64,...)")
+    if len(data) > MAX_LOGO_BYTES:
+        raise HTTPException(status_code=422, detail="Logo trop volumineux (max 512 Ko)")
+    org = current_user.organization
+    org.logo_data = data
+    db.commit()
+    db.refresh(org)
+    return OrganizationResponse.model_validate(org)
+
+
+@router.delete("/organization/logo", response_model=OrganizationResponse)
+def delete_logo(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    org = current_user.organization
+    org.logo_data = None
+    db.commit()
+    db.refresh(org)
+    return OrganizationResponse.model_validate(org)
+
+
+# ── Infos publiques d'une organisation (login : logo + nom) ─────────
+
+class PublicOrgResponse(BaseModel):
+    name: str
+    company_name: str | None = None
+    logo_data: str | None = None
+
+
+@router.get("/organizations/{slug}/public", response_model=PublicOrgResponse)
+def get_public_org(slug: str, db: Session = Depends(get_db)):
+    """Infos publiques par slug — utilisé par l'écran de connexion pour
+    afficher le logo et le nom de l'entreprise AVANT authentification."""
+    org = db.query(Organization).filter(Organization.slug == slug).first()
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organisation introuvable")
+    return PublicOrgResponse(name=org.name, company_name=org.company_name, logo_data=org.logo_data)
 
 
 @router.get("/invitations", response_model=list[InvitationResponse])

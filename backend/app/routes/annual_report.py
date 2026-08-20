@@ -17,7 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_module
 from app.models.organization import Organization
 from app.models.user import User
 from app.models.time_entry import TimeEntry
@@ -26,7 +26,7 @@ from app.models.delegate_activity import DelegateActivity
 from app.models.meeting import Meeting
 from app.models.consultation import Consultation
 
-router = APIRouter(tags=["stats"])
+router = APIRouter(tags=["stats"], dependencies=[Depends(require_module("workforce_stats"))])
 
 
 def _is_bureau(user: User) -> bool:

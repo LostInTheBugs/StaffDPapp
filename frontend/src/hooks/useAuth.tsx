@@ -13,7 +13,19 @@ interface User {
 interface Organization {
   id: number; name: string; slug: string; company_name: string | null
   country: string; employee_count: number; mandate_end_date: string | null; required_titulaires: number
- weekly_credit_hours: number | null
+  weekly_credit_hours: number | null
+  enabled_modules: string[]
+  logo_data: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  contact_hours: string | null
+}
+
+/** True si le module est actif pour l'organisation (défaut : tous actifs). */
+export function hasModule(org: Organization | null, module: string): boolean {
+  if (!org) return true
+  if (!org.enabled_modules || org.enabled_modules.length === 0) return true
+  return org.enabled_modules.includes(module)
 }
 
 interface AuthState { user: User | null; organization: Organization | null; token: string | null }

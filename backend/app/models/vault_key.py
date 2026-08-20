@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, LargeBinary, CheckConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, LargeBinary, Text, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -23,6 +23,12 @@ class VaultKey(Base):
     recovery_nonce = Column(LargeBinary, nullable=True)
     recovery_kdf_salt = Column(LargeBinary, nullable=True)
     recovery_kdf_params = Column(String(500), nullable=True)
+    # Enveloppe de reset (démo) : copie de l'enveloppe d'origine au 1er
+    # passage du reset quotidien — JSON base64 {wrapped, nonce, salt, params}.
+    # Restaurée chaque matin par scripts/reset_demo.py → le coffre se
+    # redéverrouille avec le mot de passe d'origine SANS perte des PV
+    # (la DEK ne change pas). Le serveur ne voit jamais le mot de passe.
+    reset_envelope = Column(Text, nullable=True)
     dek_version = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
