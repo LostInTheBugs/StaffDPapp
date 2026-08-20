@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { useT } from '../i18n/I18nContext'
+import { useT, type Lang } from '../i18n/I18nContext'
 import CaptchaWidget from '../components/CaptchaWidget'
 import VersionCheck from '../components/VersionCheck'
 import * as api from '../api/client'
@@ -23,8 +23,16 @@ export default function Login() {
   const [totpCode, setTotpCode] = useState('')
 
   const { setAuth } = useAuth()
-  const { t } = useT()
+  const { t, setLang } = useT()
   const navigate = useNavigate()
+
+  /** Applique la langue choisie au compte si elle diffère de celle enregistrée. */
+  async function syncLanguage(accountLang: string | undefined) {
+    const chosen = (localStorage.getItem('lang') as Lang) || 'fr'
+    if (accountLang && accountLang !== chosen) {
+      await setLang(chosen)  // persiste via PUT /api/auth/profile (token présent)
+    }
+  }
 
   async function lookupOrg(slug: string) {
     const s = slug.trim().toLowerCase()
@@ -59,6 +67,7 @@ export default function Login() {
           localStorage.setItem('token', resp.access_token)
           const dash = await api.getDashboard()
           setAuth(resp.access_token, dash.user, dash.organization)
+          await syncLanguage(dash.user.language)
           navigate('/dashboard')
         }
       } catch (err: any) { setError(err.message) }
@@ -72,6 +81,7 @@ export default function Login() {
         localStorage.setItem('token', resp.access_token)
         const dash = await api.getDashboard()
         setAuth(resp.access_token, dash.user, dash.organization)
+        await syncLanguage(dash.user.language)
         navigate('/dashboard')
       } catch (err: any) { setError(err.message) }
       finally { setLoading(false) }
@@ -83,7 +93,7 @@ export default function Login() {
       <VersionCheck />
       <div className="container">
       <div className="card">
-        <h2>🔑 {mfaToken ? 'Vérification MFA' : 'Connexion'}</h2>
+        <h2>{mfaToken ? t('login.mfa_title', '🔐 Vérification MFA') : t('login.title', '🔑 Connexion')}</h2>
 
         {!mfaToken && publicOrg && (
           <div style={{ textAlign: 'center', marginBottom: 14 }}>
@@ -103,17 +113,17 @@ export default function Login() {
                 <input id="orgslug" value={orgSlug} onChange={e => { setOrgSlug(e.target.value); lookupOrg(e.target.value) }}
                   placeholder={t('login.org_slug_ph', 'ex. demo')} autoComplete="organization" />
               </div>
-              <div className="form-group"><label htmlFor="email">Email</label>
+              <div className="form-group"><label htmlFor="email">{t('login.email', 'Email')}</label>
                 <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
               </div>
-              <div className="form-group"><label htmlFor="password">Mot de passe</label>
+              <div className="form-group"><label htmlFor="password">{t('login.password', 'Mot de passe')}</label>
                 <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
               </div>
               <CaptchaWidget onCaptcha={(id, ans) => { setCaptchaId(id); setCaptchaAnswer(ans) }} />
             </>
           ) : (
             <div className="form-group">
-              <label htmlFor="totp">Code d'authentification (6 chiffres)</label>
+              <label htmlFor="totp">{t('login.mfa_code', "Code d'authentification (6 chiffres)")}</label>
               <input id="totp" type="text" inputMode="numeric" autoComplete="one-time-code"
                 value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 required autoFocus maxLength={6}
@@ -133,13 +143,13 @@ export default function Login() {
           <p className="text-center mt-16">
             <button onClick={() => { setMfaToken(null); setTotpCode(''); setError(null) }}
               className="link" style={{ background:'none', border:'none', cursor:'pointer' }}>
-              ← Retour
+              {t('login.back', '← Retour')}
             </button>
           </p>
         )}
         {!mfaToken && (
           <p className="text-center mt-16">
-            <Link to="/" className="link">← Retour à l'accueil</Link>
+            <Link to="/" className="link">{t('login.home', "← Retour à l'accueil")}</Link>
           </p>
         )}
       </div>
