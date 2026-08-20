@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_module
 from app.models.delegate_activity import DelegateActivity
 from app.models.user import User
 from app.schemas.delegate_activity import (
@@ -23,7 +23,7 @@ from app.schemas.delegate_activity import (
     DOMAIN_CATEGORIES,
 )
 
-router = APIRouter(tags=["delegate-activities"])
+router = APIRouter(tags=["delegate-activities"], dependencies=[Depends(require_module("delegate_activities"))])
 
 DOMAIN_LABELS = {"securite_sante": "is_delegue_securite_sante", "egalite": "is_delegue_egalite"}
 

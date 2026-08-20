@@ -4,7 +4,7 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.025** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.029** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
@@ -32,6 +32,9 @@ Current version: **2026.08.025** — [See GitHub releases](https://github.com/Lo
 - 📌 **Virtual notice board (Art. L.414-16)**: the delegation and the designated safety/health & equality delegates post communications visible to **all staff including plain employees** (read-only for them) — electronic display is explicitly legal
 - ⚖️ **Compliance cockpit**: live status of 10 legal obligations (meetings L.415-6, plenary L.415-7, workforce stats L.414-3, consultations, validated PVs L.416-5, designations L.414-14/15, bureau names L.416-1, renewal window L.413-2, eco-financial reports L.414-5, notice board) with event logging and history
 - 🗳️ **Elections (L.413-1 to L.413-6)**: full cycle — announcement poster PDF, candidacies with automatic eligibility check (L.413-4), anonymous secret ballot (identity and choice stored separately — unlinkable by design), d'Hondt proportional tally (≥100 employees) or relative majority, titulaires + suppléants, constitutive meeting reminder
+- 🧩 **Optional feature modules**: the administrator enables/disables whole modules (elections, my hours, notice board, compliance cockpit, consultations, workforce stats, delegate activities, legal pages, contact page) in My organisation — disabled modules disappear from navigation, direct URLs redirect, and the backend refuses every route (403)
+- 🏷️ **Company logo**: upload your organisation's logo (PNG/JPG/SVG, ≤ 512 KB) — displayed in the header of every page and on the login screen (type the organisation identifier shown in My organisation)
+- 📇 **Contact page**: the delegation's contact details (email, phone, office hours — editable by the administrator) plus the bureau, visible to all staff
 - 👤 **My profile**: photo, language, password change, MFA
 
 ## Demo
@@ -56,6 +59,8 @@ All passwords: `demo123456`
 **Vault (coffre) password**: `test123456` — the vault must be unlocked in the browser to read/write encrypted minutes (WebCrypto requires HTTPS or localhost; it does not work over plain HTTP).
 
 **Vault recovery key (démo)**: `0511-3A9D-243E-5749` — unlocks the vault and allows setting a new password if the vault password is forgotten (see "Mot de passe oublié ? → Utiliser ma clé de récupération" on the unlock screen).
+
+**🔄 Demo auto-reset**: the demo resets itself every morning (cron, 06:30 UTC) — all account passwords return to `demo123456`, TOTP is disabled, and the vault password returns to `test123456` (encrypted minutes are preserved). Sample data (meetings, consultations, delegate activities, statistics, notices, election) is seeded via `backend/scripts/seed_demo_data.py`.
 
 - 🎮 **Demo**: https://staffdpapp.cloudfr.net
 
@@ -137,16 +142,16 @@ If the email normalization migration stops, two accounts differ only by case: th
 
 ## Development cost (LLM)
 
-This project was built entirely through AI-assisted sessions (Hermes Agent, deepseek-v4-pro / deepseek-v4-flash). Usage so far (cumulative as of 2026-08-19):
+This project was built entirely through AI-assisted sessions (Hermes Agent, deepseek-v4-pro / deepseek-v4-flash). Usage so far (cumulative as of 2026-08-20):
 
 | Metric | Value |
 |---|---|
-| Input tokens | 6 700 769 |
-| Output tokens | 1 478 664 |
-| **Total (input + output)** | **8 179 433** |
-| Cache read (reused at reduced price) | 449 046 016 |
-| API calls | 3 056 |
-| **Estimated cost** | **≈ 3.21 USD** |
+| Input tokens | 7 329 360 |
+| Output tokens | 1 834 219 |
+| **Total (input + output)** | **9 163 579** |
+| Cache read (reused at reduced price) | 724 580 352 |
+| API calls | 4 112 |
+| **Estimated cost** | **≈ 4.75 USD** |
 
 Full breakdown: [TOKENS.md](TOKENS.md).
 

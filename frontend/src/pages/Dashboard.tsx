@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, hasModule } from '../hooks/useAuth'
 import { useVault } from '../hooks/useVault'
 import NavBar from '../components/NavBar'
 import { useT } from '../i18n/I18nContext'
@@ -51,9 +51,15 @@ export default function Dashboard() {
     const h = { Authorization: 'Bearer ' + localStorage.getItem('token') }
     const month = new Date().toISOString().slice(0, 7)
     fetch('/api/meetings/stats', { headers: h }).then(r => r.json()).then(setMeetingStats).catch(() => {})
-    fetch('/api/consultations/stats', { headers: h }).then(r => r.json()).then(setConsultStats).catch(() => {})
-    fetch(`/api/time/summary?month=${month}`, { headers: h }).then(r => r.json()).then(setTimeSummary).catch(() => {})
-    fetch('/api/workforce-stats/latest', { headers: h }).then(r => r.json()).then(setWorkforce).catch(() => {})
+    if (hasModule(organization, 'consultations')) {
+      fetch('/api/consultations/stats', { headers: h }).then(r => r.json()).then(setConsultStats).catch(() => {})
+    }
+    if (hasModule(organization, 'time_tracking')) {
+      fetch(`/api/time/summary?month=${month}`, { headers: h }).then(r => r.json()).then(setTimeSummary).catch(() => {})
+    }
+    if (hasModule(organization, 'workforce_stats')) {
+      fetch('/api/workforce-stats/latest', { headers: h }).then(r => r.json()).then(setWorkforce).catch(() => {})
+    }
     fetch('/api/organization/members', { headers: h }).then(r => r.json()).then(setMembers).catch(() => {})
     fetch('/api/meetings', { headers: h })
       .then(r => r.json())
@@ -210,6 +216,7 @@ export default function Dashboard() {
           </div>
 
           {/* Consultations */}
+          {hasModule(organization, 'consultations') && (
           <div className="card" style={{ borderTop: '4px solid #b45309' }}>
             <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>📋 {t('dashboard.widget_consultations')}</h3>
             {consultStats ? (
@@ -228,8 +235,10 @@ export default function Dashboard() {
               </>
             ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
           </div>
+          )}
 
           {/* Heures */}
+          {hasModule(organization, 'time_tracking') && (
           <div className="card" style={{ borderTop: '4px solid #047857' }}>
             <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>⏱️ {t('dashboard.widget_hours')}</h3>
             {timeSummary ? (
@@ -243,8 +252,10 @@ export default function Dashboard() {
               </>
             ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
           </div>
+          )}
 
           {/* Effectif par sexe */}
+          {hasModule(organization, 'workforce_stats') && (
           <div className="card" style={{ borderTop: '4px solid #db2777' }}>
             <h3 style={{ marginTop: 0, fontSize: '.95rem' }}>👥 {t('dashboard.widget_workforce')}</h3>
             {workforce ? (
@@ -262,6 +273,7 @@ export default function Dashboard() {
               </>
             ) : <p style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>—</p>}
           </div>
+          )}
 
           {/* Membres */}
           <div className="card" style={{ borderTop: '4px solid #6d28d9' }}>

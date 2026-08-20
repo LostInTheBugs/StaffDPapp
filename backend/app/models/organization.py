@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Enum as SAEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -17,6 +17,14 @@ class Organization(Base):
     mandate_end_date = Column(DateTime(timezone=True), nullable=True)
     pv_vault_enabled = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Personnalisation (v2026.08.030) : modules actifs, logo entreprise,
+    # coordonnées de contact de la DP (page contact).
+    enabled_modules = Column(Text, nullable=True)  # JSON list — None = tous
+    logo_data = Column(Text, nullable=True)        # data URL (base64)
+    contact_email = Column(String(300), nullable=True)
+    contact_phone = Column(String(100), nullable=True)
+    contact_hours = Column(Text, nullable=True)
 
     members = relationship("User", back_populates="organization", cascade="all, delete-orphan")
     invitations = relationship("Invitation", back_populates="organization", cascade="all, delete-orphan")

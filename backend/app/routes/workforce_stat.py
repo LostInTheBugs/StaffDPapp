@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_module
 from app.models import User, WorkforceStat
 from app.schemas.workforce_stat import (
     WorkforceStatCreate, WorkforceStatUpdate, WorkforceStatRead,
 )
 
-router = APIRouter(prefix="/api/workforce-stats", tags=["workforce-stats"])
+router = APIRouter(prefix="/api/workforce-stats", tags=["workforce-stats"], dependencies=[Depends(require_module("workforce_stats"))])
 
 BUREAU_ROLES = {"president", "vice_president", "secretaire"}
 

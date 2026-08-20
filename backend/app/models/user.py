@@ -58,6 +58,7 @@ class User(Base):
     # Désignations spéciales (Art. L.414-2 et L.414-3)
     is_delegue_securite_sante = Column(Boolean, default=False)
     is_delegue_egalite = Column(Boolean, default=False)
+    is_first_mandate = Column(Boolean, default=False)  # primo-élu : +16h congé-formation L.415-9
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
