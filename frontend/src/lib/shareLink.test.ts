@@ -40,6 +40,49 @@ describe("generateReadCode", () => {
     const b = generateReadCode();
     expect(a).not.toBe(b);
   });
+
+  it("rejection sampling : les octets biaisés (>= 240) sont rejetés", () => {
+    // Flux déterministe : 16 octets rejetés (240..255) puis 30 acceptés (0..29)
+    const feed = [
+      ...Array.from({ length: 16 }, (_, i) => 240 + i),
+      ...Array.from({ length: 30 }, (_, i) => i),
+    ];
+    let pos = 0;
+    const original = crypto.getRandomValues;
+    // @ts-expect-error mock volontaire
+    crypto.getRandomValues = (arr: Uint8Array) => {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = feed[(pos + i) % feed.length];
+      }
+      pos += arr.length;
+      return arr;
+    };
+    try {
+      const code = generateReadCode(2);
+      // Après 8 appels de 2 octets (16 rejets), les octets 0 et 1 arrivent :
+      // code = alphabet[0] + alphabet[1] = "AB"
+      expect(code).toBe("AB");
+      expect(pos).toBeGreaterThan(16); // les rejets ont bien eu lieu
+    } finally {
+      crypto.getRandomValues = original;
+    }
+  });
+
+  it("distribution uniforme (pas de biais modulo)", () => {
+    // L'ancien code (modulo brut) favorisait les indices 0..15 : ratio
+    // attendu 9/8 = 1.125. Avec le rejection sampling, le ratio max/min
+    // reste < 1.10 sur 200 000 caractères (uniforme + bruit).
+    const alphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < 25000; i++) {
+      for (const c of generateReadCode()) counts[c] = (counts[c] ?? 0) + 1;
+    }
+    const values = Object.values(counts);
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    expect(Object.keys(counts)).toHaveLength(alphabet.length); // tous les caractères sortent
+    expect(max / min).toBeLessThan(1.1);
+  });
 });
 
 describe("wrapDEKForSharing / unwrapSharedDEK", () => {
