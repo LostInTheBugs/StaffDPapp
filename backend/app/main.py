@@ -1,8 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import assert_secret_key_is_set
 from app.core.database import init_db
 from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share, consultation, workforce_stat, annual_report, delegate_activity, notice, compliance, election, legal
+
+# Garde de sécurité : refuse le démarrage si SD_SECRET_KEY est absente,
+# trop courte ou égale à une valeur d'exemple (jetons JWT forgeables).
+assert_secret_key_is_set()
 
 app = FastAPI(
     title="Staff Delegation",

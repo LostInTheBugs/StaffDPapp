@@ -18,6 +18,8 @@ def _login(client, email, password, captcha_id, captcha_answer):
 _db_fd, _db_path = tempfile.mkstemp(suffix=".db", prefix="sd_test_")
 os.environ["SD_DATABASE_URL"] = f"sqlite:///{_db_path}"
 os.environ["SD_EMAIL_DIR"] = f"{tempfile.gettempdir()}/sd_emails_test"
+# Clé de signature JWT de test (garde assert_secret_key_is_set : ≥32 car., ≠ valeurs d'exemple)
+os.environ.setdefault("SD_SECRET_KEY", "test-secret-key-0123456789abcdef0123456789abcdef")
 os.makedirs(os.environ["SD_EMAIL_DIR"], exist_ok=True)
 
 from app.main import app

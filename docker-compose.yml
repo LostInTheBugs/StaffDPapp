@@ -6,7 +6,7 @@ services:
     environment:
       - SD_PORT=${SD_PORT:-8005}
       - SD_DATABASE_URL=sqlite:///./data/staff_delegation.db
-      - SD_SECRET_KEY=${SD_SECRET_KEY:-change-me-in-production}
+      - SD_SECRET_KEY=${SD_SECRET_KEY:?SD_SECRET_KEY est obligatoire — définissez une clé aléatoire d'au moins 32 caractères (ex. openssl rand -hex 32)}
     volumes:
       - sd-data:/app/data
     networks:
