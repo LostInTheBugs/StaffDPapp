@@ -118,7 +118,7 @@ def send_test_email(
     cfg = _get_or_create_config(db, current_user.organization_id)
     if not cfg.enabled:
         raise HTTPException(status_code=400, detail="Les notifications sont désactivées — activez-les d'abord")
-    org = db.query(Organization).get(current_user.organization_id)
+    org = db.get(Organization, current_user.organization_id)
     ctx = {"base_url": str(body.recipient).split("@")[0] or ""}  # placeholder; base_url réel ajouté par l'appelant
     # Le test s'envoie directement au destinataire demandé (pas de contexte réunion)
     msg = queue_email(
@@ -168,7 +168,7 @@ def download_eml(
     if not msg.eml_path:
         # Génération à la demande (config changée après l'enqueue)
         cfg = _get_or_create_config(db, current_user.organization_id)
-        org = db.query(Organization).get(current_user.organization_id)
+        org = db.get(Organization, current_user.organization_id)
         msg.eml_path = generate_eml(cfg, org, msg)
         db.commit()
     return FileResponse(msg.eml_path, filename=f"notification-{msg.id}.eml", media_type="message/rfc822")
@@ -253,7 +253,7 @@ def export_external(
     if not msgs:
         raise HTTPException(status_code=404, detail="Aucun message en attente d'export")
 
-    org = db.query(Organization).get(current_user.organization_id)
+    org = db.get(Organization, current_user.organization_id)
     items = []
     for m in msgs:
         items.append({
