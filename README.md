@@ -31,7 +31,7 @@ Current version: **2026.08.030** — [See GitHub releases](https://github.com/Lo
 - 🗑️ **Member lifecycle**: remove former members in one click (Mon organisation) — account deactivated, login blocked, history preserved; guards prevent removing yourself or the last administrator
 - 📌 **Virtual notice board (Art. L.414-16)**: the delegation and the designated safety/health & equality delegates post communications visible to **all staff including plain employees** (read-only for them) — electronic display is explicitly legal
 - ⚖️ **Compliance cockpit**: live status of 10 legal obligations (meetings L.415-6, plenary L.415-7, workforce stats L.414-3, consultations, validated PVs L.416-5, designations L.414-14/15, bureau names L.416-1, renewal window L.413-2, eco-financial reports L.414-5, notice board) with event logging and history
-- 🗳️ **Elections (L.413-1 to L.413-6)**: full cycle — announcement poster PDF, candidacies with automatic eligibility check (L.413-4), anonymous secret ballot (identity and choice stored separately — unlinkable by design), d'Hondt proportional tally (≥100 employees) or relative majority, titulaires + suppléants, constitutive meeting reminder
+- 🗳️ **Elections (L.413-1 to L.413-6)**: full cycle — announcement poster PDF, candidacies with automatic eligibility check (L.413-4), **structurally anonymous ballot** (identity is stored in `election_ballots` with no choice; choices exist only as **aggregated per-candidate tallies** — no per-voter row exists, so nothing can be correlated, even with full database read access), d'Hondt proportional tally (≥100 employees) or relative majority, titulaires + suppléants, constitutive meeting reminder
 - 🧩 **Optional feature modules**: the administrator enables/disables whole modules (elections, my hours, notice board, compliance cockpit, consultations, workforce stats, delegate activities, legal pages, contact page) in My organisation — disabled modules disappear from navigation, direct URLs redirect, and the backend refuses every route (403)
 - 🏷️ **Company logo**: upload your organisation's logo (PNG/JPG/SVG, ≤ 512 KB) — displayed in the header of every page and on the login screen (type the organisation identifier shown in My organisation)
 - 📇 **Contact page**: the delegation's contact details (email, phone, office hours — editable by the administrator) plus the bureau, visible to all staff
@@ -103,11 +103,19 @@ Copy `.env.example` to `.env` and adjust the variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SD_PORT` | Backend listen port | `8005` |
-| `SD_SECRET_KEY` | JWT signing key | `change-me-in-production-use-openssl-rand-hex-32` |
-| `SD_DATABASE_URL` | Database URL | `sqlite:///./data/staff_delegation.db` |
+| `SD_SECRET_KEY` | JWT signing key — **required** (the app refuses to start with an example value or a key shorter than 32 chars; docker-compose fails fast if unset) | — |
+| `SD_DATABASE_URL` | Database URL (overridable — SQLite default, PostgreSQL supported) | `sqlite:///./data/staff_delegation.db` |
 | `SD_ACCESS_TOKEN_EXPIRE_MINUTES` | JWT token expiration | `1440` (24h) |
 
 The port can be overridden via the `SD_PORT` environment variable in all contexts (Docker, local development). All configuration files reference port 8005 by default.
+
+## Security
+
+- 🔑 **JWT signing key guard**: startup is refused when `SD_SECRET_KEY` is missing, shorter than 32 characters, or equal to a known example value — a deployment forgetting its `.env` cannot silently run with forgeable tokens.
+- 🔐 **JWT revocation**: every token carries a unique `jti` and the account's security version. `POST /api/auth/logout` revokes the current token; `POST /api/auth/revoke-user/{id}` (admin) and member removal revoke **all** tokens of a user immediately — no more 24h grace period for compromised or removed accounts.
+- 🗳️ **Structural ballot anonymity**: votes are stored as aggregated per-candidate counters only (`election_vote_tallies`) — no per-voter row exists, so a ballot can never be correlated to a choice, even with full read access to the database (secret ballot, L.413-5).
+- 🛡️ **Rate limiting cannot be bypassed by forged headers**: nginx overwrites `X-Forwarded-For` with the direct peer address (client-supplied values are dropped); `CF-Connecting-IP` is preferred when present (behind Cloudflare). Residual limitation: behind Traefik the rate-limit is per entry point, not per end-user IP.
+- 🔒 **Passwords**: bcrypt directly (no unmaintained passlib), passwords over 72 bytes rejected explicitly (no silent bcrypt truncation), Argon2id for invitation codes.
 
 ## Main dependencies
 

@@ -1,7 +1,7 @@
 """Chantier C — congé-formation (L.415-9), registre sécurité/santé (L.414-14),
 périodes protégées (L.415-10/11)."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -65,7 +65,7 @@ def formation_overview(current_user: User = Depends(get_current_user), db: Sessi
     members = db.query(User).filter(
         User.organization_id == org.id, User.is_active == True  # noqa: E712
     ).all()
-    year = datetime.utcnow().year
+    year = datetime.now(timezone.utc).replace(tzinfo=None).year
     out = []
     for u in members:
         used = db.query(TimeEntry).filter(
@@ -171,7 +171,7 @@ def countersign_entry(entry_id: int, body: RegisterCountersign,
         raise HTTPException(404, "Entrée non trouvée")
     e.status = "countersigned"
     e.chef_service_name = body.chef_service_name.strip()
-    e.countersigned_at = datetime.utcnow()
+    e.countersigned_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     return {"id": e.id, "status": "countersigned"}
 

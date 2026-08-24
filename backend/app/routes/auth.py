@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -10,12 +11,14 @@ from app.core.captcha import validate_captcha
 from app.core.mfa import generate_totp_secret, generate_totp_uri, generate_qr_code_b64, verify_totp
 from app.core.ratelimit import check_rate_limit, client_ip
 from app.models import User
+from app.models.jwt_revocation import JwtRevocation
 from app.schemas.auth import (
     LoginRequest, MfaLoginRequest, TokenResponse, UserResponse,
     MfaSetupResponse, MfaVerifyRequest, MfaDisableRequest,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+security = HTTPBearer()
 
 
 # ── CAPTCHA ────────────────────────────────────────────────────────
@@ -47,13 +50,52 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     if user.totp_enabled:
         from datetime import timedelta
         mfa_token = create_access_token(
-            data={"sub": str(user.id), "mfa": True, "typ": "mfa_pending"},
+            data={"sub": str(user.id), "mfa": True, "typ": "mfa_pending", "ver": user.token_version or 0},
             expires_delta=timedelta(minutes=3),
         )
         return TokenResponse(access_token="", mfa_required=True, mfa_token=mfa_token)
 
-    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access"})
+    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access", "ver": user.token_version or 0})
     return TokenResponse(access_token=token, mfa_required=False)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    """Révoque le jeton courant (jti) — idempotent, aucun accès requis."""
+    payload = decode_access_token(credentials.credentials)
+    jti = payload.get("jti") if payload else None
+    sub = payload.get("sub") if payload else None
+    if jti and sub is not None:
+        existing = db.query(JwtRevocation).filter(JwtRevocation.jti == jti).first()
+        if existing is None:  # jti unique : un second logout ne doit pas crasher
+            db.add(JwtRevocation(user_id=int(sub), jti=jti))
+            db.commit()
+    return None
+
+
+@router.post("/revoke-user/{user_id}")
+def revoke_user_tokens(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Révoque TOUS les jetons d'un membre (admin) — compte compromis,
+    poste partagé, etc. Incrémente users.token_version : chaque jeton
+    existant (même sans claim `ver`, traité comme 0) devient invalide."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    target = db.query(User).filter(
+        User.id == user_id,
+        User.organization_id == current_user.organization_id,
+    ).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    target.token_version = (target.token_version or 0) + 1
+    db.commit()
+    return {"ok": True, "message": "Tous les jetons de cet utilisateur ont été révoqués"}
 
 
 @router.post("/mfa/login", response_model=TokenResponse)
@@ -94,7 +136,7 @@ def mfa_login(body: MfaLoginRequest, request: Request, db: Session = Depends(get
     user.totp_locked_until = None
     db.commit()
 
-    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access"})
+    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access", "ver": user.token_version or 0})
     return TokenResponse(access_token=token, mfa_required=False)
 
 
@@ -174,6 +216,8 @@ def change_password(
         raise HTTPException(status_code=400, detail="Ancien et nouveau mot de passe requis")
     if len(new_password) < 8:
         raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères")
+    if len(new_password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Le mot de passe est trop long (72 octets maximum)")
     if not verify_password(old_password, current_user.password_hash):
         raise HTTPException(status_code=401, detail="Ancien mot de passe incorrect")
     current_user.password_hash = hash_password(new_password)

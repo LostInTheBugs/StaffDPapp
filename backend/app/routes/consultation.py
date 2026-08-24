@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -69,7 +69,7 @@ def consultation_stats(
         .filter(Consultation.organization_id == current_user.organization_id)
         .all()
     )
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     total = len(rows)
     pending = sum(1 for c in rows if c.status == ConsultationStatus.requested)
     overdue = sum(
@@ -101,7 +101,7 @@ def create_consultation(
     if due is None:
         days = DEFAULT_RESPONSE_DAYS.get(body.category)
         if days:
-            due = datetime.utcnow() + timedelta(days=days)
+            due = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=days)
 
     c = Consultation(
         organization_id=current_user.organization_id,
@@ -180,7 +180,7 @@ def update_consultation(
                     status_code=422,
                     detail="Une réponse motivée de l'employeur est requise pour clôturer la consultation",
                 )
-            c.direction_responded_at = datetime.utcnow()
+            c.direction_responded_at = datetime.now(timezone.utc).replace(tzinfo=None)
         c.status = new_status
     if body.direction_response is not None:
         c.direction_response = body.direction_response

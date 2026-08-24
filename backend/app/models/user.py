@@ -38,6 +38,10 @@ class User(Base):
 
     role = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     is_active = Column(Boolean, default=True)
+    # Version de sécurité des jetons : incrémentée pour révoquer TOUS les
+    # jetons d'un compte (retrait de membre, compte compromis). Le JWT porte
+    # `ver` ; get_current_user refuse toute différence.
+    token_version = Column(Integer, default=0, nullable=False)
 
     # MFA (TOTP)
     totp_secret = Column(String(64), nullable=True)

@@ -10,7 +10,7 @@ existe). À lancer APRÈS seed.sh (qui crée les comptes), dans le conteneur :
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Lancer depuis le conteneur : python3 /app/scripts/seed_demo_data.py
 # → /app/scripts est sys.path[0], il faut ajouter /app pour trouver app.*
@@ -27,7 +27,7 @@ ORG_SLUG = "demo"
 
 
 def _now() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def main() -> int:

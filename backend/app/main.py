@@ -1,8 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import assert_secret_key_is_set
 from app.core.database import init_db
 from app.routes import auth, organization, meeting, time_entry, minute, vault, email, share, consultation, workforce_stat, annual_report, delegate_activity, notice, compliance, election, legal
+
+# Garde de sécurité : refuse le démarrage si SD_SECRET_KEY est absente,
+# trop courte ou égale à une valeur d'exemple (jetons JWT forgeables).
+assert_secret_key_is_set()
 
 app = FastAPI(
     title="Staff Delegation",
@@ -10,10 +15,24 @@ app = FastAPI(
     version="2026.08.030",
 )
 
-# CORS — allow frontend dev server
+# CORS — allow the frontend dev server (and any explicit override).
+# En production le front est servi par le MÊME nginx que l'API (même
+# origine) → CORS inutile, aucune entrée à ajouter. Si un domaine séparé
+# apparaît (ex. frontend hébergé ailleurs), lister l'origine dans
+# SD_CORS_ORIGINS (séparées par des virgules) — et garder
+# allow_credentials=True uniquement pour des origines de confiance
+# (avec credentials, "*" est refusé par les navigateurs).
+import os
+
+_default_origins = ["http://localhost:5173", "http://localhost:3000"]
+_cors_origins = [
+    o.strip()
+    for o in os.environ.get("SD_CORS_ORIGINS", ",".join(_default_origins)).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,36 +89,23 @@ def on_startup():
     except Exception as e:  # noqa: BLE001
         print(f"[email] scan consultations ignoré : {e}")
 
-    # Rappels légaux (chantier D) — scan au démarrage + thread quotidien (1er/15 du mois)
+    # Rappels légaux (chantier D) — scan au démarrage uniquement (rattrapage
+    # après redémarrage). Le planificateur récurrent vit dans le script
+    # scripts/scan_reminders.py, exécuté par cron (voir son docstring) :
+    # un thread in-process meurt au redémarrage sans rattrapage et se
+    # duplique à chaque worker uvicorn.
     try:
         import os
-        import threading
-        import time
         from app.core.database import SessionLocal
         from app.services.email_service import scan_compliance_reminders
 
-        def _run_compliance_scan() -> int:
-            db = SessionLocal()
-            try:
-                return scan_compliance_reminders(db, base_url=os.environ.get("SD_BASE_URL", ""))
-            finally:
-                db.close()
-
-        n = _run_compliance_scan()
-        if n:
-            print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
-
-        def _daily_compliance_loop() -> None:
-            while True:
-                time.sleep(24 * 3600)
-                try:
-                    n = _run_compliance_scan()
-                    if n:
-                        print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
-                except Exception as e:  # noqa: BLE001
-                    print(f"[compliance-scan] échec : {e}")
-
-        threading.Thread(target=_daily_compliance_loop, daemon=True, name="compliance-scan").start()
+        db = SessionLocal()
+        try:
+            n = scan_compliance_reminders(db, base_url=os.environ.get("SD_BASE_URL", ""))
+            if n:
+                print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
+        finally:
+            db.close()
     except Exception as e:  # noqa: BLE001
         print(f"[compliance-scan] démarrage ignoré : {e}")
 
