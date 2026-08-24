@@ -8,6 +8,20 @@ class CaptchaResponse(BaseModel):
     question: str
 
 
+# ── Mots de passe ─────────────────────────────────────────────────
+
+# bcrypt tronque silencieusement à 72 OCTETS (pas caractères) : tout mot de
+# passe plus long serait stocké tronqué et deviendrait invalide. La limite
+# est appliquée ici (validation Pydantic) ET dans la route de changement.
+BCRYPT_MAX_BYTES = 72
+
+
+def _bcrypt_length_limit(v: str) -> str:
+    if len(v.encode("utf-8")) > BCRYPT_MAX_BYTES:
+        raise ValueError("Mot de passe trop long (72 octets maximum)")
+    return v
+
+
 # ── Auth / Register ───────────────────────────────────────────────
 
 class LoginRequest(BaseModel):
@@ -36,6 +50,11 @@ class RegisterRequest(BaseModel):
     # invitation envelope.
     vault_envelope: dict | None = None  # {wrapped_dek, nonce, kdf_salt, kdf_params}
 
+    @field_validator("password")
+    @classmethod
+    def _password_max_bytes(cls, v: str) -> str:
+        return _bcrypt_length_limit(v)
+
 
 class CreateOrganizationRequest(BaseModel):
     organization_name: str
@@ -49,6 +68,11 @@ class CreateOrganizationRequest(BaseModel):
     admin_delegue_role: str = "president"
     captcha_id: str
     captcha_answer: str
+
+    @field_validator("admin_password")
+    @classmethod
+    def _admin_password_max_bytes(cls, v: str) -> str:
+        return _bcrypt_length_limit(v)
 
 
 # ── MFA ───────────────────────────────────────────────────────────

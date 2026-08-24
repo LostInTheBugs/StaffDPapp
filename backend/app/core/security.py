@@ -2,15 +2,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import secrets
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerificationError
 
 from app.core.config import get_settings
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Argon2id for invitation code hashing (not bcrypt — invitation codes need ~130 bits
 # of entropy and Argon2id is tuned for key/password hashing with memory hardness)
 _ph = PasswordHasher(
@@ -45,11 +44,21 @@ _CROCKFORD_NORMALIZE = str.maketrans({
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash bcrypt direct (passlib retiré : non maintenu, casse sur bcrypt ≥4.1).
+
+    ⚠️ bcrypt tronque SILENCIEUSEMENT à 72 octets : la validation serveur
+    (schemas/auth.py, route /api/auth/password) refuse les mots de passe
+    plus longs — ne jamais lever la garde ici.
+    """
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    """Vérifie un hash bcrypt (même format $2b$ que passlib — rétrocompatible)."""
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except ValueError:
+        return False  # hash malformé → échec silencieux (comportement passlib)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
