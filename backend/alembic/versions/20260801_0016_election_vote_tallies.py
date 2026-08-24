@@ -36,23 +36,31 @@ def _has_table(name: str) -> bool:
 
 
 def upgrade() -> None:
-    if _has_table("election_vote_tallies"):
-        return
-    op.create_table(
-        "election_vote_tallies",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("election_id", sa.Integer(), sa.ForeignKey("elections.id"), nullable=False),
-        sa.Column("candidate_id", sa.Integer(), sa.ForeignKey("election_candidates.id"), nullable=False, unique=True),
-        sa.Column("count", sa.Integer(), nullable=False, server_default="0"),
-    )
+    if not _has_table("election_vote_tallies"):
+        op.create_table(
+            "election_vote_tallies",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("election_id", sa.Integer(), sa.ForeignKey("elections.id"), nullable=False),
+            sa.Column("candidate_id", sa.Integer(), sa.ForeignKey("election_candidates.id"), nullable=False, unique=True),
+            sa.Column("count", sa.Integer(), nullable=False, server_default="0"),
+        )
     if _has_table("election_votes"):
-        # Repli : totaux par candidat — les voix exprimées sont préservées à l'identique.
+        # Repli idempotent : ne re-compte que les (election, candidat) sans
+        # tally existant. Piège réel rencontré au déploiement : le backend
+        # démarre AVANT alembic et create_all pré-crée la table VIDE → un
+        # garde "si la table existe, return" sauterait le repli et laisserait
+        # election_votes en place. Le NOT EXISTS rend le repli sûr dans les
+        # deux cas (table fraîchement créée ou pré-créée vide).
         op.execute(
             """
             INSERT INTO election_vote_tallies (election_id, candidate_id, count)
-            SELECT election_id, candidate_id, COUNT(*)
-            FROM election_votes
-            GROUP BY election_id, candidate_id
+            SELECT v.election_id, v.candidate_id, COUNT(*)
+            FROM election_votes v
+            WHERE NOT EXISTS (
+                SELECT 1 FROM election_vote_tallies t
+                WHERE t.election_id = v.election_id AND t.candidate_id = v.candidate_id
+            )
+            GROUP BY v.election_id, v.candidate_id
             """
         )
         op.drop_table("election_votes")
