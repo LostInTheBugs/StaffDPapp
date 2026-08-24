@@ -6,7 +6,7 @@ code de lecture) : il ne peut PAS déchiffrer le contenu. Le destinataire
 canal séparé, et le navigateur déchiffre les sections partagées.
 """
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -31,7 +31,7 @@ def _get_valid_link(db: Session, token: str) -> MinuteShareLink:
         raise HTTPException(status_code=404, detail="Lien introuvable")
     if link.revoked:
         raise HTTPException(status_code=410, detail="Lien révoqué")
-    if link.expires_at and link.expires_at < datetime.utcnow():
+    if link.expires_at and link.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         raise HTTPException(status_code=410, detail="Lien expiré")
     return link
 
@@ -85,7 +85,7 @@ def get_link_content(token: str, db: Session = Depends(get_db)):
             "nonce": base64.b64encode(s.nonce).decode() if s.nonce else None,
         })
 
-    link.last_viewed_at = datetime.utcnow()
+    link.last_viewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     return ShareLinkContent(
         token=link.token,
@@ -130,7 +130,7 @@ def create_share_link(
         token=token,
         envelope=envelope,
         created_by_id=current_user.id,
-        expires_at=datetime.utcnow() + timedelta(days=expires_days),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=expires_days),
     )
     db.add(link)
     db.commit()

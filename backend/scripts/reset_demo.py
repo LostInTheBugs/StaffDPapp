@@ -27,7 +27,7 @@ import base64
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Lancer depuis le conteneur : python3 /app/scripts/reset_demo.py
 # → /app/scripts est sys.path[0], il faut ajouter /app pour trouver app.*
@@ -93,7 +93,7 @@ def main() -> int:
                 captured += 1
 
         db.commit()
-        print(f"[reset-demo] {datetime.utcnow().isoformat()} — "
+        print(f"[reset-demo] {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()} — "
               f"{len(users)} comptes reset (demo123456), TOTP désactivé, "
               f"{captured} enveloppe(s) capturée(s), {restored} restaurée(s)")
         return 0

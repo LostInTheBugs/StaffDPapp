@@ -2,7 +2,7 @@
 sécurisés de lecture (share-links) pour la direction."""
 import base64
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -44,7 +44,7 @@ def _create_meeting(client, token, invitee_ids=None):
     h = {"Authorization": f"Bearer {token}"}
     r = client.post("/api/meetings", json={
         "title": "Réunion email",
-        "date": (datetime.utcnow() + timedelta(days=10)).isoformat(),
+        "date": (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=10)).isoformat(),
         "location": "Salle 2",
         "direction_invited": False,
         "points": [{"description": "Point 1", "order": 0}],
@@ -409,7 +409,7 @@ class TestShareLinks:
         try:
             from app.models.email import MinuteShareLink
             link = db.query(MinuteShareLink).filter(MinuteShareLink.token == token_link).first()
-            link.expires_at = datetime.utcnow() - timedelta(hours=1)
+            link.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
             db.commit()
         finally:
             db.close()
