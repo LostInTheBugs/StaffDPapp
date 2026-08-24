@@ -9,7 +9,7 @@ relative <100 salariés, isolation entre organisations.
 from datetime import datetime, timedelta
 
 from app.core.database import SessionLocal
-from app.models import Election, ElectionCandidate, ElectionBallot, ElectionVote, Organization
+from app.models import Election, ElectionCandidate, ElectionBallot, ElectionVoteTally, Organization
 from tests.helpers import fetch_captcha, create_user
 
 
@@ -121,15 +121,18 @@ def test_election_cycle_and_vote_anonymity(client, org_with_users):
                     headers=_h(org_with_users["tom_token"]))
     assert r.status_code == 400
 
-    # ANONYMAT : ballots (identité) et votes (choix) non jointables
+    # ANONYMAT : ballots (identité, sans choix) + compteurs agrégés (choix,
+    # sans identité) — aucune ligne par électeur, donc rien à corréler.
     db = SessionLocal()
     ballots = db.query(ElectionBallot).filter(ElectionBallot.election_id == eid2).all()
-    votes = db.query(ElectionVote).filter(ElectionVote.election_id == eid2).all()
-    assert len(ballots) == 1 and len(votes) == 1
+    tallies = db.query(ElectionVoteTally).filter(ElectionVoteTally.election_id == eid2).all()
+    assert len(ballots) == 1
     assert ballots[0].user_id is not None
-    assert votes[0].candidate_id == c["id"]
-    # aucune colonne user_id sur election_votes (l'anonymat est structurel)
-    cols = [c.name for c in ElectionVote.__table__.columns]
+    # le compteur agrégé porte le total pour le candidat voté
+    assert sum(t.count for t in tallies) == 1
+    assert [t.candidate_id for t in tallies] == [c["id"]]
+    # aucune colonne user_id sur les compteurs (l'anonymat est structurel)
+    cols = [c.name for c in ElectionVoteTally.__table__.columns]
     assert "user_id" not in cols, cols
     db.close()
 
@@ -148,8 +151,7 @@ def test_election_cycle_and_vote_anonymity(client, org_with_users):
 
 def _seed_votes(db, eid, cand_ids, counts):
     for cid, n in zip(cand_ids, counts):
-        for _ in range(n):
-            db.add(ElectionVote(election_id=eid, candidate_id=cid))
+        db.add(ElectionVoteTally(election_id=eid, candidate_id=cid, count=n))
     db.commit()
 
 
