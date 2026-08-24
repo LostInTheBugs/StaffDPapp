@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import re
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -508,7 +508,7 @@ def send_ready_smtp(db: Session, org_id: Optional[int] = None) -> tuple[int, int
         try:
             send_via_smtp(config, org, msg)
             msg.status = EmailStatus.sent
-            msg.sent_at = datetime.utcnow()
+            msg.sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
             sent += 1
         except Exception as e:  # noqa: BLE001
             msg.attempts += 1
@@ -530,7 +530,7 @@ def scan_due_reminders(db: Session, base_url: str = "") -> int:
     """
     from app.models.meeting import Meeting, MeetingInvitee
 
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).replace(tzinfo=None).date()
     queued = 0
     configs = db.query(EmailConfig).filter(EmailConfig.enabled == True).all()  # noqa: E712
     for config in configs:
@@ -586,7 +586,7 @@ def scan_compliance_reminders(db: Session, base_url: str = "", today: date | Non
     from app.models.election import Election, ElectionStatus
     from app.models.meeting import Meeting
 
-    today = today or datetime.utcnow().date()
+    today = today or datetime.now(timezone.utc).replace(tzinfo=None).date()
     # 2 passages par mois suffisent : 1er et 15
     if today.day not in (1, 15):
         return 0
@@ -722,7 +722,7 @@ def scan_consultation_reminders(db: Session, base_url: str = "") -> int:
     """
     from app.models.consultation import Consultation, ConsultationStatus
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     queued = 0
     rows = db.query(Consultation).filter(
         Consultation.status == ConsultationStatus.requested,

@@ -1,6 +1,6 @@
 """Tests for L.414-3 consultations (tracking + direction notifications)."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.database import SessionLocal
 from app.models.consultation import Consultation
@@ -34,7 +34,7 @@ def test_create_list_stats(client, org_with_users):
     # Règle légale : règlement intérieur → décision de l'employeur sous 2 mois
     assert c["response_due"] is not None
     due = datetime.fromisoformat(c["response_due"])
-    assert due > datetime.utcnow() + timedelta(days=50)
+    assert due > datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=50)
 
     # Liste visible par un membre
     h_tom = {"Authorization": f"Bearer {t['tom_token']}"}
@@ -151,7 +151,7 @@ def test_reminder_scan_idempotent(client, org_with_users):
     r = client.post("/api/consultations", headers=h, json={
         "title": "Consultation en retard",
         "category": "conditions_travail",
-        "response_due": (datetime.utcnow() - timedelta(days=2)).isoformat(),
+        "response_due": (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=2)).isoformat(),
     })
     cid = r.json()["id"]
 

@@ -1,6 +1,6 @@
 """Tests congé-formation (L.415-9), registre sécurité/santé (L.414-14), protection (L.415-10)."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app.core.database import SessionLocal
 from app.models import Organization, User, SafetyRegisterEntry
@@ -39,7 +39,7 @@ def test_formation_overview_entitlements(client, org_with_users):
     r = client.get("/api/formation/overview", headers=_h(org_with_users["sophie_token"]))
     assert r.status_code == 200
     data = r.json()
-    assert data["year"] == datetime.utcnow().year
+    assert data["year"] == datetime.now(timezone.utc).replace(tzinfo=None).year
     members = {m["full_name"]: m for m in data["members"]}
     # org 120 salariés → 2 semaines = 80 h ; suppléants → moitié = 40 h
     assert members["Sophie Muller"]["entitlement_hours"] == 80
@@ -73,7 +73,7 @@ def test_formation_used_hours(client, org_with_users):
     u = db.query(User).filter(User.organization_id == org_with_users["org_id"],
                               User.delegue_status == "titulaire").first()
     uid = u.id
-    db.add(TimeEntry(user_id=uid, date=datetime.utcnow(),
+    db.add(TimeEntry(user_id=uid, date=datetime.now(timezone.utc).replace(tzinfo=None),
                      hours=10.0, category="formation", description="Cours sécurité"))
     db.commit()
     db.close()
@@ -119,7 +119,7 @@ def test_register_create_and_permissions(client, org_with_users):
 def test_protection_members_and_candidates(client, org_with_users):
     db = SessionLocal()
     org = db.query(Organization).get(org_with_users["org_id"])
-    org.mandate_end_date = datetime.utcnow() + timedelta(days=60)
+    org.mandate_end_date = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=60)
     db.commit()
     db.close()
     r = client.get("/api/protection", headers=_h(org_with_users["sophie_token"]))
