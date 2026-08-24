@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026.08.031-pre] — 2026-08-24 (test pre-release)
+
+### Security hardening — 13 fixes from the August 2026 review (durcissement sécurité)
+
+- **🗳️ Structural ballot anonymity** (L.413-5): `election_votes` (one row per voter, correlatable with `election_ballots` by insertion order) is replaced by `election_vote_tallies` — aggregated per-candidate counters, **no per-voter row exists**, so a ballot can never be linked to a choice even with full database read access. Migration `20260801_0016` folds existing votes into the counters (totals preserved identically) then drops the offending table; rollback restores one row per vote. Verified on seeded databases (upgrade/downgrade/re-upgrade) and on the deployed test VM (real vote preserved).
+- **🔐 JWT revocation**: every token carries a unique `jti` and the account's security version `ver`. `POST /api/auth/logout` revokes the current token (`jwt_revocations` table); `POST /api/auth/revoke-user/{id}` (admin) and member removal revoke **all** tokens of a user immediately — no more 24h grace for compromised or removed accounts. Legacy tokens (no `ver`) are treated as version 0 and die on the first revocation. Migration `20260801_0017`.
+- **🔑 JWT signing key guard**: startup is refused with a missing, short (<32 chars) or known-example `SD_SECRET_KEY`; docker-compose fails fast (`${SD_SECRET_KEY:?}`). The old example default is gone — deployments must set a real key (`openssl rand -hex 32`).
+- **🛡️ Rate-limit bypass via forged `X-Forwarded-For`**: nginx now overwrites XFF with `$remote_addr` (client-supplied values dropped); `client_ip()` prefers `CF-Connecting-IP` (set by Cloudflare, not by the client).
+- **🔒 Passwords**: passlib (unmaintained, breaks on bcrypt ≥ 4.1) replaced by direct bcrypt — same `$2b$` format, existing hashes verify unchanged, malformed hashes return False; bcrypt's silent 72-byte truncation handled explicitly (longer passwords rejected at register / org creation / password change).
+- **🔢 Read-code generation**: modulo bias removed (rejection sampling, bytes ≥ 240 redrawn) — each code character is perfectly uniform.
+- **⚙️ Scheduler out of the web process**: the 24h daemon thread in `main.py` is gone (it died on restart without catch-up and duplicated per uvicorn worker); the daily compliance/consultation/meeting scans now live in `backend/scripts/scan_reminders.py`, a cron entry point (06:00 UTC on the demo host). One-shot startup scans kept for catch-up (idempotent, no duplicate emails).
+- **🖥️ CI**: new `.github/workflows/tests.yml` runs the full backend suite (pytest, 327 tests) and the frontend suite + production build (vitest, 123 tests) on every push and pull request (frontend job on Node 22 — undici requires ≥ 22.1; production builds stay on node:20-alpine).
+- **🔧 Deploy & code quality**: `SD_DATABASE_URL` actually overridable in docker-compose (was hardcoded SQLite); `datetime.utcnow()` (deprecated) replaced by the aware-then-naive UTC idiom at all 23 call sites; legacy `db.query(X).get(id)` replaced by `db.get(X, id)` (9 sites); CORS origins overridable via `SD_CORS_ORIGINS` with the trust model documented; README's ballot-anonymity claim corrected (it was false for every released version) and a Security section added.
+- Tests: **327 backend** (23 new: secret-key guard, JWT revocation ×8, bcrypt ×7, cron script ×2, CORS ×2) — full suite green on GitHub Actions; **123 frontend**. Both migrations tested up/down on fresh databases, including the real-world trap where `create_all` pre-creates the empty tallies table before the migration runs (idempotent `NOT EXISTS` fold).
+- **Deployed** to the test VM (192.0.2.191:3002) and production (staffdpapp.cloudfr.net) on 2026-08-24: migrations applied, production database backed up before deploy, 10 users intact, reminders cron added, old Docker images pruned. ⚠️ The production JWT signing key changed → all existing sessions were invalidated (one re-login per user).
+
 ## [2026.08.030] — 2026-08-24 (stable)
 
 ### Added — meeting agenda templates with mandatory points (modèles d'ordre du jour)
