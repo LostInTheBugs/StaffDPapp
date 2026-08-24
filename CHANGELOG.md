@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.08.030] — 2026-08-24 (stable)
+
+### Added — meeting agenda templates with mandatory points (modèles d'ordre du jour)
+- **📋 Agenda templates** in the meeting creation form: 4 one-click templates pre-filling the agenda with the legally required and recommended items — **Ordinary meeting** (approval of previous minutes L.416-5, employee complaints L.414-2, items requested by 1/3 of members L.416-2), **Meeting with management** (company life & consultation L.414-3, half-yearly workforce statistics by gender L.414-3, reasoned replies to consultations L.414-1, major changes L.414-3, eco-financial report ≥150 employees L.414-5), **Health & safety** (control rounds, special register countersigned by the department head, risk-assessment consultation — Art. L.414-14), **Equality** (discrimination complaints, gender equality plan, prior opinion on part-time posts — Art. L.414-15, half-yearly statistics by gender L.414-3).
+- Each point carries its **article reference in the stored text** and is flagged 🔴 mandatory / ⚪ recommended in the form; every point stays editable, removable and extendable as before (points remain plain text — no schema change, no migration).
+- Legal content verified against the consolidated Labour Code on Legilux (applicable 10.03.2026).
+- i18n FR/EN/DE/PT/LB (41 new keys, parity: **509 keys per file**). Tests: 6 new frontend — **121 frontend total** (backend suite unchanged, 304).
+
 ## [2026.08.029] — 2026-08-20 (test pre-release)
 
 ### Added — organization customization: feature modules, company logo, contact page + demo reset (personnalisation, logo, contact, reset démo)

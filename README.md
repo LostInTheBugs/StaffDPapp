@@ -4,13 +4,13 @@
 
 Management tool for **staff delegations** in Luxembourg, inspired by the Labour Code (Art. L.412-1, L.414-2, L.414-3, L.415-5, L.416-1).
 
-Current version: **2026.08.029** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
+Current version: **2026.08.030** — [See GitHub releases](https://github.com/LostInTheBugs/StaffDPapp/releases)
 
 ## Features
 
 - 🏛️ **Delegation creation**: name, company, headcount → automatic computation of the number of members/deputies
 - 👥 **Organisation chart**: board (president, vice-president, secretary) + members + deputies + special designations
-- 📅 **Meetings**: calendar, invitations, agenda items, management invitation (J+5 minimum), stats 6 meetings/year including 3 with management
+- 📅 **Meetings**: calendar, invitations, agenda items, management invitation (J+5 minimum), stats 6 meetings/year including 3 with management, **one-click agenda templates** with the mandatory/recommended legal points (ordinary, with management, health & safety L.414-14, equality L.414-15 — each point flagged 🔴/⚪ and carrying its article reference)
 - ⏱️ **My hours**: mandate hours tracking with legal weekly credit (Art. L.415-5), **CSV export** (own hours or whole delegation for the board)
 - 🔐 **Authentication**: JWT, math CAPTCHA, TOTP MFA, multi-language (FR/EN/DE/PT/**LB 🇱🇺**)
 - 📝 **Minutes (PV)**: sectioned minutes (internal / shared-with-management), draft & validated statuses, direction preview, **archive library with search**
@@ -142,16 +142,16 @@ If the email normalization migration stops, two accounts differ only by case: th
 
 ## Development cost (LLM)
 
-This project was built entirely through AI-assisted sessions (Hermes Agent, deepseek-v4-pro / deepseek-v4-flash). Usage so far (cumulative as of 2026-08-20):
+This project was built entirely through AI-assisted sessions (Hermes Agent, deepseek-v4-pro / deepseek-v4-flash). Usage so far (cumulative as of 2026-08-24):
 
 | Metric | Value |
 |---|---|
-| Input tokens | 7 329 360 |
-| Output tokens | 1 834 219 |
-| **Total (input + output)** | **9 163 579** |
-| Cache read (reused at reduced price) | 724 580 352 |
-| API calls | 4 112 |
-| **Estimated cost** | **≈ 4.75 USD** |
+| Input tokens | 12 006 698 |
+| Output tokens | 3 131 799 |
+| **Total (input + output)** | **15 138 497** |
+| Cache read (reused at reduced price) | 1 091 047 296 |
+| API calls | 6 000 |
+| **Estimated cost** | **≈ 7.39 USD** |
 
 Full breakdown: [TOKENS.md](TOKENS.md).
 

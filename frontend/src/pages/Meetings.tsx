@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import NavBar from '../components/NavBar'
 import { useAuth } from '../hooks/useAuth'
+import { useT } from '../i18n/I18nContext'
+import { MEETING_TEMPLATES, templatePointTexts, type MeetingTemplate } from '../lib/meetingTemplates'
 
 interface Meeting {
   id: number; title: string; date: string; location: string | null; status: string
@@ -14,11 +16,13 @@ interface Member { id: number; full_name: string; delegue_status: string }
 
 export default function Meetings() {
   const { token, organization } = useAuth()
+  const { t } = useT()
   const navigate = useNavigate()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', date: '', location: '', direction_invited: false, points: [''] })
+  const [appliedTpl, setAppliedTpl] = useState<MeetingTemplate | null>(null)
   const [inviteeIds, setInviteeIds] = useState<number[]>([])
   const [stats, setStats] = useState({ total: 0, with_direction: 0, min_required: 6, min_with_direction: 3 })
   const [msg, setMsg] = useState<string | null>(null)
@@ -47,6 +51,18 @@ export default function Meetings() {
     setForm(prev => { const p = [...prev.points]; p[i] = val; return { ...prev, points: p } })
   }
 
+  function applyTemplate(tpl: MeetingTemplate) {
+    const hasPoints = form.points.some(p => p.trim())
+    if (hasPoints && appliedTpl?.id !== tpl.id && !confirm(t('templates.confirm_replace'))) return
+    setAppliedTpl(tpl)
+    setForm(prev => ({ ...prev, points: templatePointTexts(tpl, t) }))
+  }
+
+  function clearTemplate() {
+    setAppliedTpl(null)
+    setForm(prev => ({ ...prev, points: [''] }))
+  }
+
   async function createMeeting(e: FormEvent) {
     e.preventDefault(); setErr(null)
     const minInvites = organization?.required_titulaires || 0
@@ -68,6 +84,7 @@ export default function Meetings() {
       if (!res.ok) throw new Error((await res.json()).detail)
       setMsg('Réunion créée ✅')
       setShowForm(false)
+      setAppliedTpl(null)
       setForm({ title: '', date: '', location: '', direction_invited: false, points: [''] })
       setInviteeIds([])
       loadMeetings()
@@ -135,12 +152,51 @@ export default function Meetings() {
                 <small style={{ color:'var(--gray-600)' }}>(la réunion sera planifiée à J+5 ouvrables minimum)</small>
               </label>
 
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontWeight:600, fontSize:'.88rem', display:'block', marginBottom:4 }}>📋 {t('templates.title')}</label>
+                <small style={{ color:'var(--gray-600)', display:'block', marginBottom:8 }}>{t('templates.hint')}</small>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, alignItems:'center' }}>
+                  {MEETING_TEMPLATES.map(tpl => (
+                    <button key={tpl.id} type="button" onClick={() => applyTemplate(tpl)}
+                      style={{
+                        padding:'6px 12px', borderRadius:6, cursor:'pointer', fontSize:'.83rem',
+                        border:`1.5px solid ${appliedTpl?.id === tpl.id ? 'var(--blue)' : 'var(--gray-300)'}`,
+                        background: appliedTpl?.id === tpl.id ? '#ebf8ff' : '#fff',
+                        color: appliedTpl?.id === tpl.id ? 'var(--blue)' : 'inherit',
+                        fontWeight: appliedTpl?.id === tpl.id ? 600 : 400,
+                      }}>
+                      {t(tpl.nameKey)}
+                    </button>
+                  ))}
+                  {appliedTpl && (
+                    <button type="button" onClick={clearTemplate}
+                      style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontSize:'.8rem' }}>
+                      ✖ {t('templates.clear')}
+                    </button>
+                  )}
+                </div>
+                {appliedTpl && (
+                  <div style={{ marginTop:8, fontSize:'.8rem', color:'var(--gray-600)' }}>
+                    {t('templates.applied')}
+                  </div>
+                )}
+              </div>
+
               <label style={{ fontWeight:600, fontSize:'.88rem', display:'block', marginBottom:4 }}>Points à l'ordre du jour</label>
               {form.points.map((p, i) => (
-                <div key={i} style={{ display:'flex', gap:8, marginBottom:8 }}>
+                <div key={i} style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center' }}>
                   <span style={{ paddingTop:10, color:'var(--gray-600)', fontSize:'.8rem' }}>{i + 1}.</span>
                   <input value={p} onChange={e => updatePoint(i, e.target.value)} placeholder={`Point ${i + 1}`}
                     style={{ flex:1, padding:'8px 12px', border:'1.5px solid var(--gray-300)', borderRadius:'var(--radius)' }} />
+                  {appliedTpl && i < appliedTpl.points.length && (
+                    <span style={{
+                      fontSize:'.72rem', fontWeight:600, padding:'3px 8px', borderRadius:4, whiteSpace:'nowrap',
+                      background: appliedTpl.points[i].mandatory ? '#fed7d7' : '#edf2f7',
+                      color: appliedTpl.points[i].mandatory ? '#9b2c2c' : '#4a5568',
+                    }}>
+                      {appliedTpl.points[i].mandatory ? `🔴 ${t('templates.mandatory')}` : `⚪ ${t('templates.recommended')}`}
+                    </span>
+                  )}
                   {form.points.length > 1 && (
                     <button type="button" onClick={() => setForm(prev => ({ ...prev, points: prev.points.filter((_, j) => j !== i) }))}
                       style={{ background:'none', border:'none', color:'var(--red)', cursor:'pointer', fontSize:'1.2rem' }}>×</button>
