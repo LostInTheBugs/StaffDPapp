@@ -56,10 +56,20 @@ const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789"; // Crockford, sans I/L/O
 
 /** Code de lecture : 8 caractères lisibles (~40 bits d'entropie). */
 export function generateReadCode(length = 8): string {
-  const rnd = crypto.getRandomValues(new Uint8Array(length));
-  let code = "";
-  for (let i = 0; i < length; i++) code += CODE_ALPHABET[rnd[i] % CODE_ALPHABET.length];
-  return code;
+  const alphabetLen = CODE_ALPHABET.length
+  // Rejection sampling : 256 % 30 = 16 → sans rejet, les indices 0..15
+  // sortiraient 9 fois sur 256 contre 8 pour 16..29 (biais modulo). On
+  // n'accepte que les octets < 240 (multiple de 30 le plus proche) :
+  // chaque caractère est alors parfaitement uniforme.
+  const limit = 256 - (256 % alphabetLen)
+  let code = ""
+  while (code.length < length) {
+    const rnd = crypto.getRandomValues(new Uint8Array(length - code.length))
+    for (let i = 0; i < rnd.length; i++) {
+      if (rnd[i] < limit) code += CODE_ALPHABET[rnd[i] % alphabetLen]
+    }
+  }
+  return code
 }
 
 /**
