@@ -15,10 +15,24 @@ app = FastAPI(
     version="2026.08.030",
 )
 
-# CORS — allow frontend dev server
+# CORS — allow the frontend dev server (and any explicit override).
+# En production le front est servi par le MÊME nginx que l'API (même
+# origine) → CORS inutile, aucune entrée à ajouter. Si un domaine séparé
+# apparaît (ex. frontend hébergé ailleurs), lister l'origine dans
+# SD_CORS_ORIGINS (séparées par des virgules) — et garder
+# allow_credentials=True uniquement pour des origines de confiance
+# (avec credentials, "*" est refusé par les navigateurs).
+import os
+
+_default_origins = ["http://localhost:5173", "http://localhost:3000"]
+_cors_origins = [
+    o.strip()
+    for o in os.environ.get("SD_CORS_ORIGINS", ",".join(_default_origins)).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
