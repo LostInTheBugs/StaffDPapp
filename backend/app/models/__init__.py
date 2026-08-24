@@ -9,7 +9,7 @@ from app.models.workforce_stat import WorkforceStat
 from app.models.delegate_activity import DelegateActivity
 from app.models.notice import NoticePost
 from app.models.compliance import ComplianceEvent
-from app.models.election import Election, ElectionStatus, ElectionCandidate, ElectionBallot, ElectionVote
+from app.models.election import Election, ElectionStatus, ElectionCandidate, ElectionBallot, ElectionVoteTally
 from app.models.safety_register import SafetyRegisterEntry
 
 __all__ = [
@@ -22,6 +22,6 @@ __all__ = [
     "DelegateActivity",
     "NoticePost",
     "ComplianceEvent",
-    "Election", "ElectionStatus", "ElectionCandidate", "ElectionBallot", "ElectionVote",
+    "Election", "ElectionStatus", "ElectionCandidate", "ElectionBallot", "ElectionVoteTally",
     "SafetyRegisterEntry",
 ]

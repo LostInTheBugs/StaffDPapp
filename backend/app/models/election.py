@@ -78,12 +78,20 @@ class ElectionBallot(Base):
     cast_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-class ElectionVote(Base):
-    """Vote exprimé — SANS l'identité de l'électeur (voir ElectionBallot)."""
+class ElectionVoteTally(Base):
+    """Vote agrégé par candidat — SANS identité et SANS ligne par électeur.
 
-    __tablename__ = "election_votes"
+    L'anonymat est STRUCTUREL : il n'existe aucune ligne par électeur, donc
+    rien à corréler avec election_ballots (identité, sans choix). Seuls les
+    totaux par candidat sont conservés ; le dépouillement n'a jamais eu
+    besoin que de ça. (La table election_votes, ligne par électeur écrite
+    dans la même transaction que le ballot, permettait une jointure par
+    ordre d'insertion — supprimée par la migration 20260801_0016.)
+    """
+
+    __tablename__ = "election_vote_tallies"
 
     id = Column(Integer, primary_key=True)
     election_id = Column(Integer, ForeignKey("elections.id"), nullable=False, index=True)
-    candidate_id = Column(Integer, ForeignKey("election_candidates.id"), nullable=False)
-    cast_at = Column(DateTime(timezone=True), server_default=func.now())
+    candidate_id = Column(Integer, ForeignKey("election_candidates.id"), nullable=False, unique=True)
+    count = Column(Integer, default=0, nullable=False)

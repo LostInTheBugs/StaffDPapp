@@ -18,7 +18,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_module
 from app.models import (
     User, Organization, Election, ElectionStatus, ElectionCandidate,
-    ElectionBallot, ElectionVote,
+    ElectionBallot, ElectionVoteTally,
 )
 from app.schemas.election import (
     ElectionCreate, ElectionCandidateCreate, ElectionCandidateResponse,
@@ -76,7 +76,9 @@ def _election_to_response(e: Election, current_user: User, db: Session):
         ElectionBallot.election_id == e.id,
         ElectionBallot.user_id == current_user.id,
     ).first() is not None
-    votes_count = db.query(ElectionVote).filter(ElectionVote.election_id == e.id).count()
+    votes_count = sum(
+        t.count for t in db.query(ElectionVoteTally).filter(ElectionVoteTally.election_id == e.id).all()
+    )
     name = f"{e.created_by.first_name} {e.created_by.last_name}".strip() if e.created_by else None
     return ElectionResponse(
         id=e.id, title=e.title,
@@ -233,9 +235,18 @@ def cast_vote(
     ).first()
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidat introuvable")
-    # Ballot (identité) et vote (choix) dans des tables séparées — non jointables.
+    # Ballot (identité, sans choix) + compteur agrégé (choix, sans identité).
+    # Le compteur est incrémenté dans la MÊME transaction que le ballot :
+    # cohérence garantie, et aucune ligne par électeur n'existe — l'anonymat
+    # est structurel, il n'y a rien à corréler.
     db.add(ElectionBallot(election_id=e.id, user_id=current_user.id))
-    db.add(ElectionVote(election_id=e.id, candidate_id=candidate.id))
+    tally = db.query(ElectionVoteTally).filter(
+        ElectionVoteTally.candidate_id == candidate.id,
+    ).first()
+    if tally is None:
+        tally = ElectionVoteTally(election_id=e.id, candidate_id=candidate.id, count=0)
+        db.add(tally)
+    tally.count += 1
     db.commit()
     return {"ok": True, "message": "Vote enregistré"}
 
@@ -306,14 +317,13 @@ def compute_results(e: Election, current_user: User, db: Session):
     seats = org.required_titulaires if org else 1
     proportional = (org.employee_count or 0) >= 100  # L.413-1 : <100 → majorité relative
 
-    votes = db.query(ElectionVote).filter(ElectionVote.election_id == e.id).all()
+    votes = db.query(ElectionVoteTally).filter(ElectionVoteTally.election_id == e.id).all()
     voters = db.query(ElectionBallot).filter(ElectionBallot.election_id == e.id).count()
     candidates = db.query(ElectionCandidate).filter(ElectionCandidate.election_id == e.id).all()
     cand_by_id = {c.id: c for c in candidates}
 
-    votes_by_candidate: dict[int, int] = {}
-    for v in votes:
-        votes_by_candidate[v.candidate_id] = votes_by_candidate.get(v.candidate_id, 0) + 1
+    votes_by_candidate: dict[int, int] = {t.candidate_id: t.count for t in votes}
+    total_votes = sum(votes_by_candidate.values())
 
     votes_by_list: dict[str, int] = {}
     for c in candidates:
@@ -348,6 +358,6 @@ def compute_results(e: Election, current_user: User, db: Session):
 
     return ElectionResultsResponse(
         election_id=e.id, status=e.status.value,
-        total_votes=len(votes), voters_count=voters, seats=seats,
+        total_votes=total_votes, voters_count=voters, seats=seats,
         proportional=proportional, lists=lists_out,
     )
