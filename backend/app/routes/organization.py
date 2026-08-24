@@ -103,7 +103,7 @@ def create_organization(body: CreateOrganizationRequest, request: Request, db: S
     db.commit()
     db.refresh(admin)
 
-    token = create_access_token(data={"sub": str(admin.id), "org_id": org.id, "typ": "access"})
+    token = create_access_token(data={"sub": str(admin.id), "org_id": org.id, "typ": "access", "ver": admin.token_version or 0})
     return TokenResponse(access_token=token)
 
 
@@ -169,7 +169,7 @@ def join_organization(body: RegisterRequest, request: Request, db: Session = Dep
     db.commit()
     db.refresh(user)
 
-    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access"})
+    token = create_access_token(data={"sub": str(user.id), "org_id": user.organization_id, "typ": "access", "ver": user.token_version or 0})
     return TokenResponse(access_token=token)
 
 
@@ -401,6 +401,9 @@ def remove_member(
             raise HTTPException(status_code=400, detail="Impossible de retirer le dernier administrateur de l'organisation")
 
     target.is_active = False
+    # Révocation immédiate de tous les jetons du membre retiré (T9) :
+    # sans ça, un jeton déjà émis restait valable jusqu'à expiration (24 h).
+    target.token_version = (target.token_version or 0) + 1
     db.commit()
     return {"id": target.id, "removed": True}
 

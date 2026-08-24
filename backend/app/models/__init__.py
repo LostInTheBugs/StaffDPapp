@@ -11,6 +11,7 @@ from app.models.notice import NoticePost
 from app.models.compliance import ComplianceEvent
 from app.models.election import Election, ElectionStatus, ElectionCandidate, ElectionBallot, ElectionVoteTally
 from app.models.safety_register import SafetyRegisterEntry
+from app.models.jwt_revocation import JwtRevocation
 
 __all__ = [
     "User", "UserRole", "DelegueStatus", "DelegueRole", "Organization", "Invitation",
@@ -24,4 +25,5 @@ __all__ = [
     "ComplianceEvent",
     "Election", "ElectionStatus", "ElectionCandidate", "ElectionBallot", "ElectionVoteTally",
     "SafetyRegisterEntry",
+    "JwtRevocation",
 ]
