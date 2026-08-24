@@ -53,4 +53,20 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Utilisateur non trouvé")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Compte désactivé")
+
+    # Révocation JWT (ANALYSE-2026-08-24 §7) :
+    # 1. jti révoqué (logout ciblé) → 401 ;
+    # 2. version de sécurité du compte dépassée (retrait de membre, compte
+    #    compromis) → 401. Les jetons émis AVANT cette fonctionnalité
+    #    (sans claim `ver`) sont traités comme ver=0 : une révocation les
+    #    invalide immédiatement — comportement voulu.
+    jti = payload.get("jti")
+    if jti:
+        from app.models.jwt_revocation import JwtRevocation
+
+        revoked = db.query(JwtRevocation).filter(JwtRevocation.jti == jti).first()
+        if revoked is not None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token révoqué")
+    if payload.get("ver", 0) != (user.token_version or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token révoqué")
     return user

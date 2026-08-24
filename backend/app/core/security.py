@@ -67,6 +67,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
     to_encode.update({"exp": expire})
+    # jti : identifiant unique du jeton — permet un logout ciblé
+    # (table jwt_revocations). ver : version de sécurité du compte
+    # (users.token_version) — toute différence = jeton révoqué.
+    to_encode.setdefault("jti", secrets.token_hex(16))
+    to_encode.setdefault("ver", 0)
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
