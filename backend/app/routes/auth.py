@@ -174,6 +174,8 @@ def change_password(
         raise HTTPException(status_code=400, detail="Ancien et nouveau mot de passe requis")
     if len(new_password) < 8:
         raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères")
+    if len(new_password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Le mot de passe est trop long (72 octets maximum)")
     if not verify_password(old_password, current_user.password_hash):
         raise HTTPException(status_code=401, detail="Ancien mot de passe incorrect")
     current_user.password_hash = hash_password(new_password)
