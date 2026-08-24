@@ -403,7 +403,7 @@ def queue_email(db: Session, org_id: int, event_type: str, recipient_name: str, 
     config = db.query(EmailConfig).filter(EmailConfig.organization_id == org_id).first()
     if config is None or not config.enabled:
         return None
-    org = db.query(Organization).get(org_id)
+    org = db.get(Organization, org_id)
     subject, body_html, body_text = render_email(config, org, event_type, ctx, lang)
 
     existing = db.query(EmailOutbox).filter(
@@ -502,7 +502,7 @@ def send_ready_smtp(db: Session, org_id: Optional[int] = None) -> tuple[int, int
     sent = failed = 0
     for msg in q.limit(50).all():
         config = db.query(EmailConfig).filter(EmailConfig.organization_id == msg.organization_id).first()
-        org = db.query(Organization).get(msg.organization_id)
+        org = db.get(Organization, msg.organization_id)
         if not config or not config.enabled or not config.smtp_host:
             continue
         try:

@@ -37,8 +37,8 @@ def _get_valid_link(db: Session, token: str) -> MinuteShareLink:
 
 
 def _link_info(db: Session, link: MinuteShareLink) -> ShareLinkInfo:
-    minute = db.query(Minute).get(link.minute_id)
-    org = db.query(Organization).get(link.organization_id)
+    minute = db.get(Minute, link.minute_id)
+    org = db.get(Organization, link.organization_id)
     meeting = minute.meeting if minute else None
     return ShareLinkInfo(
         token=link.token,
@@ -67,10 +67,10 @@ def get_link_content(token: str, db: Session = Depends(get_db)):
     déchiffrable que dans le navigateur avec le code de lecture.
     """
     link = _get_valid_link(db, token)
-    minute = db.query(Minute).get(link.minute_id)
+    minute = db.get(Minute, link.minute_id)
     if minute is None:
         raise HTTPException(status_code=404, detail="PV introuvable")
-    org = db.query(Organization).get(link.organization_id)
+    org = db.get(Organization, link.organization_id)
     meeting = minute.meeting
 
     import base64
