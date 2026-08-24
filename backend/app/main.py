@@ -75,36 +75,23 @@ def on_startup():
     except Exception as e:  # noqa: BLE001
         print(f"[email] scan consultations ignoré : {e}")
 
-    # Rappels légaux (chantier D) — scan au démarrage + thread quotidien (1er/15 du mois)
+    # Rappels légaux (chantier D) — scan au démarrage uniquement (rattrapage
+    # après redémarrage). Le planificateur récurrent vit dans le script
+    # scripts/scan_reminders.py, exécuté par cron (voir son docstring) :
+    # un thread in-process meurt au redémarrage sans rattrapage et se
+    # duplique à chaque worker uvicorn.
     try:
         import os
-        import threading
-        import time
         from app.core.database import SessionLocal
         from app.services.email_service import scan_compliance_reminders
 
-        def _run_compliance_scan() -> int:
-            db = SessionLocal()
-            try:
-                return scan_compliance_reminders(db, base_url=os.environ.get("SD_BASE_URL", ""))
-            finally:
-                db.close()
-
-        n = _run_compliance_scan()
-        if n:
-            print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
-
-        def _daily_compliance_loop() -> None:
-            while True:
-                time.sleep(24 * 3600)
-                try:
-                    n = _run_compliance_scan()
-                    if n:
-                        print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
-                except Exception as e:  # noqa: BLE001
-                    print(f"[compliance-scan] échec : {e}")
-
-        threading.Thread(target=_daily_compliance_loop, daemon=True, name="compliance-scan").start()
+        db = SessionLocal()
+        try:
+            n = scan_compliance_reminders(db, base_url=os.environ.get("SD_BASE_URL", ""))
+            if n:
+                print(f"[compliance-scan] {n} rappel(s) légal/aux mis en file")
+        finally:
+            db.close()
     except Exception as e:  # noqa: BLE001
         print(f"[compliance-scan] démarrage ignoré : {e}")
 
