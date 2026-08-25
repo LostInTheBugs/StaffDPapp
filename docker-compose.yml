@@ -27,7 +27,7 @@ services:
       # Force le réseau pour la découverte Traefik : le frontend est sur
       # sd-net + traefik-public ; sans ce label, Traefik peut résoudre l'IP
       # du réseau privé (sd-net) et ne pas joindre le conteneur (timeout 30s,
-      # 504). Vue sur nouveau-serveur lors de la migration depuis ancien-serveur.
+      # 504). Vue sur le nouveau serveur lors de la migration depuis l'ancien.
       - "traefik.docker.network=traefik-public"
       # HTTP router (redirects to HTTPS)
       - "traefik.http.routers.sd-web.rule=Host(`staffdpapp.cloudfr.net`)"
