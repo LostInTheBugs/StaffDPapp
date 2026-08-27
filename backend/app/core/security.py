@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import os
 import secrets
 
 import bcrypt
@@ -49,8 +50,15 @@ def hash_password(password: str) -> str:
     ⚠️ bcrypt tronque SILENCIEUSEMENT à 72 octets : la validation serveur
     (schemas/auth.py, route /api/auth/password) refuse les mots de passe
     plus longs — ne jamais lever la garde ici.
+
+    Le niveau bcrypt est piloté par SD_BCRYPT_ROUNDS (défaut 12 = prod).
+    En test, conftest/run_tests.sh le baisse (ex. 4) : le niveau est stocké
+    DANS le hash et verify_password le respecte, donc aucun impact fonctionnel
+    sur les tests (roundtrip, legacy, 72-octets) — c'est juste plus rapide.
     """
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    rounds = int(os.environ.get("SD_BCRYPT_ROUNDS", "12"))
+    salt = bcrypt.gensalt(rounds=rounds)
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
