@@ -27,7 +27,7 @@ def test_scan_reminders_script_is_idempotent(client):
 
 
 def test_purge_expired_jwt_revocations(db):
-    """Purge du cron : les révocabations JWT > 48 h partent, les récentes restent.
+    """Purge du cron : les révocations JWT > 48 h partent, les récentes restent.
 
     Un jti ne sert plus rien passé l'expiration du jeton (24 h max) — sans
     purge, jwt_revocations croît d'une ligne par logout, indéfiniment."""

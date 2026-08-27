@@ -16,7 +16,7 @@ Les trois scans s'exécutent aussi UNE FOIS au démarrage du web
 (main.py, on_startup) pour rattraper les échéances manquées après un
 redémarrage — ce sont des scans ponctuels, pas un planificateur.
 
-Le script purge aussi les révocabations JWT expirées (voir
+Le script purge aussi les révocations JWT expirées (voir
 purge_expired_revocations) — ce rôle ne vit que dans le cron, pas au
 démarrage du web.
 """
@@ -45,7 +45,7 @@ REVOCATION_PURGE_AFTER = timedelta(hours=48)
 
 
 def purge_expired_revocations(db) -> int:
-    """Supprime les révocabations JWT plus anciennes que REVOCATION_PURGE_AFTER.
+    """Supprime les révocations JWT plus anciennes que REVOCATION_PURGE_AFTER.
 
     Un jti ne peut plus rejeter quoi que ce soit une fois son jeton expiré ;
     sans cette purge, la table croît d'une ligne par logout, indéfiniment.
@@ -61,6 +61,7 @@ def main() -> int:
     base_url = os.environ.get("SD_BASE_URL", "")
     total = 0
     db = SessionLocal()
+    purged = 0
     try:
         total += scan_due_reminders(db, base_url=base_url)
         total += scan_consultation_reminders(db, base_url=base_url)
@@ -68,7 +69,7 @@ def main() -> int:
         purged = purge_expired_revocations(db)
     finally:
         db.close()
-    print(f"[scan-reminders] {total} rappel(s) mis en file, {purged} révocabation(s) JWT purgée(s)")
+    print(f"[scan-reminders] {total} rappel(s) mis en file, {purged} révocation(s) JWT purgée(s)")
     return 0
 
 
