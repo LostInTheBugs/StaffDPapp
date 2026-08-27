@@ -1,5 +1,12 @@
 # Changelog
 
+All notable changes to this project are documented in this file.
+
+## [2026.08.032-c1] — 2026-08-27
+
+### Fixed
+- **🧹 `jwt_revocations` table now self-purges**: the daily `scan_reminders` cron deletes rows older than **48 h** (`DELETE ... WHERE revoked_at < cutoff`) — a `jti` has no purpose left once its token expires (max 24 h), and the table grew unbounded (one row per logout). Idempotent, no impact on active sessions (cutoff is 2× the token lifetime).
+
 ## [2026.08.032] — 2026-08-27 (stable)
 
 ### Performance & test infrastructure
