@@ -163,7 +163,7 @@ def test_reminder_scan_idempotent(client, org_with_users):
         # 2e scan immédiat → idempotent (1/jour max)
         n2 = scan_consultation_reminders(db)
         assert n2 == 0
-        c = db.query(Consultation).get(cid)
+        c = db.get(Consultation, cid)
         assert c.last_reminded_at is not None
 
         msgs = db.query(EmailOutbox).filter(EmailOutbox.event_type == "consultation_reminder").all()

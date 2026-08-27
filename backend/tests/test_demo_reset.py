@@ -35,7 +35,7 @@ def test_reset_demo_passwords_totp_and_vault(client, org_with_users):
     db = SessionLocal()
 
     # Force l'org au slug "demo" (le reset ne touche que celle-ci)
-    org = db.query(Organization).get(oid)
+    org = db.get(Organization, oid)
     org.slug = "demo"
     db.commit()
 
@@ -53,7 +53,7 @@ def test_reset_demo_passwords_totp_and_vault(client, org_with_users):
     # ── 1er passage : capture de l'enveloppe, pas de modification de la DEK
     assert reset_main() == 0
     db.expire_all()
-    vk = db.query(VaultKey).get(vk.id)
+    vk = db.get(VaultKey, vk.id)
     assert vk.reset_envelope is not None
     env = json.loads(vk.reset_envelope)
     assert env["wrapped"] == base64.b64encode(b"\x01" * 48).decode("ascii")
@@ -68,14 +68,14 @@ def test_reset_demo_passwords_totp_and_vault(client, org_with_users):
     assert sophie.totp_secret is None
 
     # ── Quelqu'un change le mdp du coffre (nouvelle enveloppe)
-    vk = db.query(VaultKey).get(vk.id)
+    vk = db.get(VaultKey, vk.id)
     vk.wrapped_dek = b"\xEE" * 48
     db.commit()
 
     # ── 2e passage : restauration de l'enveloppe d'origine
     assert reset_main() == 0
     db.expire_all()
-    vk = db.query(VaultKey).get(vk.id)
+    vk = db.get(VaultKey, vk.id)
     assert vk.wrapped_dek == b"\x01" * 48  # enveloppe restaurée
     assert vk.reset_envelope is not None  # toujours capturée
 

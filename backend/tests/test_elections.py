@@ -158,7 +158,7 @@ def _seed_votes(db, eid, cand_ids, counts):
 def test_results_dhondt_proportional(client, org_with_users):
     eid = _mk_election(client, org_with_users["sophie_token"])
     db = SessionLocal()
-    org = db.query(Organization).get(org_with_users["org_id"])
+    org = db.get(Organization, org_with_users["org_id"])
     org.employee_count = 120  # ≥100 → proportionnelle
     db.commit()
     db.close()
@@ -201,7 +201,7 @@ def test_results_dhondt_proportional(client, org_with_users):
 def test_results_majority_under_100(client, org_with_users):
     eid = _mk_election(client, org_with_users["sophie_token"])
     db = SessionLocal()
-    org = db.query(Organization).get(org_with_users["org_id"])
+    org = db.get(Organization, org_with_users["org_id"])
     org.employee_count = 50  # <100 → majorité relative
     db.commit()
     db.close()

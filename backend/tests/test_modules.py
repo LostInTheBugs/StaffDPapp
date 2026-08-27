@@ -10,7 +10,7 @@ from app.models import Organization
 
 def _set_modules(org_id: int, modules: list[str]) -> None:
     db = SessionLocal()
-    org = db.query(Organization).get(org_id)
+    org = db.get(Organization, org_id)
     org.enabled_modules = json.dumps(modules)
     db.commit()
     db.close()

@@ -101,7 +101,7 @@ def test_scan_renewal_window(client, org_with_users):
     _enable_emails(oid)
     bureau = _bureau_count(oid)
     db = SessionLocal()
-    org = db.query(Organization).get(oid)
+    org = db.get(Organization, oid)
     org.mandate_end_date = datetime(2026, 3, 15)
     db.commit()
     # 1er mars 2026 dans la fenêtre, pas d'élection clôturée → rappel (réunions non concernées, stats S2 2025 ? mars > 15 jan → oui)
@@ -115,7 +115,7 @@ def test_scan_eco_reports_large_org(client, org_with_users):
     oid = org_with_users["org_id"]
     _enable_emails(oid)
     db = SessionLocal()
-    org = db.query(Organization).get(oid)
+    org = db.get(Organization, oid)
     org.employee_count = 200
     db.commit()
     n = scan_compliance_reminders(db, today=date(2026, 11, 1))

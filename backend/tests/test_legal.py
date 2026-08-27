@@ -118,7 +118,7 @@ def test_register_create_and_permissions(client, org_with_users):
 
 def test_protection_members_and_candidates(client, org_with_users):
     db = SessionLocal()
-    org = db.query(Organization).get(org_with_users["org_id"])
+    org = db.get(Organization, org_with_users["org_id"])
     org.mandate_end_date = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=60)
     db.commit()
     db.close()

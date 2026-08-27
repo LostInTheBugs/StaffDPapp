@@ -103,7 +103,7 @@ def test_eco_report_status_by_headcount(client, org_with_users):
 
     # passage ≥150 → due, puis ok avec 2 événements de l'année
     db = SessionLocal()
-    org = db.query(Organization).get(org_with_users["org_id"])
+    org = db.get(Organization, org_with_users["org_id"])
     org.employee_count = 200
     db.commit()
     db.close()
@@ -119,7 +119,7 @@ def test_eco_report_status_by_headcount(client, org_with_users):
 
     # événement de l'année dernière ne compte pas
     db = SessionLocal()
-    org = db.query(Organization).get(org_with_users["org_id"])
+    org = db.get(Organization, org_with_users["org_id"])
     org.employee_count = 15
     db.commit()
     db.close()
