@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.08.032] — 2026-08-27 (stable)
+
+### Performance & test infrastructure
+
+- **⚙️ Configurable bcrypt cost factor**: `hash_password()` reads the `SD_BCRYPT_ROUNDS` environment variable (default **12** — production behaviour unchanged; the level lives in the salt, so `verify_password()` honours it). The dev test harness runs at 4, cutting the full backend suite from ~8 min 22 s to ~3 min 23 s (−61 %). No production configuration change.
+- **🧪 Test modernization**: the 13 legacy `db.query(Model).get(id)` call sites in the backend tests are now SQLAlchemy 2.0 `db.get(Model, id)` — zero `LegacyAPIWarning` (full suite: 327 passed, 2 pre-existing FastAPI `on_event` deprecation warnings).
+
+
 ## [2026.08.031-pre] — 2026-08-24 (test pre-release)
 
 ### Security hardening — 13 fixes from the August 2026 review (durcissement sécurité)
