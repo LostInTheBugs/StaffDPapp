@@ -24,3 +24,30 @@ def test_scan_reminders_script_is_idempotent(client):
     mod = _load_script()
     assert mod.main() == 0
     assert mod.main() == 0
+
+
+def test_purge_expired_jwt_revocations(db):
+    """Purge du cron : les révocabations JWT > 48 h partent, les récentes restent.
+
+    Un jti ne sert plus rien passé l'expiration du jeton (24 h max) — sans
+    purge, jwt_revocations croît d'une ligne par logout, indéfiniment."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.models.jwt_revocation import JwtRevocation
+    from tests.helpers import create_org, create_user
+
+    mod = _load_script()
+    org = create_org(db)
+    user = create_user(db, "purge@example.org", "Passw0rd!", org.id)
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.add(JwtRevocation(user_id=user.id, jti="jti-72h", revoked_at=now - timedelta(hours=72)))
+    db.add(JwtRevocation(user_id=user.id, jti="jti-50h", revoked_at=now - timedelta(hours=50)))
+    db.add(JwtRevocation(user_id=user.id, jti="jti-1h", revoked_at=now - timedelta(hours=1)))
+    db.commit()
+
+    assert mod.purge_expired_revocations(db) == 2
+    assert {r.jti for r in db.query(JwtRevocation).all()} == {"jti-1h"}
+
+    # Idempotence : rien à purger au second passage
+    assert mod.purge_expired_revocations(db) == 0
